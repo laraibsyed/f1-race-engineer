@@ -1,0 +1,65 @@
+{
+    "2018": {
+        "mandatory_dry_compounds": 2,
+        "total_sets_allocated": 13,
+        "wet_race_exception": true,
+        "q2_start_tyre_rule": false,
+        "source_article": "24"
+    },
+    "2019": {
+        "mandatory_dry_compounds": 2,
+        "total_sets_allocated": 13,
+        "wet_race_exception": false,
+        "q2_start_tyre_rule": false,
+        "source_article": "24"
+    },
+    "2020": {
+        "mandatory_dry_compounds": 2,
+        "total_sets_allocated": 2,
+        "wet_race_exception": true,
+        "q2_start_tyre_rule": true,
+        "source_article": "24"
+    },
+    "2021": {
+        "mandatory_dry_compounds": 2,
+        "total_sets_allocated": 2,
+        "wet_race_exception": true,
+        "q2_start_tyre_rule": true,
+        "source_article": "24"
+    },
+    "2022": {
+        "mandatory_dry_compounds": 2,
+        "total_sets_allocated": 2,
+        "wet_race_exception": true,
+        "q2_start_tyre_rule": false,
+        "source_article": "30"
+    },
+    "2023": {
+        "mandatory_dry_compounds": 2,
+        "total_sets_allocated": 2,
+        "wet_race_exception": true,
+        "q2_start_tyre_rule": false,
+        "source_article": "30"
+    },
+    "2024": {
+        "mandatory_dry_compounds": 2,
+        "total_sets_allocated": 2,
+        "wet_race_exception": true,
+        "q2_start_tyre_rule": false,
+        "source_article": "30"
+    },
+    "2025": {
+        "mandatory_dry_compounds": 2,
+        "total_sets_allocated": 2,
+        "wet_race_exception": false,
+        "q2_start_tyre_rule": false,
+        "source_article": "30"
+    },
+    "2026": {
+        "mandatory_dry_compounds": 0,
+        "total_sets_allocated": 0,
+        "wet_race_exception": false,
+        "q2_start_tyre_rule": false,
+        "source_article": "B6.1"
+    }
+}
