@@ -27,9 +27,7 @@ def text_to_int(text):
     clean_text = re.sub(r"[()]", "", text).lower()
     return mapping.get(clean_text, 0)
 
-# ---------------------------------------------------------
-# 3. PARSER
-# ---------------------------------------------------------
+
 def parse_regulations(year, file_path):
     print(f"\n📚 Parsing Year: {year}...")
     
@@ -69,9 +67,6 @@ def parse_regulations(year, file_path):
     
     return articles
 
-# ---------------------------------------------------------
-# 4. SEEKER
-# ---------------------------------------------------------
 def find_tyre_article_id(articles_dict):
     keywords = ["supply of tyres", "quantity of tyres", "use of tyres"]
     for art_id, content in articles_dict.items():
@@ -80,9 +75,6 @@ def find_tyre_article_id(articles_dict):
             return art_id
     return None
 
-# ---------------------------------------------------------
-# 5. EXTRACTOR (MULTI-STRATEGY)
-# ---------------------------------------------------------
 def extract_tyre_data(article_text):
     data = {
         "mandatory_dry_compounds": 0,
@@ -128,9 +120,6 @@ def extract_tyre_data(article_text):
         
     return data
 
-# ---------------------------------------------------------
-# 6. EXECUTION
-# ---------------------------------------------------------
 full_database = {}
 print("\n🚀 Starting Universal F1 Scraper V3.0...")
 
