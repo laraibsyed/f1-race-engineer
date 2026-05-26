@@ -1,1 +1,5 @@
 venv/
+.env
+service-account.json
+raw/
+.claude
