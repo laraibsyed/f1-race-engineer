@@ -1,0 +1,180 @@
+{
+  "_meta": {
+    "description": "F1 soft rules — contextual constraints that shape strategy recommendations without making them outright illegal. These are not hard feasibility gates like tyre set counts. They are policy modifiers, weighted penalties, and behavioural guardrails encoded in your MDP reward function and action filter.",
+    "applies_to_years": "2018–2026",
+    "year_over_year_diffs": "See f1_regulation_diffs.json for changes per season.",
+    "how_to_use": "Hard rules (f1_tyre_constraints.json) make strategies illegal = discard. Soft rules make strategies costly, risky, or lower priority = penalise reward, not discard."
+  },
+
+  "parc_ferme": {
+    "_note": "Parc fermé means the car is sealed. Strategy must adapt to the car — not the other way around. Your model cannot assume setup fixes between sessions.",
+    "standard_weekend_starts_after": "Q1_begin",
+    "sprint_weekend_starts_after": "sprint_qualifying_end",
+    "setup_changes_permitted": false,
+    "front_wing_adjustment_at_pitstop": true,
+    "damage_repairs_permitted": true,
+    "component_swaps_permitted_with_grid_penalty": [
+      "engine", "gearbox", "MGU-H", "MGU-K", "energy_store", "control_electronics", "turbocharger"
+    ],
+    "strategy_implications": {
+      "cannot_fix_tyre_deg_with_setup": true,
+      "cannot_adjust_aero_balance_mid_race": true,
+      "front_wing_change_is_only_aero_lever": true,
+      "mdp_action": "Remove any action that assumes car characteristic changes between qualifying and race"
+    }
+  },
+
+  "flags": {
+    "_note": "Flags are hard constraints during the race. Violating them generates penalties that corrupt outcome evaluation. Your model must treat flag states as environment states, not optional inputs.",
+
+    "blue_flag": {
+      "rule": "A lapped car must yield to a lead lap car within 3 waves of the blue flag",
+      "laps_to_comply": 3,
+      "penalty_for_non_compliance": "drive_through",
+      "strategy_implication": "When recommending holds or blocks, check if the target car is on lead lap. Blue flag blocking is not a legal strategy.",
+      "mdp_action": "Filter out any blocking recommendation where target car is 1+ laps ahead"
+    },
+
+    "yellow_flag": {
+      "rule": "No overtaking, must demonstrably reduce speed",
+      "overtaking_permitted": false,
+      "must_reduce_speed": true,
+      "penalty_for_overtaking": "position_surrender_or_time_penalty",
+      "strategy_implication": "Any position gain under yellow must be surrendered. Do not count yellow-flag overtakes as real gains.",
+      "mdp_action": "Suppress overtaking actions during yellow flag laps. Gap changes under yellow = 0 net gain."
+    },
+
+    "double_yellow_flag": {
+      "rule": "Must be prepared to stop — significant speed reduction required",
+      "overtaking_permitted": false,
+      "pit_entry_permitted": true,
+      "strategy_implication": "Doubles often precede SC deployment. Treat as elevated SC probability signal.",
+      "mdp_action": "Increase SC probability weight when double yellow detected"
+    },
+
+    "red_flag": {
+      "rule": "Race suspended. Cars return to pit lane or grid depending on stage.",
+      "gaps_reset": true,
+      "tyre_usage_resets": false,
+      "tyre_change_permitted_at_red_flag": true,
+      "laps_completed_count_toward_minimum": true,
+      "strategy_implication": "Red flag is a free pit stop opportunity but does NOT reset tyre compound usage obligation. A driver who has already used two compounds still satisfies the mandatory rule post-red flag.",
+      "mdp_action": "On red flag: allow tyre change, reset gap state, preserve tyre compound history"
+    },
+
+    "vsc": {
+      "rule": "Virtual Safety Car — all cars must stay above a minimum delta time per sector",
+      "overtaking_permitted": false,
+      "pit_entry_permitted": true,
+      "delta_enforced": true,
+      "pit_time_cost_vs_sc": "higher than SC — less field compression means less free time in pit lane",
+      "strategy_implication": "VSC maths is stricter than SC. Pitting under VSC is only beneficial if pit lane time loss < gap to car behind. Model separately from SC.",
+      "mdp_action": "Under VSC: calculate pit delta using VSC-adjusted lap time, not SC lap time. No gap changes permitted."
+    },
+
+    "safety_car": {
+      "rule": "Physical safety car deployed — field compresses behind SC",
+      "overtaking_permitted": false,
+      "pit_entry_permitted": true,
+      "field_compression": true,
+      "pit_cost_reduction": "significant — effective pit loss ~5–10s vs ~20–25s in green flag",
+      "restart_no_overtake_before": "control_line",
+      "strategy_implication": "SC is the biggest free pit window. Nearly always worth pitting unless you are P1 with a large gap. Model the restart risk on cold tyres separately.",
+      "mdp_action": "Under SC: reduce pit time cost to circuit-specific SC delta. Treat restart lap as high-variance event."
+    }
+  },
+
+  "pit_execution": {
+    "_note": "These are physical constraints on the pit stop action itself — not strategy choices.",
+    "one_pit_box_per_team": true,
+    "double_stack_permitted": true,
+    "double_stack_additional_time_seconds": 5,
+    "unsafe_release_penalty": "time_penalty_or_drive_through",
+    "pit_lane_speed_limit_kmh": 80,
+    "pit_lane_speed_limit_monaco_kmh": 60,
+    "strategy_implication": "Two cars cannot pit simultaneously without time loss. Never assume zero variance on pit stop execution.",
+    "mdp_action": "When both drivers pit same lap: add double_stack_additional_time_seconds to second car's pit cost. Apply circuit-specific speed limit to pit delta calculation."
+  },
+
+  "driver_conduct": {
+    "_note": "These rules constrain what your model can recommend in terms of defensive and offensive driving. Recommending illegal conduct = invalid strategy.",
+
+    "defensive_moves": {
+      "max_moves_to_defend": 1,
+      "weaving_prohibited": true,
+      "blocking_in_braking_zone_prohibited": true,
+      "strategy_implication": "One defensive move is legal. Recommending sustained weaving or brake-zone blocking is illegal and will generate a penalty.",
+      "mdp_action": "Defensive hold recommendations must specify single-move — cannot recommend repeated blocks"
+    },
+
+    "track_limits": {
+      "rule": "Cars must stay within white lines. Repeated violations trigger investigation.",
+      "lap_time_deleted_if_exceeded": true,
+      "repeated_violations_penalty": "time_penalty",
+      "strategy_implication": "Lap times set outside track limits will be deleted. Do not use track-limits-assisted lap times as pace benchmarks.",
+      "mdp_action": "Flag laps with track limit violations in pace data — exclude from degradation model inputs"
+    },
+
+    "overtaking_under_sc_vsc": {
+      "permitted": false,
+      "exception": "car_in_pits",
+      "mdp_action": "Zero position change allowed during SC/VSC laps except via pit sequencing"
+    }
+  },
+
+  "team_orders": {
+    "_note": "Team orders are legal but bounded. Your model CAN recommend them. It must NOT recommend dangerous or illegal variants.",
+    "permitted": true,
+    "swap_positions_permitted": true,
+    "driver_must_comply_if_safe": true,
+    "dangerous_orders_prohibited": true,
+    "championship_manipulation_prohibited": true,
+    "strategy_implication": "Team orders are a legitimate tool for maximising Driver 1 outcome at cost to Driver 2. Model as asymmetric reward: Driver 1 utility > Driver 2 utility when championship gap justifies it.",
+    "mdp_action": "Team order actions available: [hold_position, swap_positions, use_as_blocker, use_as_weather_probe]. All subject to: no dangerous execution, no illegal championship fixing.",
+    "when_to_recommend": {
+      "swap": "Driver 2 ahead of Driver 1 on track, Driver 1 faster on current tyres",
+      "hold": "Driver 2 protecting Driver 1 from undercut threat",
+      "blocker": "Driver 2 holding rival to extend Driver 1 gap",
+      "probe": "Driver 2 pits early to test weather crossover or rival reaction"
+    }
+  },
+
+  "penalties": {
+    "_note": "Penalties affect outcome evaluation. A car in P3 with a 10s pending penalty is actually P4 or P5. Your model must correct for this.",
+    "types": {
+      "time_penalty_5s": {
+        "applied": "added to race time at finish",
+        "triggers": ["unsafe_release", "minor_rule_breach", "track_limits_repeated"]
+      },
+      "time_penalty_10s": {
+        "applied": "added to race time at finish",
+        "triggers": ["more_serious_breach", "collision_fault"]
+      },
+      "drive_through": {
+        "time_loss_seconds_approx": 25,
+        "must_be_served_within_laps": 3,
+        "triggers": ["blue_flag_non_compliance", "pit_lane_speeding", "jump_start"]
+      },
+      "stop_go_10s": {
+        "time_loss_seconds_approx": 35,
+        "car_must_stop_stationary": true,
+        "triggers": ["serious_breach"]
+      },
+      "grid_penalty": {
+        "types": ["5_place", "10_place", "back_of_grid"],
+        "triggers": ["engine_component_change", "gearbox_change_within_6_races", "causing_collision"]
+      }
+    },
+    "mdp_action": "Maintain pending_penalty state per driver. Adjust effective position in outcome evaluation. When drive-through must be served, model as forced pit stop with 25s loss."
+  },
+
+  "race_status": {
+    "_note": "Race status is an environment state your model must react to, not predict (that's the Bayesian layer). These are the rules for each state.",
+    "states": ["green", "yellow", "double_yellow", "vsc", "safety_car", "red_flag", "suspended", "finished"],
+    "mandatory_tyre_rule_applies_in": ["green"],
+    "mandatory_tyre_rule_void_in": ["red_flag_restart_if_wet", "declared_wet_race"],
+    "gaps_preserved_across": ["yellow", "double_yellow", "vsc", "safety_car"],
+    "gaps_reset_in": ["red_flag"],
+    "mdp_action": "Race status is an input state variable. Strategy action space changes per state. Illegal actions per state must be masked before evaluation."
+  }
+}
