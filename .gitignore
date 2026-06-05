@@ -3,3 +3,5 @@ venv/
 service-account.json
 raw/
 .claude
+requirements.txt
+fastf1_cache

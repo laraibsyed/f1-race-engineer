@@ -1,0 +1,265 @@
+{
+  "_meta": {
+    "description": "Year-over-year regulation changes that affect strategy logic. Only changes that materially impact your MDP are listed — cosmetic rewordings and administrative changes are excluded. Each entry describes what changed, why it matters to your system, and which file/field it overrides or extends.",
+    "how_to_use": "Load this alongside f1_tyre_constraints.json and f1_soft_rules.json. When simulating a historical race, apply the diffs for that year on top of the base soft rules. Your system should index by year before each simulation.",
+    "base_rules_file": "f1_soft_rules.json",
+    "tyre_constraints_file": "f1_tyre_constraints.json"
+  },
+
+  "2018": {
+    "_summary": "Baseline year. No significant strategy-relevant changes from 2017 that affect your 2018–2026 scope.",
+    "q2_tyre_rule": {
+      "active": true,
+      "description": "Top 10 qualifiers must start the race on the tyre used to set their fastest Q2 lap time.",
+      "strategy_impact": "Teams in Q3 often deliberately use medium or hard in Q2 to avoid starting on softs. Do not assume all top-10 cars start on the softest compound.",
+      "mdp_action": "Check Q2 tyre compound per driver before assigning race start compound. Soft assumption is not valid for Q3 runners."
+    },
+    "parc_ferme": {
+      "starts_after": "Q1_begin",
+      "sprint_weekend": false
+    },
+    "tyre_compound_range": {
+      "note": "7 compound range in 2018 (Hypersoft to Superhard). Pirelli selects 3 per race. Does not affect set counts."
+    }
+  },
+
+  "2019": {
+    "_summary": "Teams could choose their own compound breakdown within the 13-set allocation. Strategic impact on compound distribution.",
+    "q2_tyre_rule": {
+      "active": true,
+      "description": "Same as 2018."
+    },
+    "compound_selection": {
+      "team_chosen": true,
+      "description": "Unlike 2020+, teams in 2019 chose how many sets of each compound they received. E.g. one team might take 1 hard / 4 medium / 8 soft while another takes 0 hard / 3 medium / 10 soft.",
+      "strategy_impact": "You cannot assume a fixed 2H/3M/8S breakdown for 2019. Compound availability varies per team per race.",
+      "mdp_action": "For 2019 historical simulations, load the actual per-team compound selection from FastF1 data rather than assuming the fixed allocation."
+    },
+    "parc_ferme": {
+      "starts_after": "Q1_begin",
+      "sprint_weekend": false
+    }
+  },
+
+  "2020": {
+    "_summary": "Fixed tyre allocation introduced due to COVID-19 pandemic. Teams no longer choose compound breakdown.",
+    "q2_tyre_rule": {
+      "active": true,
+      "description": "Proposal to drop Q2 rule for 2020 failed to get unanimous team agreement — rule stayed.",
+      "note": "At least one team blocked the change. Do not incorrectly set this to false for 2020."
+    },
+    "compound_selection": {
+      "team_chosen": false,
+      "fixed_allocation": true,
+      "description": "Pirelli sets the allocation for all teams — same breakdown for every driver. Teams no longer choose.",
+      "strategy_impact": "From 2020 onwards you can safely assume the published fixed allocation (2H/3M/8S for standard GPs). Eliminates team compound-choice as a strategic variable.",
+      "mdp_action": "Use fixed compound breakdown from f1_tyre_constraints.json for 2020+. No need to query per-team selection."
+    },
+    "parc_ferme": {
+      "starts_after": "Q1_begin",
+      "sprint_weekend": false
+    }
+  },
+
+  "2021": {
+    "_summary": "Sprint qualifying introduced mid-season. Q2 rule still active. Parc fermé trigger differs on sprint weekends.",
+    "q2_tyre_rule": {
+      "active": true,
+      "description": "Still active for 2021. Dropped at end of season for 2022 onwards.",
+      "sprint_weekend_exception": "Q2 rule does NOT apply on sprint weekends in 2021 — drivers have free tyre choice for the race start.",
+      "mdp_action": "On sprint weekends in 2021: no Q2 tyre constraint on race start compound. On standard weekends: Q2 rule applies."
+    },
+    "sprint_format": {
+      "introduced": true,
+      "sprint_qualifying_replaces": "one free practice session",
+      "races_with_sprint": 3,
+      "parc_ferme_trigger": "sprint_qualifying_end",
+      "description": "Sprint qualifying sets the grid for the sprint race. Sprint result sets the grid for the GP. Parc fermé begins after sprint qualifying ends.",
+      "strategy_impact": "On sprint weekends: 12 dry sets instead of 13. Tyre strategy for both sprint and GP must fit within the reduced allocation.",
+      "mdp_action": "Detect sprint weekend flag. Switch to sprint allocation from f1_tyre_constraints.json. Parc fermé applies from end of sprint qualifying, not Q1."
+    },
+    "quali_engine_modes": {
+      "banned": true,
+      "description": "FIA banned the use of special high-power qualifying engine modes from 2021. All sessions must use the same power unit mode.",
+      "strategy_impact": "Qualifying pace gap between teams narrowed slightly. Does not directly affect race strategy logic but affects pace benchmarks.",
+      "mdp_action": "No direct encoding needed — affects pace model inputs, not constraint logic."
+    },
+    "parc_ferme": {
+      "standard_weekend": "Q1_begin",
+      "sprint_weekend": "sprint_qualifying_end"
+    }
+  },
+
+  "2022": {
+    "_summary": "Major regulation reset. New technical regs (18-inch wheels, ground effect aero). Q2 rule dropped. Parc fermé sprint trigger continues.",
+    "q2_tyre_rule": {
+      "active": false,
+      "description": "Scrapped from 2022 onwards. All drivers have free tyre choice for race start regardless of qualifying position.",
+      "strategy_impact": "Top-10 starters no longer locked into Q2 compound. Expect more strategic variety on race starts — softs not guaranteed for P1-10.",
+      "mdp_action": "Remove Q2 compound constraint from race start state. All positions have free compound choice."
+    },
+    "sprint_format": {
+      "active": true,
+      "races_with_sprint": 3,
+      "parc_ferme_trigger": "sprint_qualifying_end",
+      "note": "Same structure as 2021 sprint weekends."
+    },
+    "technical_regulations": {
+      "major_reset": true,
+      "wheel_size": "18_inch",
+      "aero_concept": "ground_effect",
+      "tyre_construction": "new_low_profile",
+      "strategy_impact": "New tyre construction changes degradation behaviour significantly vs 2021. Do not use 2021 degradation models for 2022 races.",
+      "mdp_action": "Treat 2022 as a new degradation baseline. Historical training data from 2021 should not be used for 2022+ degradation regression."
+    },
+    "parc_ferme": {
+      "standard_weekend": "Q1_begin",
+      "sprint_weekend": "sprint_qualifying_end"
+    }
+  },
+
+  "2023": {
+    "_summary": "Sprint format restructured — Sprint Shootout replaces Sprint Qualifying. Functionally similar but renamed sessions.",
+    "q2_tyre_rule": {
+      "active": false
+    },
+    "sprint_format": {
+      "active": true,
+      "races_with_sprint": 6,
+      "sprint_shootout_replaces_sprint_qualifying": true,
+      "parc_ferme_trigger": "sprint_shootout_end",
+      "compound_rules_in_shootout": {
+        "SQ1": "any",
+        "SQ2": "any",
+        "SQ3": "any",
+        "note": "Unlike 2024+, no mandatory compound rules per shootout segment in 2023."
+      },
+      "strategy_impact": "6 sprint weekends in 2023 vs 3 in 2021/2022 — more races where you need sprint allocation logic.",
+      "mdp_action": "Parc fermé trigger renamed but functionally identical. Update session name reference if using API session labels."
+    },
+    "alternative_tyre_allocation": {
+      "trialled": true,
+      "description": "FIA trialled a reduced 11-set allocation (instead of 13) at 2 races in 2023 with different mandatory compound rules per qualifying segment.",
+      "races_affected": 2,
+      "dry_sets": 11,
+      "mandatory_q1_compound": "hard",
+      "mandatory_q2_compound": "medium",
+      "mandatory_q3_compound": "soft",
+      "strategy_impact": "At these 2 races, standard allocation assumptions are wrong. Qualifying tyre strategy is also constrained per segment.",
+      "mdp_action": "Flag the 2 ATA races in your race metadata. Apply 11-set allocation and mandatory qualifying compound rules for those events only."
+    },
+    "parc_ferme": {
+      "standard_weekend": "Q1_begin",
+      "sprint_weekend": "sprint_shootout_end"
+    }
+  },
+
+  "2024": {
+    "_summary": "Wet tyre allocation restructured (5 inter / 2 wet vs 4/3 previously). Sprint shootout gets mandatory compounds per segment.",
+    "q2_tyre_rule": {
+      "active": false
+    },
+    "tyre_allocation_change": {
+      "description": "Intermediate sets increased from 4 to 5. Full wet sets decreased from 3 to 2. Confirmed mid-2024 after Japan controversy.",
+      "intermediate_sets_standard": 5,
+      "wet_sets_standard": 2,
+      "monaco_exception": "Monaco retains 3 wet sets regardless.",
+      "reason": "Teams no longer need to return an intermediate set after Friday use — the extra set compensates. Side effect: teams conserved inters on Friday, causing the Suzuka FP2 controversy.",
+      "mdp_action": "Load 2024+ tyre allocation from f1_tyre_constraints.json. Do not use 2023 inter/wet counts for 2024+ simulations."
+    },
+    "sprint_shootout_compounds": {
+      "mandatory_sq1": "medium_new",
+      "mandatory_sq2": "medium_new",
+      "mandatory_sq3": "soft_new",
+      "description": "From 2024, mandatory new compounds per sprint shootout segment introduced.",
+      "strategy_impact": "Compound usage in sprint shootout is now regulated — affects how many sets of each compound remain for sprint race and GP.",
+      "mdp_action": "Deduct one new medium set (SQ1+SQ2) and one new soft set (SQ3) from sprint weekend allocation when simulating 2024+ sprint weekends."
+    },
+    "sprint_format": {
+      "active": true,
+      "races_with_sprint": 6,
+      "parc_ferme_trigger": "sprint_shootout_end"
+    },
+    "parc_ferme": {
+      "standard_weekend": "Q1_begin",
+      "sprint_weekend": "sprint_shootout_end"
+    }
+  },
+
+  "2025": {
+    "_summary": "Monaco mandatory two-stop rule introduced. Tyre allocation same as 2024. Sprint format continues.",
+    "q2_tyre_rule": {
+      "active": false
+    },
+    "monaco_two_stop_rule": {
+      "active": true,
+      "description": "Each driver must use at least three sets of tyres (two different compounds if dry) during the Monaco GP. Introduced after the 2024 Monaco race where a red flag allowed a zero-stop race.",
+      "mandatory_tyre_sets_monaco": 3,
+      "mandatory_compounds_if_dry": 2,
+      "extra_wet_set_monaco": 1,
+      "strategy_impact": "Monaco is no longer a potential one-stop or zero-stop race. Minimum two pit stops required. Significantly changes Monaco strategy.",
+      "mdp_action": "For Monaco 2025: set minimum_pit_stops = 2. Mandatory tyre sets = 3. Apply before evaluating any Monaco strategy."
+    },
+    "sprint_format": {
+      "active": true,
+      "races_with_sprint": 6,
+      "parc_ferme_trigger": "sprint_shootout_end",
+      "mandatory_sq1": "medium_new",
+      "mandatory_sq2": "medium_new",
+      "mandatory_sq3": "soft_new"
+    },
+    "tyre_allocation": {
+      "note": "Same as 2024. See f1_tyre_constraints.json."
+    },
+    "parc_ferme": {
+      "standard_weekend": "Q1_begin",
+      "sprint_weekend": "sprint_shootout_end"
+    }
+  },
+
+  "2026": {
+    "_summary": "Full regulation reset. New power unit (more electrical, less fuel), narrower cars, active aero. Tyre allocation returns to 4 inter / 3 wet. Monaco two-stop rule dropped. Q3 duration extended to 13 minutes.",
+    "q2_tyre_rule": {
+      "active": false
+    },
+    "technical_regulations": {
+      "major_reset": true,
+      "power_unit": "increased_electrical_deployment",
+      "aero": "active_aero_moveable_bodywork",
+      "car_width": "narrower",
+      "strategy_impact": "New car concept means all pre-2026 degradation and pace models are invalid for 2026. Treat as a new baseline.",
+      "mdp_action": "Do not use 2022–2025 degradation regression outputs for 2026 simulations. Require 2026-specific training data."
+    },
+    "tyre_allocation_change": {
+      "description": "Returns to 4 intermediate sets and 3 full wet sets — same as pre-2024. Confirmed by Mercedes Australia race notes.",
+      "intermediate_sets_standard": 4,
+      "wet_sets_standard": 3,
+      "mdp_action": "Load 2026 tyre allocation from f1_tyre_constraints.json. Do not carry over 2024/2025 inter/wet counts."
+    },
+    "monaco_two_stop_rule": {
+      "active": false,
+      "description": "FIA dropped the Monaco mandatory two-stop rule for 2026. Standard two-compound rule applies.",
+      "mdp_action": "Monaco 2026 uses standard mandatory_dry_compounds: 2 rule. No minimum pit stop count."
+    },
+    "qualifying_format": {
+      "q3_duration_minutes": 13,
+      "previous_q3_duration_minutes": 12,
+      "q2_q3_break_minutes": 7,
+      "previous_q2_q3_break_minutes": 8,
+      "grid_size": 22,
+      "cadillac_joined": true,
+      "eliminations_q1": 6,
+      "eliminations_q2": 6,
+      "strategy_impact": "Slightly longer Q3 — marginal effect on tyre usage. Grid of 22 means more cars in Q1/Q2 elimination.",
+      "mdp_action": "No direct race strategy impact. Update grid size to 22 for 2026 simulations."
+    },
+    "sprint_format": {
+      "active": true,
+      "parc_ferme_trigger": "sprint_shootout_end"
+    },
+    "parc_ferme": {
+      "standard_weekend": "Q1_begin",
+      "sprint_weekend": "sprint_shootout_end"
+    }
+  }
+}
