@@ -4,14 +4,20 @@ from google.cloud import storage
 from dotenv import load_dotenv
 import re
 import io
+import time
 
 load_dotenv()
 
 # --- CONFIG ---
 BUCKET_NAME = "f1-race-engineer-bucket"
 CACHE_DIR = "data\\raw"
-YEAR = 2020
+YEARS = range(2025, 2027)
 SESSIONS = ["FP1", "FP2", "FP3", "Q", "R"]
+
+PAUSE_BETWEEN_SESSIONS = 1
+PAUSE_BETWEEN_ROUNDS = 10
+PAUSE_BETWEEN_YEARS = 60
+
 failed_sessions = []
 
 fastf1.Cache.enable_cache(CACHE_DIR)
@@ -23,72 +29,87 @@ def sanitise_name(name):
     name = re.sub(r"[^\w]", "", name)
     return name
 
-def get_telemetry_df(session):
-    all_telemetry = []
-    for _, lap in session.laps.iterlaps():
-        try:
-            telemetry = lap.get_telemetry()
-            telemetry["Driver"] = lap["Driver"]
-            telemetry["LapNumber"] = lap["LapNumber"]
-            all_telemetry.append(telemetry)
-        except Exception as e:
-            print(f"Telemetry failed for {lap['Driver']} lap {lap['LapNumber']}: {e}")
-            continue
-    if all_telemetry:
-        return pd.concat(all_telemetry, ignore_index=True)
-    return pd.DataFrame()
-
 def upload_df_to_gcs(df, gcs_path):
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
     blob = bucket.blob(gcs_path)
     blob.upload_from_string(buffer.getvalue(), content_type="text/csv")
-    print(f"Uploaded: {gcs_path}")
+    print(f"  Uploaded: {gcs_path}")
+
+def blob_exists(gcs_path):
+    return bucket.blob(gcs_path).exists()
 
 def download_session(year, round_num, session_name):
     session = fastf1.get_session(year, round_num, session_name)
+
+    # Build path before loading — get_session() already has event metadata
+    event_name = sanitise_name(session.event["EventName"])
+    base_path = f"raw/fastf1/{year}/{event_name}/{session_name}"
+
+    # Check GCS FIRST — skip download entirely if already there
+    if blob_exists(f"{base_path}/laps.csv"):
+        print(f"  Already exists, skipping: {base_path}")
+        return
+
+    # Only load if we actually need to
     session.load(
-        telemetry=(session_name in ["Q", "R"] and year >= 2020),
+        telemetry=False,
         weather=True,
         laps=True,
         messages=True
     )
 
-    event_name = sanitise_name(session.event["EventName"])
-    base_path = f"{year}/{event_name}/{session_name}"
-
-    laps_df = session.laps
-    weather_df = session.weather_data
+    laps_df     = session.laps
+    weather_df  = session.weather_data
     messages_df = session.race_control_messages
-    results_df = session.results
+    results_df  = session.results
 
     if not laps_df.empty:
-        upload_df_to_gcs(laps_df, f"raw/fastf1/{base_path}/laps.csv")
+        upload_df_to_gcs(laps_df,     f"{base_path}/laps.csv")
     if not weather_df.empty:
-        upload_df_to_gcs(weather_df, f"raw/fastf1/{base_path}/weather.csv")
+        upload_df_to_gcs(weather_df,  f"{base_path}/weather.csv")
     if not messages_df.empty:
-        upload_df_to_gcs(messages_df, f"raw/fastf1/{base_path}/messages.csv")
+        upload_df_to_gcs(messages_df, f"{base_path}/messages.csv")
     if not results_df.empty:
-        upload_df_to_gcs(results_df, f"raw/fastf1/{base_path}/results.csv")
-
-    if session_name in ["Q", "R"] and year >= 2020:
-        telemetry_df = get_telemetry_df(session)
-        if not telemetry_df.empty:
-            upload_df_to_gcs(telemetry_df, f"raw/fastf1/{base_path}/telemetry.csv")
+        upload_df_to_gcs(results_df,  f"{base_path}/results.csv")
 
 # --- MAIN LOOP ---
-schedule = fastf1.get_event_schedule(YEAR)
-rounds = schedule[schedule['EventFormat'] != 'testing']['RoundNumber'].tolist()
+for year in YEARS:
+    print(f"\n{'='*50}")
+    print(f"  YEAR: {year}")
+    print(f"{'='*50}")
 
-for round_num in rounds:
-    for s in SESSIONS:
-        try:
-            download_session(YEAR, round_num, s)
-        except Exception as e:
-            print(f"Failed Year {YEAR} Round {round_num} {s}: {e}")
-            failed_sessions.append((YEAR, round_num, s, str(e)))
+    try:
+        schedule = fastf1.get_event_schedule(year)
+        rounds = schedule[schedule['EventFormat'] != 'testing']['RoundNumber'].tolist()
+    except Exception as e:
+        print(f"  Could not get schedule for {year}: {e}")
+        continue
 
+    for round_num in rounds:
+        print(f"\n  Round {round_num}")
+        for s in SESSIONS:
+            print(f"    -> {year} R{round_num} {s}")
+            try:
+                download_session(year, round_num, s)
+            except Exception as e:
+                print(f"    FAILED {year} R{round_num} {s}: {e}")
+                failed_sessions.append((year, round_num, s, str(e)))
+
+            print(f"    Pausing {PAUSE_BETWEEN_SESSIONS}s...")
+            time.sleep(PAUSE_BETWEEN_SESSIONS)
+
+        print(f"  Round done. Pausing {PAUSE_BETWEEN_ROUNDS}s before next round...")
+        time.sleep(PAUSE_BETWEEN_ROUNDS)
+
+    print(f"Year {year} done. Pausing {PAUSE_BETWEEN_YEARS}s before next year...")
+    time.sleep(PAUSE_BETWEEN_YEARS)
+
+# --- SUMMARY ---
+print(f"\n{'='*50}")
 if failed_sessions:
-    print("\n--- FAILED SESSIONS ---")
+    print("FAILED SESSIONS:")
     for f in failed_sessions:
-        print(f)
+        print(f"  {f}")
+else:
+    print("All sessions downloaded successfully!")
