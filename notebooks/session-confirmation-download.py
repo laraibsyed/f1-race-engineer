@@ -13,9 +13,9 @@ BUCKET_NAME = "f1-race-engineer-bucket"
 CACHE_DIR = "data\\raw"
 
 # --- SPECIFY WHAT TO DOWNLOAD ---
-YEAR = 2021
-ROUND = 19  # round number, or use event name string e.g. "Monaco Grand Prix"
-SESSIONS = ["FP1", "SQ", "S", "Q", "R"]
+YEAR = 2022
+ROUND = 11  # round number, or use event name string e.g. "Monaco Grand Prix"
+SESSIONS = ["FP1", "Q", "sprint", "R"]
 
 PAUSE_BETWEEN_SESSIONS = 1
 
