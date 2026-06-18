@@ -12,12 +12,12 @@ load_dotenv()
 BUCKET_NAME = "f1-race-engineer-bucket"
 CACHE_DIR = "data\\raw"
 
-# --- SPECIFY WHAT TO DOWNLOAD ---
-YEAR = 2022
-ROUND = 11  # round number, or use event name string e.g. "Monaco Grand Prix"
-SESSIONS = ["FP1", "Q", "sprint", "R"]
+YEAR = 2026
+SPRINT_ROUNDS = [2, 4, 5, 9]
+SESSIONS = ["FP1", "SQ", "S", "Q", "R"]  # 2023 sprint format
 
 PAUSE_BETWEEN_SESSIONS = 1
+PAUSE_BETWEEN_ROUNDS = 10
 
 failed_sessions = []
 
@@ -50,17 +50,42 @@ def download_session(year, round_num, session_name):
         print(f"  Already exists, skipping: {base_path}")
         return
 
-    session.load(
-        telemetry=False,
-        weather=True,
-        laps=True,
-        messages=True
-    )
+    try:
+        session.load(
+            telemetry=False,
+            weather=True,
+            laps=True,
+            messages=True
+        )
+    except Exception as e:
+        print(f"  Warning: full load failed ({e}), retrying without weather...")
+        session = fastf1.get_session(year, round_num, session_name)
+        session.load(
+            telemetry=False,
+            weather=False,
+            laps=True,
+            messages=True
+        )
 
-    laps_df     = session.laps
-    weather_df  = session.weather_data
-    messages_df = session.race_control_messages
-    results_df  = session.results
+    try:
+        laps_df = session.laps
+    except Exception:
+        laps_df = pd.DataFrame()
+
+    try:
+        weather_df = session.weather_data
+    except Exception:
+        weather_df = pd.DataFrame()
+
+    try:
+        messages_df = session.race_control_messages
+    except Exception:
+        messages_df = pd.DataFrame()
+
+    try:
+        results_df = session.results
+    except Exception:
+        results_df = pd.DataFrame()
 
     if not laps_df.empty:
         upload_df_to_gcs(laps_df,     f"{base_path}/laps.csv")
@@ -72,20 +97,24 @@ def download_session(year, round_num, session_name):
         upload_df_to_gcs(results_df,  f"{base_path}/results.csv")
 
 # --- MAIN ---
-print(f"\n{'='*50}")
-print(f"  Downloading: {YEAR} Round {ROUND}")
-print(f"{'='*50}")
+for round_num in SPRINT_ROUNDS:
+    print(f"\n{'='*50}")
+    print(f"  Downloading: {YEAR} Round {round_num}")
+    print(f"{'='*50}")
 
-for s in SESSIONS:
-    print(f"\n  -> {YEAR} R{ROUND} {s}")
-    try:
-        download_session(YEAR, ROUND, s)
-    except Exception as e:
-        print(f"  FAILED {YEAR} R{ROUND} {s}: {e}")
-        failed_sessions.append((YEAR, ROUND, s, str(e)))
+    for s in SESSIONS:
+        print(f"\n  -> {YEAR} R{round_num} {s}")
+        try:
+            download_session(YEAR, round_num, s)
+        except Exception as e:
+            print(f"  FAILED {YEAR} R{round_num} {s}: {e}")
+            failed_sessions.append((YEAR, round_num, s, str(e)))
 
-    print(f"  Pausing {PAUSE_BETWEEN_SESSIONS}s...")
-    time.sleep(PAUSE_BETWEEN_SESSIONS)
+        print(f"  Pausing {PAUSE_BETWEEN_SESSIONS}s...")
+        time.sleep(PAUSE_BETWEEN_SESSIONS)
+
+    print(f"  Round done. Pausing {PAUSE_BETWEEN_ROUNDS}s...")
+    time.sleep(PAUSE_BETWEEN_ROUNDS)
 
 # --- SUMMARY ---
 print(f"\n{'='*50}")
