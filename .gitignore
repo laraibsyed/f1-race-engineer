@@ -2,6 +2,7 @@ venv/
 .env
 service-account.json
 raw/
+tracinginsights/
 .claude
 requirements.txt
 fastf1_cache

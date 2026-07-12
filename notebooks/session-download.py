@@ -1,24 +1,13 @@
 import fastf1
-import pandas as pd
 from google.cloud import storage
 from dotenv import load_dotenv
 import re
-import io
-import time
 
 load_dotenv()
 
-# --- CONFIG ---
 BUCKET_NAME = "f1-race-engineer-bucket"
 CACHE_DIR = "data\\raw"
-YEARS = range(2025, 2027)
-SESSIONS = ["FP1", "FP2", "FP3", "Q", "R"]
-
-PAUSE_BETWEEN_SESSIONS = 1
-PAUSE_BETWEEN_ROUNDS = 10
-PAUSE_BETWEEN_YEARS = 60
-
-failed_sessions = []
+YEARS = range(2019, 2026)  # 2018-2025 only
 
 fastf1.Cache.enable_cache(CACHE_DIR)
 client = storage.Client()
@@ -29,51 +18,41 @@ def sanitise_name(name):
     name = re.sub(r"[^\w]", "", name)
     return name
 
-def upload_df_to_gcs(df, gcs_path):
-    buffer = io.StringIO()
-    df.to_csv(buffer, index=False)
-    blob = bucket.blob(gcs_path)
-    blob.upload_from_string(buffer.getvalue(), content_type="text/csv")
-    print(f"  Uploaded: {gcs_path}")
-
 def blob_exists(gcs_path):
     return bucket.blob(gcs_path).exists()
 
-def download_session(year, round_num, session_name):
-    session = fastf1.get_session(year, round_num, session_name)
+SESSION_NAME_MAP = {
+    "Practice 1": "FP1",
+    "Practice 2": "FP2",
+    "Practice 3": "FP3",
+    "Qualifying": "Q",
+    "Race": "R",
+    "Sprint Shootout": "SQ",
+    "Sprint Qualifying": "SQ",
+    # Sprint race name varies by year
+    "Sprint": "Sprint",   # 2021-2022 stored as "Sprint"
+    "Sprint Race": "S",   # if this appears
+}
 
-    # Build path before loading — get_session() already has event metadata
-    event_name = sanitise_name(session.event["EventName"])
-    base_path = f"raw/fastf1/{year}/{event_name}/{session_name}"
+def get_actual_sessions(year, round_num):
+    event = fastf1.get_event(year, round_num)
+    sessions = []
+    for i in range(1, 6):
+        session_name = event.get(f"Session{i}")
+        if session_name and str(session_name) not in (None, "None", ""):
+            short = SESSION_NAME_MAP.get(session_name)
+            if short:
+                sessions.append(short)
+            else:
+                print(f"  WARNING: Unknown session name '{session_name}' — add to map")
+    return sessions
 
-    # Check GCS FIRST — skip download entirely if already there
-    if blob_exists(f"{base_path}/laps.csv"):
-        print(f"  Already exists, skipping: {base_path}")
-        return
+EXPECTED_FILES = ["laps.csv", "results.csv", "weather.csv", "messages.csv"]
 
-    # Only load if we actually need to
-    session.load(
-        telemetry=False,
-        weather=True,
-        laps=True,
-        messages=True
-    )
+missing = []
+incomplete = []
+ok = []
 
-    laps_df     = session.laps
-    weather_df  = session.weather_data
-    messages_df = session.race_control_messages
-    results_df  = session.results
-
-    if not laps_df.empty:
-        upload_df_to_gcs(laps_df,     f"{base_path}/laps.csv")
-    if not weather_df.empty:
-        upload_df_to_gcs(weather_df,  f"{base_path}/weather.csv")
-    if not messages_df.empty:
-        upload_df_to_gcs(messages_df, f"{base_path}/messages.csv")
-    if not results_df.empty:
-        upload_df_to_gcs(results_df,  f"{base_path}/results.csv")
-
-# --- MAIN LOOP ---
 for year in YEARS:
     print(f"\n{'='*50}")
     print(f"  YEAR: {year}")
@@ -81,35 +60,59 @@ for year in YEARS:
 
     try:
         schedule = fastf1.get_event_schedule(year)
-        rounds = schedule[schedule['EventFormat'] != 'testing']['RoundNumber'].tolist()
+        events = schedule[schedule['EventFormat'] != 'testing']
     except Exception as e:
         print(f"  Could not get schedule for {year}: {e}")
         continue
 
-    for round_num in rounds:
-        print(f"\n  Round {round_num}")
-        for s in SESSIONS:
-            print(f"    -> {year} R{round_num} {s}")
-            try:
-                download_session(year, round_num, s)
-            except Exception as e:
-                print(f"    FAILED {year} R{round_num} {s}: {e}")
-                failed_sessions.append((year, round_num, s, str(e)))
+    for _, event in events.iterrows():
+        round_num = int(event['RoundNumber'])
+        event_name = sanitise_name(event['EventName'])
 
-            print(f"    Pausing {PAUSE_BETWEEN_SESSIONS}s...")
-            time.sleep(PAUSE_BETWEEN_SESSIONS)
+        try:
+            sessions = get_actual_sessions(year, round_num)
+        except Exception as e:
+            print(f"  Could not get sessions for {year} R{round_num}: {e}")
+            continue
 
-        print(f"  Round done. Pausing {PAUSE_BETWEEN_ROUNDS}s before next round...")
-        time.sleep(PAUSE_BETWEEN_ROUNDS)
+        print(f"\n  R{round_num:02d} {event_name} — sessions: {sessions}")
 
-    print(f"Year {year} done. Pausing {PAUSE_BETWEEN_YEARS}s before next year...")
-    time.sleep(PAUSE_BETWEEN_YEARS)
+        for s in sessions:
+            base_path = f"raw/fastf1/{year}/{event_name}/{s}"
+
+            missing_files = [f for f in EXPECTED_FILES if not blob_exists(f"{base_path}/{f}")]
+
+            if len(missing_files) == len(EXPECTED_FILES):
+                missing.append((year, round_num, event_name, s))
+                print(f"    ❌ MISSING:    {s}")
+            elif missing_files:
+                incomplete.append((year, round_num, event_name, s, missing_files))
+                print(f"    ⚠️  INCOMPLETE: {s} — missing {missing_files}")
+            else:
+                ok.append((year, round_num, event_name, s))
+                print(f"    ✅ OK:         {s}")
 
 # --- SUMMARY ---
 print(f"\n{'='*50}")
-if failed_sessions:
-    print("FAILED SESSIONS:")
-    for f in failed_sessions:
-        print(f"  {f}")
-else:
-    print("All sessions downloaded successfully!")
+print(f"  OK:         {len(ok)}")
+print(f"  INCOMPLETE: {len(incomplete)}")
+print(f"  MISSING:    {len(missing)}")
+print(f"{'='*50}")
+
+with open("gcs_audit.txt", "w") as f:
+    f.write(f"AUDIT RESULTS: 2018-2025\n")
+    f.write(f"{'='*50}\n")
+    f.write(f"OK:         {len(ok)}\n")
+    f.write(f"INCOMPLETE: {len(incomplete)}\n")
+    f.write(f"MISSING:    {len(missing)}\n")
+    f.write(f"{'='*50}\n\n")
+
+    f.write("--- MISSING (nothing uploaded) ---\n")
+    for item in missing:
+        f.write(f"{item[0]} R{item[1]:02d} | {item[2]:<40} | {item[3]}\n")
+
+    f.write("\n--- INCOMPLETE (some files missing) ---\n")
+    for item in incomplete:
+        f.write(f"{item[0]} R{item[1]:02d} | {item[2]:<40} | {item[3]} | missing: {item[4]}\n")
+
+print("\nAudit saved to gcs_audit.txt")

@@ -1,0 +1,45 @@
+AUDIT RESULTS: 2018-2025
+==================================================
+OK:         723
+INCOMPLETE: 3
+MISSING:    32
+==================================================
+
+--- MISSING (nothing uploaded) ---
+2019 R17 | Japanese_Grand_Prix                      | FP3
+2021 R10 | British_Grand_Prix                       | Sprint
+2021 R14 | Italian_Grand_Prix                       | Sprint
+2021 R15 | Russian_Grand_Prix                       | FP3
+2021 R19 | São_Paulo_Grand_Prix                     | Sprint
+2022 R04 | Emilia_Romagna_Grand_Prix                | Sprint
+2022 R11 | Austrian_Grand_Prix                      | Sprint
+2022 R21 | São_Paulo_Grand_Prix                     | Sprint
+2023 R04 | Azerbaijan_Grand_Prix                    | SQ
+2023 R04 | Azerbaijan_Grand_Prix                    | Sprint
+2023 R09 | Austrian_Grand_Prix                      | SQ
+2023 R09 | Austrian_Grand_Prix                      | Sprint
+2023 R12 | Belgian_Grand_Prix                       | SQ
+2023 R12 | Belgian_Grand_Prix                       | Sprint
+2023 R17 | Qatar_Grand_Prix                         | SQ
+2023 R17 | Qatar_Grand_Prix                         | Sprint
+2023 R18 | United_States_Grand_Prix                 | SQ
+2023 R18 | United_States_Grand_Prix                 | Sprint
+2023 R20 | São_Paulo_Grand_Prix                     | SQ
+2023 R20 | São_Paulo_Grand_Prix                     | Sprint
+2024 R05 | Chinese_Grand_Prix                       | Sprint
+2024 R06 | Miami_Grand_Prix                         | Sprint
+2024 R11 | Austrian_Grand_Prix                      | Sprint
+2024 R19 | United_States_Grand_Prix                 | Sprint
+2024 R21 | São_Paulo_Grand_Prix                     | Sprint
+2024 R23 | Qatar_Grand_Prix                         | Sprint
+2025 R02 | Chinese_Grand_Prix                       | Sprint
+2025 R06 | Miami_Grand_Prix                         | Sprint
+2025 R13 | Belgian_Grand_Prix                       | Sprint
+2025 R19 | United_States_Grand_Prix                 | Sprint
+2025 R21 | São_Paulo_Grand_Prix                     | Sprint
+2025 R23 | Qatar_Grand_Prix                         | Sprint
+
+--- INCOMPLETE (some files missing) ---
+2020 R02 | Styrian_Grand_Prix                       | FP3 | missing: ['laps.csv']
+2020 R11 | Eifel_Grand_Prix                         | FP1 | missing: ['laps.csv']
+2020 R11 | Eifel_Grand_Prix                         | FP2 | missing: ['laps.csv']
