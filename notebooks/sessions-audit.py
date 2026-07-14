@@ -10,7 +10,6 @@ load_dotenv()
 
 BUCKET_NAME = "f1-race-engineer-bucket"
 CACHE_DIR = "data\\raw"
-
 PAUSE_BETWEEN_SESSIONS = 10
 
 failed_sessions = []
@@ -19,15 +18,12 @@ fastf1.Cache.enable_cache(CACHE_DIR)
 client = storage.Client()
 bucket = client.bucket(BUCKET_NAME)
 
-# Only real missing sessions — sprints excluded (naming convention issue)
 TO_REDOWNLOAD = [
-    # Missing
     (2019, 17, "FP3"),
-    (2021, 15, "FP3"),
-    # Incomplete — force redownload
     (2020,  2, "FP3"),
     (2020, 11, "FP1"),
     (2020, 11, "FP2"),
+    (2021, 15, "FP3"),
 ]
 
 def sanitise_name(name):
@@ -48,63 +44,32 @@ def download_session(year, round_num, session_name):
     base_path = f"raw/fastf1/{year}/{event_name}/{session_name}"
 
     try:
-        session.load(
-            telemetry=False,
-            weather=True,
-            laps=True,
-            messages=True
-        )
+        session.load(telemetry=False, weather=True, laps=True, messages=True)
     except Exception as e:
         print(f"  Warning: full load failed ({e}), retrying without weather...")
         session = fastf1.get_session(year, round_num, session_name)
-        session.load(
-            telemetry=False,
-            weather=False,
-            laps=True,
-            messages=True
-        )
+        session.load(telemetry=False, weather=False, laps=True, messages=True)
 
-    try:
-        laps_df = session.laps
-    except Exception:
-        laps_df = pd.DataFrame()
-
-    try:
-        weather_df = session.weather_data
-    except Exception:
-        weather_df = pd.DataFrame()
-
-    try:
-        messages_df = session.race_control_messages
-    except Exception:
-        messages_df = pd.DataFrame()
-
-    try:
-        results_df = session.results
-    except Exception:
-        results_df = pd.DataFrame()
-
-    if not laps_df.empty:
-        upload_df_to_gcs(laps_df,     f"{base_path}/laps.csv")
-    if not weather_df.empty:
-        upload_df_to_gcs(weather_df,  f"{base_path}/weather.csv")
-    if not messages_df.empty:
-        upload_df_to_gcs(messages_df, f"{base_path}/messages.csv")
-    if not results_df.empty:
-        upload_df_to_gcs(results_df,  f"{base_path}/results.csv")
-
-# --- MAIN ---
-print(f"Redownloading {len(TO_REDOWNLOAD)} sessions...\n")
+    for attr, filename in [
+        ("laps",                "laps.csv"),
+        ("weather_data",        "weather.csv"),
+        ("race_control_messages", "messages.csv"),
+        ("results",             "results.csv"),
+    ]:
+        try:
+            df = getattr(session, attr)
+            if not df.empty:
+                upload_df_to_gcs(df, f"{base_path}/{filename}")
+        except Exception:
+            pass
 
 for year, round_num, session_name in TO_REDOWNLOAD:
-    print(f"  -> {year} R{round_num:02d} {session_name}")
+    print(f"\n  -> {year} R{round_num:02d} {session_name}")
     try:
         download_session(year, round_num, session_name)
     except Exception as e:
         print(f"  FAILED {year} R{round_num} {session_name}: {e}")
         failed_sessions.append((year, round_num, session_name, str(e)))
-
-    print(f"  Pausing {PAUSE_BETWEEN_SESSIONS}s...")
     time.sleep(PAUSE_BETWEEN_SESSIONS)
 
 print(f"\n{'='*50}")
@@ -113,4 +78,4 @@ if failed_sessions:
     for f in failed_sessions:
         print(f"  {f}")
 else:
-    print("All sessions redownloaded successfully!")
+    print("All done!")

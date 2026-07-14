@@ -1,3 +1,7 @@
+"""Downloads the team radios dataset from GCP bucket and saves it as a CSV file in the data/external/team-radios folder. Original
+dataset is in Parquet format, so we read it in chunks and append to a CSV file to avoid memory issues. The final CSV will contain all the transcriptions from the team radios dataset."""
+
+
 import pyarrow.parquet
 import pandas as pd
 from google.cloud import storage

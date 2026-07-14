@@ -1,15 +1,13 @@
 AUDIT RESULTS: 2018-2025
 ==================================================
 OK:         723
-INCOMPLETE: 3
-MISSING:    32
+INCOMPLETE: 5
+MISSING:    30
 ==================================================
 
 --- MISSING (nothing uploaded) ---
-2019 R17 | Japanese_Grand_Prix                      | FP3
 2021 R10 | British_Grand_Prix                       | Sprint
 2021 R14 | Italian_Grand_Prix                       | Sprint
-2021 R15 | Russian_Grand_Prix                       | FP3
 2021 R19 | São_Paulo_Grand_Prix                     | Sprint
 2022 R04 | Emilia_Romagna_Grand_Prix                | Sprint
 2022 R11 | Austrian_Grand_Prix                      | Sprint
@@ -40,6 +38,8 @@ MISSING:    32
 2025 R23 | Qatar_Grand_Prix                         | Sprint
 
 --- INCOMPLETE (some files missing) ---
+2019 R17 | Japanese_Grand_Prix                      | FP3 | missing: ['laps.csv', 'weather.csv', 'messages.csv']
 2020 R02 | Styrian_Grand_Prix                       | FP3 | missing: ['laps.csv']
 2020 R11 | Eifel_Grand_Prix                         | FP1 | missing: ['laps.csv']
 2020 R11 | Eifel_Grand_Prix                         | FP2 | missing: ['laps.csv']
+2021 R15 | Russian_Grand_Prix                       | FP3 | missing: ['laps.csv']
