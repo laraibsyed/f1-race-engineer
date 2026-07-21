@@ -1,0 +1,24 @@
+column,dtype,pct_null,range_or_unique_values,example_value
+time,float64,0.0,"min=0.0, max=159.298, mean=46.888",0.0
+rpm,float64,0.0,"min=3113.0, max=12744.0, mean=10203.214",10633.6
+speed,float64,0.0,"min=0.0, max=342.0, mean=200.196",222.33333333333334
+gear,int64,0.0,"min=1, max=8, mean=5.071",6
+throttle,float64,0.0,"min=0.0, max=104.0, mean=61.863",99.0
+brake,int64,0.0,"min=0, max=1, mean=0.208",0
+drs,int64,0.0,"min=0, max=1, mean=0.06",0
+distance,float64,0.0,"min=-4.509690290767608, max=5962.882782604895, mean=2578.839",0.2548722217628946
+rel_distance,float64,0.0,"min=-0.0008593947249233694, max=0.9999076962450636, mean=0.506",4.630368840598229e-05
+DriverAhead,object,0.0,27 unique values,None
+DistanceToDriverAhead,float64,0.0,"min=0.0086111111113496, max=493.4624999999985, mean=112.847",71.82861111111112
+acc_x,float64,0.0,"min=-79.82093338868226, max=21.093743744292258, mean=-0.003",4.770149783337393
+acc_y,float64,0.0,"min=-65.91664886424942, max=58.93334997541466, mean=-1.018",0.021548388099011124
+acc_z,float64,0.0,"min=-85.53873843035433, max=68.73960685678905, mean=-0.693",0.176564131083576
+x,float64,0.0,"min=-16920.0, max=7793.682477745764, mean=-1286.905",-3303.0630281986614
+y,float64,0.0,"min=-11187.192106797535, max=16097.515773096287, mean=2195.408",5891.186561701727
+z,float64,0.0,"min=-247.08993479042232, max=7848.225321295355, mean=2066.924",-236.79998972691448
+dataKey,object,0.0,54 unique values,2018-Abu Dhabi Grand Prix-Race-ALO-10
+year,object,0.0,"unique values: ['2018', '2019', '2020', '2021', '2022', '2023', '2024', '2025', '2026']",2018
+race,object,0.0,"unique values: ['70th Anniversary Grand Prix', 'Abu Dhabi Grand Prix', 'Australian Grand Prix', 'Austrian Grand Prix', 'Azerbaijan Grand Prix', 'Barcelona Grand Prix']",Abu Dhabi Grand Prix
+session,object,0.0,unique values: ['Race'],Race
+driver_code,object,0.0,"unique values: ['ALB', 'ALO']",ALO
+driver_number,object,0.0,"unique values: ['1', '10', '11', '2']",10

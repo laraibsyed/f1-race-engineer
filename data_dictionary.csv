@@ -1,0 +1,89 @@
+source,dataset,column,dtype,pct_null,range_or_unique_values,example_value,n_files_sampled,n_rows_sampled
+fastf1,laps,Time,object,0.0,12254 unique values (too many to list),0 days 00:17:00.879000,27,12268
+fastf1,laps,Driver,object,0.0,57 unique values (too many to list),VAN,27,12268
+fastf1,laps,DriverNumber,int64,0.0,"min=1, max=99, mean=30.349",2,27,12268
+fastf1,laps,LapTime,object,22.15,8601 unique values (too many to list),0 days 00:01:49.360000,27,12268
+fastf1,laps,LapNumber,float64,0.0,"min=1.0, max=40.0, mean=12.626",1.0,27,12268
+fastf1,laps,Stint,float64,0.0,"min=1.0, max=8.0, mean=2.851",1.0,27,12268
+fastf1,laps,PitOutTime,object,80.96,2325 unique values (too many to list),0 days 00:14:58.922000,27,12268
+fastf1,laps,PitInTime,object,81.02,2327 unique values (too many to list),0 days 00:16:59.711000,27,12268
+fastf1,laps,Sector1Time,object,13.47,6876 unique values (too many to list),0 days 00:00:18.403000,27,12268
+fastf1,laps,Sector2Time,object,1.18,9540 unique values (too many to list),0 days 00:00:49.023000,27,12268
+fastf1,laps,Sector3Time,object,3.21,9732 unique values (too many to list),0 days 00:00:51.721000,27,12268
+fastf1,laps,Sector1SessionTime,object,13.54,10595 unique values (too many to list),0 days 00:26:44.091000,27,12268
+fastf1,laps,Sector2SessionTime,object,1.18,12107 unique values (too many to list),0 days 00:16:09.158000,27,12268
+fastf1,laps,Sector3SessionTime,object,3.21,11861 unique values (too many to list),0 days 00:17:00.891000,27,12268
+fastf1,laps,SpeedI1,float64,0.44,"min=57.0, max=330.0, mean=244.564",258.0,27,12268
+fastf1,laps,SpeedI2,float64,0.83,"min=44.0, max=328.0, mean=253.622",258.0,27,12268
+fastf1,laps,SpeedFL,float64,18.99,"min=2.0, max=320.0, mean=215.559",215.0,27,12268
+fastf1,laps,SpeedST,float64,0.55,"min=33.0, max=334.0, mean=262.437",258.0,27,12268
+fastf1,laps,IsPersonalBest,object,0.02,"unique values: ['False', 'True']",False,27,12268
+fastf1,laps,Compound,object,0.0,"unique values: ['HARD', 'HYPERSOFT', 'MEDIUM', 'SOFT', 'SUPERSOFT', 'ULTRASOFT']",HYPERSOFT,27,12268
+fastf1,laps,TyreLife,float64,0.0,"min=1.0, max=27.0, mean=7.228",1.0,27,12268
+fastf1,laps,FreshTyre,bool,0.0,"min=False, max=True, mean=0.485",True,27,12268
+fastf1,laps,Team,object,0.0,20 unique values (too many to list),McLaren,27,12268
+fastf1,laps,LapStartTime,object,0.0,12244 unique values (too many to list),0 days 00:14:58.922000,27,12268
+fastf1,laps,LapStartDate,float64,100.0,N/A (all null),,27,12268
+fastf1,laps,TrackStatus,int64,0.0,"min=1, max=12675, mean=18.416",1,27,12268
+fastf1,laps,Position,float64,100.0,N/A (all null),,27,12268
+fastf1,laps,Deleted,bool,0.0,"min=False, max=True, mean=0.006",False,27,12268
+fastf1,laps,DeletedReason,object,99.42,22 unique values (too many to list),TRACK LIMITS AT TURN 9,27,12268
+fastf1,laps,FastF1Generated,bool,0.0,"min=False, max=True, mean=0.0",False,27,12268
+fastf1,laps,IsAccurate,bool,0.0,"min=False, max=True, mean=0.595",False,27,12268
+fastf1,messages,Time,object,0.0,530 unique values (too many to list),2018-11-23 08:48:05,27,559
+fastf1,messages,Category,object,0.0,"unique values: ['CarEvent', 'Drs', 'Flag', 'Other', 'SafetyCar']",Other,27,559
+fastf1,messages,Message,object,0.0,299 unique values (too many to list),BLUE HEAD PADDING MATERIAL MUST BE USED,27,559
+fastf1,messages,Status,object,96.24,"unique values: ['DEPLOYED', 'ENABLED', 'ENDING']",ENABLED,27,559
+fastf1,messages,Flag,object,53.85,"unique values: ['CHEQUERED', 'CLEAR', 'DOUBLE YELLOW', 'GREEN', 'RED', 'YELLOW']",YELLOW,27,559
+fastf1,messages,Scope,object,53.85,"unique values: ['Sector', 'Track']",Sector,27,559
+fastf1,messages,Sector,float64,69.77,"min=1.0, max=28.0, mean=11.811",9.0,27,559
+fastf1,messages,RacingNumber,float64,93.74,"min=3.0, max=99.0, mean=28.943",9.0,27,559
+fastf1,messages,Lap,float64,100.0,N/A (all null),,27,559
+fastf1,results,DriverNumber,int64,0.0,"min=1, max=99, mean=29.982",2,27,546
+fastf1,results,BroadcastName,object,0.0,57 unique values (too many to list),S VANDOORNE,27,546
+fastf1,results,Abbreviation,object,0.0,57 unique values (too many to list),VAN,27,546
+fastf1,results,DriverId,object,6.78,41 unique values (too many to list),vandoorne,27,546
+fastf1,results,TeamName,object,0.0,20 unique values (too many to list),McLaren,27,546
+fastf1,results,TeamColor,object,0.0,69 unique values (too many to list),FF8700,27,546
+fastf1,results,TeamId,object,6.78,18 unique values (too many to list),mclaren,27,546
+fastf1,results,FirstName,object,0.0,54 unique values (too many to list),Stoffel,27,546
+fastf1,results,LastName,object,0.0,56 unique values (too many to list),Vandoorne,27,546
+fastf1,results,FullName,object,0.0,57 unique values (too many to list),Stoffel Vandoorne,27,546
+fastf1,results,HeadshotUrl,object,21.25,55 unique values (too many to list),https://www.formula1.com/content/dam/fom-website/drivers/D/DANRIC01_Daniel_Ricciardo/danric01.png.transform/1col/image.png,27,546
+fastf1,results,CountryCode,object,67.03,21 unique values (too many to list),AUS,27,546
+fastf1,results,Position,float64,100.0,N/A (all null),,27,546
+fastf1,results,ClassifiedPosition,float64,100.0,N/A (all null),,27,546
+fastf1,results,GridPosition,float64,100.0,N/A (all null),,27,546
+fastf1,results,Q1,float64,100.0,N/A (all null),,27,546
+fastf1,results,Q2,float64,100.0,N/A (all null),,27,546
+fastf1,results,Q3,float64,100.0,N/A (all null),,27,546
+fastf1,results,Time,float64,100.0,N/A (all null),,27,546
+fastf1,results,Status,float64,100.0,N/A (all null),,27,546
+fastf1,results,Points,float64,100.0,N/A (all null),,27,546
+fastf1,results,Laps,float64,100.0,N/A (all null),,27,546
+fastf1,weather,Time,object,0.0,2364 unique values (too many to list),0 days 00:00:57.228000,27,2365
+fastf1,weather,AirTemp,float64,0.0,"min=20.1, max=34.3, mean=27.126",28.4,27,2365
+fastf1,weather,Humidity,float64,0.0,"min=23.0, max=73.6, mean=53.552",40.7,27,2365
+fastf1,weather,Pressure,float64,0.0,"min=1000.0, max=1020.3, mean=1013.881",1016.8,27,2365
+fastf1,weather,Rainfall,bool,0.0,"min=False, max=True, mean=0.003",False,27,2365
+fastf1,weather,TrackTemp,float64,0.0,"min=27.4, max=47.7, mean=36.956",42.9,27,2365
+fastf1,weather,WindDirection,int64,0.0,"min=0, max=359, mean=216.014",137,27,2365
+fastf1,weather,WindSpeed,float64,0.0,"min=0.0, max=4.3, mean=1.705",0.8,27,2365
+tracinginsights,telemetry,tel.time,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[0.0, 0.032, 0.151, 0.272, 0.451, 0.512, 0.751, 0.792, 1.032, 1.051, 1.271, 1.351, 1.511, 1.651, 1.751, 1.951, 2.031, 2.251, 2.271, 2.511, 2.551, 2.751, 2.85, 2.991, 3.15, 3.231, 3.45, 3.471, 3.711, 3",54,54
+tracinginsights,telemetry,tel.rpm,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[10633.6, 10652.0, 10799.2622624, 10949.0, 11167.528932266667, 11242.0, 11456.246256457143, 11493.0, 11638.0, 11548.963171317695, 10518.0, 10520.333333333334, 10525.0, 10638.75, 10720.0, 10884.2857142",54,54
+tracinginsights,telemetry,tel.speed,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[222.33333333333334, 223.0, 226.96666026666668, 231.0, 233.98333013333334, 235.0, 238.41428297142858, 239.0, 245.0, 245.47698301079808, 251.0, 252.0, 254.0, 256.3333333333333, 258.0, 261.5714285714285",54,54
+tracinginsights,telemetry,tel.gear,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5",54,54
+tracinginsights,telemetry,tel.throttle,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 99.0, 82.9124736, 0.0, 0.0, 0.0",54,54
+tracinginsights,telemetry,tel.brake,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0",54,54
+tracinginsights,telemetry,tel.drs,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0",54,54
+tracinginsights,telemetry,tel.distance,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[0.2548722217628946, 2.271111111111111, 9.856779841532855, 17.671111111111113, 29.334580103892314, 33.337777777777774, 49.17604443465528, 51.92666666666666, 68.25999999999999, 69.57147288331792, 84.92",54,54
+tracinginsights,telemetry,tel.rel_distance,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[4.630368840598229e-05, 0.0004126021286151887, 0.0017907218735405891, 0.0032103836856633866, 0.005329334233663825, 0.006056611676599864, 0.008934014945965015, 0.009433731838895416, 0.01240107591455259",54,54
+tracinginsights,telemetry,tel.DriverAhead,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"['None', 'None', 'None', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '10', '",54,54
+tracinginsights,telemetry,tel.DistanceToDriverAhead,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[71.82861111111112, 71.82861111111112, 71.82861111111112, 71.82861111111112, 72.77333232000001, 73.0952777777778, 74.48944332444445, 74.72861111111112, 75.7952777777778, 75.85861052198932, 76.59194444",54,54
+tracinginsights,telemetry,tel.acc_x,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[4.770149783337393, 7.8565695364238115, 8.09319603848145, 6.795268477366262, 5.076426760728994, 4.233539235743673, 4.8603956003271875, 5.808341305762108, 6.8100902154608285, 6.653300822853202, 5.49518",54,54
+tracinginsights,telemetry,tel.acc_y,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[0.021548388099011124, 0.021286920713704312, -0.09914191282767029, -0.20846109084005413, -0.11238880734241974, -0.004219563492253914, -0.02963492542258489, -0.06355586565076246, -0.008914111675895633,",54,54
+tracinginsights,telemetry,tel.acc_z,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[0.176564131083576, 0.3690946127596877, 0.2388985387959598, 0.08168538210384038, 0.05502870883601403, 0.06992652423686802, 0.27655941414767854, 0.4791695663784931, 0.3614274716502319, -0.2181165264925",54,54
+tracinginsights,telemetry,tel.x,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[-3303.0630281986614, -3285.5360418806767, -3209.0, -3113.021594991734, -2962.0, -2917.0334734919575, -2764.0, -2738.4939923278494, -2587.4749310890957, -2575.0, -2423.9246465057445, -2367.0, -2250.97",54,54
+tracinginsights,telemetry,tel.y,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[5891.186561701727, 5893.390529649696, 5903.0, 5915.030882514313, 5934.0, 5939.685079220165, 5959.0, 5962.142348420497, 5980.465142824125, 5982.0, 6000.899510530746, 6008.0, 6022.289915519756, 6035.0,",54,54
+tracinginsights,telemetry,tel.z,object,0.0,NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length=704.0,"[-236.79998972691448, -236.80774127605565, -237.0, -237.45470435379934, -238.0, -237.92947738218712, -237.0, -236.92143579648234, -236.98515541725973, -237.0, -237.1208858555646, -237.0, -236.36087710",54,54
+tracinginsights,telemetry,tel.dataKey,object,0.0,54 unique values (too many to list),2018-Abu Dhabi Grand Prix-Race-ALO-10,54,54
