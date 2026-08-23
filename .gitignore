@@ -6,3 +6,4 @@ tracinginsights/
 .claude
 requirements.txt
 fastf1_cache
+gcs_cache

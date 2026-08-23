@@ -1,0 +1,890 @@
+year,race,session,expects_telemetry,telemetry_exists,laps_lapcount,telemetry_lapcount,lapcount_mismatch_pct,status
+2018,Abu_Dhabi_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Abu_Dhabi_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Abu_Dhabi_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Abu_Dhabi_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Abu_Dhabi_Grand_Prix,R,True,True,55.0,55.0,0.0,ok
+2018,Australian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Australian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Australian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Australian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Australian_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2018,Austrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Austrian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Austrian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Austrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Austrian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2018,Azerbaijan_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Azerbaijan_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Azerbaijan_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Azerbaijan_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Azerbaijan_Grand_Prix,R,True,True,51.0,51.0,0.0,ok
+2018,Bahrain_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Bahrain_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Bahrain_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Bahrain_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Bahrain_Grand_Prix,R,True,False,,,,MISSING
+2018,Belgian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Belgian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Belgian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Belgian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Belgian_Grand_Prix,R,True,True,44.0,44.0,0.0,ok
+2018,Brazilian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Brazilian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Brazilian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Brazilian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Brazilian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2018,British_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,British_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,British_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,British_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,British_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2018,Canadian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Canadian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Canadian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Canadian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Canadian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2018,Chinese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Chinese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Chinese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Chinese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Chinese_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2018,French_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,French_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,French_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,French_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,French_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2018,German_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,German_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,German_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,German_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,German_Grand_Prix,R,True,True,67.0,67.0,0.0,ok
+2018,Hungarian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Hungarian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Hungarian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Hungarian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Hungarian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2018,Italian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Italian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Italian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Italian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Japanese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Japanese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Japanese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Japanese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Japanese_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2018,Mexican_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Mexican_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Mexican_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Mexican_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Mexican_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2018,Monaco_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Monaco_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Monaco_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Monaco_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Monaco_Grand_Prix,R,True,True,78.0,78.0,0.0,ok
+2018,Russian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Russian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Russian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Russian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Russian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2018,Singapore_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Singapore_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Singapore_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Singapore_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Singapore_Grand_Prix,R,True,True,61.0,61.0,0.0,ok
+2018,Spanish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,Spanish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,Spanish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,Spanish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,Spanish_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2018,United_States_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2018,United_States_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2018,United_States_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2018,United_States_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2018,United_States_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2019,Abu_Dhabi_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Abu_Dhabi_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Abu_Dhabi_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Abu_Dhabi_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Abu_Dhabi_Grand_Prix,R,True,True,55.0,55.0,0.0,ok
+2019,Australian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Australian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Australian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Australian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Australian_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2019,Austrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Austrian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Austrian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Austrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Austrian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2019,Azerbaijan_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Azerbaijan_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Azerbaijan_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Azerbaijan_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Azerbaijan_Grand_Prix,R,True,True,51.0,51.0,0.0,ok
+2019,Bahrain_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Bahrain_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Bahrain_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Bahrain_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Bahrain_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2019,Belgian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Belgian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Belgian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Belgian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Belgian_Grand_Prix,R,True,True,44.0,44.0,0.0,ok
+2019,Brazilian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Brazilian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Brazilian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Brazilian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Brazilian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2019,British_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,British_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,British_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,British_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,British_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2019,Canadian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Canadian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Canadian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Canadian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Canadian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2019,Chinese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Chinese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Chinese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Chinese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Chinese_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2019,French_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,French_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,French_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,French_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,French_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2019,German_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,German_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,German_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,German_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,German_Grand_Prix,R,True,True,64.0,64.0,0.0,ok
+2019,Hungarian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Hungarian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Hungarian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Hungarian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Hungarian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2019,Italian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Italian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Italian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Italian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Italian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2019,Japanese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Japanese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Japanese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Japanese_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2019,Mexican_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Mexican_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Mexican_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Mexican_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Mexican_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2019,Monaco_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Monaco_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Monaco_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Monaco_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Monaco_Grand_Prix,R,True,True,78.0,78.0,0.0,ok
+2019,Russian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Russian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Russian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Russian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Russian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2019,Singapore_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Singapore_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Singapore_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Singapore_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Singapore_Grand_Prix,R,True,True,61.0,61.0,0.0,ok
+2019,Spanish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,Spanish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,Spanish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,Spanish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,Spanish_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2019,United_States_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2019,United_States_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2019,United_States_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2019,United_States_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2019,United_States_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2020,70th_Anniversary_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,70th_Anniversary_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,70th_Anniversary_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,70th_Anniversary_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,70th_Anniversary_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2020,Abu_Dhabi_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Abu_Dhabi_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Abu_Dhabi_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Abu_Dhabi_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Abu_Dhabi_Grand_Prix,R,True,True,55.0,55.0,0.0,ok
+2020,Austrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Austrian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Austrian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Austrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Austrian_Grand_Prix,R,True,True,68.0,67.0,1.5,ok
+2020,Bahrain_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Bahrain_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Bahrain_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Bahrain_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Bahrain_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2020,Belgian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Belgian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Belgian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Belgian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Belgian_Grand_Prix,R,True,True,44.0,44.0,0.0,ok
+2020,British_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,British_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,British_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,British_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,British_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2020,Eifel_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Eifel_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Eifel_Grand_Prix,R,True,True,60.0,60.0,0.0,ok
+2020,Emilia_Romagna_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Emilia_Romagna_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Emilia_Romagna_Grand_Prix,R,True,True,63.0,63.0,0.0,ok
+2020,Hungarian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Hungarian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Hungarian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Hungarian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Hungarian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2020,Italian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Italian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Italian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Italian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Italian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2020,Portuguese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Portuguese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Portuguese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Portuguese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Portuguese_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2020,Russian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Russian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Russian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Russian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Russian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2020,Sakhir_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Sakhir_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Sakhir_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Sakhir_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Sakhir_Grand_Prix,R,True,True,87.0,87.0,0.0,ok
+2020,Spanish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Spanish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Spanish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Spanish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Spanish_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2020,Styrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Styrian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Styrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Styrian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2020,Turkish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Turkish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Turkish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Turkish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Turkish_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2020,Tuscan_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2020,Tuscan_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2020,Tuscan_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2020,Tuscan_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2020,Tuscan_Grand_Prix,R,True,True,59.0,59.0,0.0,ok
+2021,Abu_Dhabi_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Abu_Dhabi_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Abu_Dhabi_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Abu_Dhabi_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Abu_Dhabi_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2021,Austrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Austrian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Austrian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Austrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Austrian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2021,Azerbaijan_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Azerbaijan_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Azerbaijan_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Azerbaijan_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Azerbaijan_Grand_Prix,R,True,True,51.0,51.0,0.0,ok
+2021,Bahrain_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Bahrain_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Bahrain_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Bahrain_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Bahrain_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2021,Belgian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Belgian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Belgian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Belgian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Belgian_Grand_Prix,R,True,True,3.0,3.0,0.0,ok
+2021,British_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,British_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,British_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,British_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2021,British_Grand_Prix,S,True,True,17.0,17.0,0.0,ok
+2021,British_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2021,Dutch_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Dutch_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Dutch_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Dutch_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Dutch_Grand_Prix,R,True,True,72.0,72.0,0.0,ok
+2021,Emilia_Romagna_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Emilia_Romagna_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Emilia_Romagna_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Emilia_Romagna_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Emilia_Romagna_Grand_Prix,R,True,True,63.0,63.0,0.0,ok
+2021,French_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,French_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,French_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,French_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,French_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2021,Hungarian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Hungarian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Hungarian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Hungarian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Hungarian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2021,Italian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Italian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Italian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Italian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2021,Italian_Grand_Prix,S,True,True,18.0,18.0,0.0,ok
+2021,Italian_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2021,Mexico_City_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Mexico_City_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Mexico_City_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Mexico_City_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Mexico_City_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2021,Monaco_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Monaco_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Monaco_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Monaco_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Monaco_Grand_Prix,R,True,True,78.0,78.0,0.0,ok
+2021,Portuguese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Portuguese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Portuguese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Portuguese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Portuguese_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2021,Qatar_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Qatar_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Qatar_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Qatar_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Qatar_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2021,Russian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Russian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Russian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Russian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2021,Saudi_Arabian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Saudi_Arabian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Saudi_Arabian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Saudi_Arabian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Saudi_Arabian_Grand_Prix,R,True,True,50.0,50.0,0.0,ok
+2021,Spanish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Spanish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Spanish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Spanish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Spanish_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2021,Styrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Styrian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Styrian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Styrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Styrian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2021,São_Paulo_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,São_Paulo_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,São_Paulo_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,São_Paulo_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2021,São_Paulo_Grand_Prix,S,True,True,24.0,24.0,0.0,ok
+2021,São_Paulo_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2021,Turkish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,Turkish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,Turkish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,Turkish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,Turkish_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2021,United_States_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2021,United_States_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2021,United_States_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2021,United_States_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2021,United_States_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2022,Abu_Dhabi_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Abu_Dhabi_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Abu_Dhabi_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Abu_Dhabi_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Abu_Dhabi_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2022,Australian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Australian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Australian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Australian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Australian_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2022,Austrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Austrian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Austrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Austrian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2022,Azerbaijan_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Azerbaijan_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Azerbaijan_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Azerbaijan_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Azerbaijan_Grand_Prix,R,True,True,51.0,51.0,0.0,ok
+2022,Bahrain_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Bahrain_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Bahrain_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Bahrain_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Bahrain_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2022,Belgian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Belgian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Belgian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Belgian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Belgian_Grand_Prix,R,True,True,44.0,44.0,0.0,ok
+2022,British_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,British_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,British_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,British_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,British_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2022,Canadian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Canadian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Canadian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Canadian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Canadian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2022,Dutch_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Dutch_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Dutch_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Dutch_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Dutch_Grand_Prix,R,True,True,72.0,72.0,0.0,ok
+2022,Emilia_Romagna_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Emilia_Romagna_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Emilia_Romagna_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Emilia_Romagna_Grand_Prix,R,True,True,63.0,63.0,0.0,ok
+2022,Emilia_Romagna_Grand_Prix,sprint,False,,,,,skipped (no telemetry expected)
+2022,French_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,French_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,French_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,French_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,French_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2022,Hungarian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Hungarian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Hungarian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Hungarian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Hungarian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2022,Italian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Italian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Italian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Italian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Italian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2022,Japanese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Japanese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Japanese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Japanese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Japanese_Grand_Prix,R,True,True,29.0,28.0,3.4,ok
+2022,Mexico_City_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Mexico_City_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Mexico_City_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Mexico_City_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Mexico_City_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2022,Miami_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Miami_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Miami_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Miami_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Miami_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2022,Monaco_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Monaco_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Monaco_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Monaco_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Monaco_Grand_Prix,R,True,True,64.0,64.0,0.0,ok
+2022,Saudi_Arabian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Saudi_Arabian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Saudi_Arabian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Saudi_Arabian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Saudi_Arabian_Grand_Prix,R,True,True,50.0,50.0,0.0,ok
+2022,Singapore_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Singapore_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Singapore_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Singapore_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Singapore_Grand_Prix,R,True,True,59.0,59.0,0.0,ok
+2022,Spanish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,Spanish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,Spanish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,Spanish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,Spanish_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2022,São_Paulo_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,São_Paulo_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,São_Paulo_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,São_Paulo_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2022,São_Paulo_Grand_Prix,sprint,False,,,,,skipped (no telemetry expected)
+2022,United_States_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2022,United_States_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2022,United_States_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2022,United_States_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2022,United_States_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2023,Abu_Dhabi_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Abu_Dhabi_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Abu_Dhabi_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Abu_Dhabi_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Abu_Dhabi_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2023,Australian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Australian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Australian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Australian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Australian_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2023,Austrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Austrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Austrian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2023,Austrian_Grand_Prix,S,True,True,24.0,24.0,0.0,ok
+2023,Austrian_Grand_Prix,Sprint Shootout,False,,,,,skipped (no telemetry expected)
+2023,Azerbaijan_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Azerbaijan_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Azerbaijan_Grand_Prix,R,True,True,51.0,51.0,0.0,ok
+2023,Azerbaijan_Grand_Prix,S,True,True,17.0,17.0,0.0,ok
+2023,Azerbaijan_Grand_Prix,Sprint Shootout,False,,,,,skipped (no telemetry expected)
+2023,Bahrain_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Bahrain_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Bahrain_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Bahrain_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Bahrain_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2023,Belgian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Belgian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Belgian_Grand_Prix,R,True,True,44.0,44.0,0.0,ok
+2023,Belgian_Grand_Prix,S,True,True,11.0,11.0,0.0,ok
+2023,Belgian_Grand_Prix,Sprint Shootout,False,,,,,skipped (no telemetry expected)
+2023,British_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,British_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,British_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,British_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,British_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2023,Canadian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Canadian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Canadian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Canadian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Canadian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2023,Dutch_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Dutch_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Dutch_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Dutch_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Dutch_Grand_Prix,R,True,True,72.0,72.0,0.0,ok
+2023,Hungarian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Hungarian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Hungarian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Hungarian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Hungarian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2023,Italian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Italian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Italian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Italian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Italian_Grand_Prix,R,True,True,51.0,51.0,0.0,ok
+2023,Japanese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Japanese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Japanese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Japanese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Japanese_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2023,Las_Vegas_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Las_Vegas_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Las_Vegas_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Las_Vegas_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Las_Vegas_Grand_Prix,R,True,True,50.0,50.0,0.0,ok
+2023,Mexico_City_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Mexico_City_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Mexico_City_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Mexico_City_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Mexico_City_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2023,Miami_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Miami_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Miami_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Miami_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Miami_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2023,Monaco_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Monaco_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Monaco_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Monaco_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Monaco_Grand_Prix,R,True,True,78.0,78.0,0.0,ok
+2023,Qatar_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Qatar_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Qatar_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2023,Qatar_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2023,Qatar_Grand_Prix,Sprint Shootout,False,,,,,skipped (no telemetry expected)
+2023,Saudi_Arabian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Saudi_Arabian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Saudi_Arabian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Saudi_Arabian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Saudi_Arabian_Grand_Prix,R,True,True,50.0,50.0,0.0,ok
+2023,Singapore_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Singapore_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Singapore_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Singapore_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Singapore_Grand_Prix,R,True,True,62.0,62.0,0.0,ok
+2023,Spanish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,Spanish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2023,Spanish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2023,Spanish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,Spanish_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2023,São_Paulo_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,São_Paulo_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,São_Paulo_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2023,São_Paulo_Grand_Prix,S,True,True,24.0,24.0,0.0,ok
+2023,São_Paulo_Grand_Prix,Sprint Shootout,False,,,,,skipped (no telemetry expected)
+2023,United_States_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2023,United_States_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2023,United_States_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2023,United_States_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2023,United_States_Grand_Prix,Sprint Shootout,False,,,,,skipped (no telemetry expected)
+2024,Abu_Dhabi_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Abu_Dhabi_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Abu_Dhabi_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Abu_Dhabi_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Abu_Dhabi_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2024,Australian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Australian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Australian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Australian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Australian_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2024,Austrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Austrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Austrian_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2024,Austrian_Grand_Prix,S,True,True,23.0,23.0,0.0,ok
+2024,Austrian_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2024,Azerbaijan_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Azerbaijan_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Azerbaijan_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Azerbaijan_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Azerbaijan_Grand_Prix,R,True,True,51.0,51.0,0.0,ok
+2024,Bahrain_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Bahrain_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Bahrain_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Bahrain_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Bahrain_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2024,Belgian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Belgian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Belgian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Belgian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Belgian_Grand_Prix,R,True,True,44.0,44.0,0.0,ok
+2024,British_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,British_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,British_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,British_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,British_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2024,Canadian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Canadian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Canadian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Canadian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Canadian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2024,Chinese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Chinese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Chinese_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2024,Chinese_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2024,Chinese_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2024,Dutch_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Dutch_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Dutch_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Dutch_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Dutch_Grand_Prix,R,True,True,72.0,72.0,0.0,ok
+2024,Emilia_Romagna_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Emilia_Romagna_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Emilia_Romagna_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Emilia_Romagna_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Emilia_Romagna_Grand_Prix,R,True,True,63.0,63.0,0.0,ok
+2024,Hungarian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Hungarian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Hungarian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Hungarian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Hungarian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2024,Italian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Italian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Italian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Italian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Italian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2024,Japanese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Japanese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Japanese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Japanese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Japanese_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2024,Las_Vegas_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Las_Vegas_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Las_Vegas_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Las_Vegas_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Las_Vegas_Grand_Prix,R,True,True,50.0,50.0,0.0,ok
+2024,Mexico_City_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Mexico_City_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Mexico_City_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Mexico_City_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Mexico_City_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2024,Miami_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Miami_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Miami_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2024,Miami_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2024,Miami_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2024,Monaco_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Monaco_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Monaco_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Monaco_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Monaco_Grand_Prix,R,True,True,78.0,78.0,0.0,ok
+2024,Qatar_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Qatar_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Qatar_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2024,Qatar_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2024,Qatar_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2024,Saudi_Arabian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Saudi_Arabian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Saudi_Arabian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Saudi_Arabian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Saudi_Arabian_Grand_Prix,R,True,True,50.0,50.0,0.0,ok
+2024,Singapore_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Singapore_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Singapore_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Singapore_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Singapore_Grand_Prix,R,True,True,62.0,62.0,0.0,ok
+2024,Spanish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,Spanish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2024,Spanish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2024,Spanish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,Spanish_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2024,São_Paulo_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,São_Paulo_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,São_Paulo_Grand_Prix,R,True,True,69.0,69.0,0.0,ok
+2024,São_Paulo_Grand_Prix,S,True,True,24.0,24.0,0.0,ok
+2024,São_Paulo_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2024,United_States_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2024,United_States_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2024,United_States_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2024,United_States_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2024,United_States_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2025,Abu_Dhabi_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Abu_Dhabi_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Abu_Dhabi_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Abu_Dhabi_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Abu_Dhabi_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2025,Australian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Australian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Australian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Australian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Australian_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2025,Austrian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Austrian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Austrian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Austrian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Austrian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2025,Azerbaijan_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Azerbaijan_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Azerbaijan_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Azerbaijan_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Azerbaijan_Grand_Prix,R,True,True,51.0,51.0,0.0,ok
+2025,Bahrain_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Bahrain_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Bahrain_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Bahrain_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Bahrain_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2025,Belgian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Belgian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Belgian_Grand_Prix,R,True,True,44.0,44.0,0.0,ok
+2025,Belgian_Grand_Prix,S,True,True,15.0,15.0,0.0,ok
+2025,Belgian_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2025,British_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,British_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,British_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,British_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,British_Grand_Prix,R,True,True,52.0,52.0,0.0,ok
+2025,Canadian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Canadian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Canadian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Canadian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Canadian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2025,Chinese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Chinese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Chinese_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2025,Chinese_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2025,Dutch_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Dutch_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Dutch_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Dutch_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Dutch_Grand_Prix,R,True,True,72.0,72.0,0.0,ok
+2025,Emilia_Romagna_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Emilia_Romagna_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Emilia_Romagna_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Emilia_Romagna_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Emilia_Romagna_Grand_Prix,R,True,True,63.0,63.0,0.0,ok
+2025,Hungarian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Hungarian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Hungarian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Hungarian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Hungarian_Grand_Prix,R,True,True,70.0,70.0,0.0,ok
+2025,Italian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Italian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Italian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Italian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Italian_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2025,Japanese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Japanese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Japanese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Japanese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Japanese_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2025,Las_Vegas_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Las_Vegas_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Las_Vegas_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Las_Vegas_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Las_Vegas_Grand_Prix,R,True,True,50.0,50.0,0.0,ok
+2025,Mexico_City_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Mexico_City_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Mexico_City_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Mexico_City_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Mexico_City_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2025,Miami_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Miami_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Miami_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2025,Miami_Grand_Prix,S,True,True,18.0,18.0,0.0,ok
+2025,Miami_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2025,Monaco_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Monaco_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Monaco_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Monaco_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Monaco_Grand_Prix,R,True,True,78.0,78.0,0.0,ok
+2025,Qatar_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Qatar_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Qatar_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2025,Qatar_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2025,Qatar_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2025,Saudi_Arabian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Saudi_Arabian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Saudi_Arabian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Saudi_Arabian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Saudi_Arabian_Grand_Prix,R,True,True,50.0,50.0,0.0,ok
+2025,Singapore_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Singapore_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Singapore_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Singapore_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Singapore_Grand_Prix,R,True,True,62.0,62.0,0.0,ok
+2025,Spanish_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,Spanish_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2025,Spanish_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2025,Spanish_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,Spanish_Grand_Prix,R,True,True,66.0,66.0,0.0,ok
+2025,São_Paulo_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,São_Paulo_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,São_Paulo_Grand_Prix,R,True,True,71.0,71.0,0.0,ok
+2025,São_Paulo_Grand_Prix,S,True,True,24.0,24.0,0.0,ok
+2025,São_Paulo_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2025,United_States_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2025,United_States_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2025,United_States_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2025,United_States_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2025,United_States_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2026,Australian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2026,Australian_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2026,Australian_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2026,Australian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2026,Australian_Grand_Prix,R,True,True,58.0,58.0,0.0,ok
+2026,Barcelona_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2026,Canadian_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2026,Canadian_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2026,Canadian_Grand_Prix,R,True,True,68.0,68.0,0.0,ok
+2026,Canadian_Grand_Prix,S,True,True,23.0,23.0,0.0,ok
+2026,Canadian_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2026,Chinese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2026,Chinese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2026,Chinese_Grand_Prix,R,True,True,56.0,56.0,0.0,ok
+2026,Chinese_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2026,Chinese_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2026,Japanese_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2026,Japanese_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2026,Japanese_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2026,Japanese_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2026,Japanese_Grand_Prix,R,True,True,53.0,53.0,0.0,ok
+2026,Miami_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2026,Miami_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2026,Miami_Grand_Prix,R,True,True,57.0,57.0,0.0,ok
+2026,Miami_Grand_Prix,S,True,True,19.0,19.0,0.0,ok
+2026,Miami_Grand_Prix,SQ,False,,,,,skipped (no telemetry expected)
+2026,Monaco_Grand_Prix,FP1,False,,,,,skipped (no telemetry expected)
+2026,Monaco_Grand_Prix,FP2,False,,,,,skipped (no telemetry expected)
+2026,Monaco_Grand_Prix,FP3,False,,,,,skipped (no telemetry expected)
+2026,Monaco_Grand_Prix,Q,False,,,,,skipped (no telemetry expected)
+2026,Monaco_Grand_Prix,R,True,True,78.0,78.0,0.0,ok
