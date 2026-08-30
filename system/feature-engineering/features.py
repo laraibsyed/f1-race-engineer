@@ -41,11 +41,41 @@ CACHE_DIR = Path(os.getenv("GCS_CACHE_DIR", "./gcs_cache"))
 
 LAPS_PREFIX = "clean/fastf1/"
 FEATURES_PREFIX = "clean/features/"
+WEATHER_PREFIX = "raw/fastf1/"  # weather.csv lives with the original raw session data
+
+# Domain-informed bands, not derived from a tiny sample -- confirmed via
+# investigate_weather.py that real TrackTemp spans roughly 28-53C even in
+# a 6-session check (Silverstone 2021 hit 53C on modest air temp thanks to
+# dark tarmac heat soak). Adjust if the full-dataset distribution once
+# built suggests these bands are lopsided.
+TRACK_TEMP_BINS = [-float("inf"), 25, 35, 45, float("inf")]
+TRACK_TEMP_LABELS = ["cool", "warm", "hot", "extreme"]
 
 # Ordinal compound encoding, softest -> hardest. Direction is a choice, not
 # a fact -- documented here so it's not ambiguous downstream. Raw Compound
 # string is kept in output too, nothing is lost.
-COMPOUND_ORDER = {"WET": 0, "INTERMEDIATE": 1, "HARD": 2, "MEDIUM": 3, "SOFT": 4}
+#
+# HYPERSOFT/SUPERSOFT/ULTRASOFT are 2018's ultra-soft-family legacy names
+# (Pirelli restructured the lineup in 2019) -- all three collapse into the
+# SOFT tier, per the original cleaning decision made earlier in this
+# project. This DOES lose the fine-grained distinction between them (they
+# were 3 genuinely different compounds in 2018), but that's a deliberate
+# simplification for cross-season consistency, not an oversight.
+#
+# TEST / TEST_UNKNOWN / UNKNOWN are intentionally NOT mapped here -- these
+# are FastF1's own markers for test tyres or genuinely undetermined
+# compound, not a real hardness class. Forcing them into an ordinal tier
+# would be inventing data. They stay NaN in compound_encoded on purpose.
+COMPOUND_ORDER = {
+    "WET": 0,
+    "INTERMEDIATE": 1,
+    "HARD": 2,
+    "MEDIUM": 3,
+    "SOFT": 4,
+    "HYPERSOFT": 4,
+    "SUPERSOFT": 4,
+    "ULTRASOFT": 4,
+}
 
 # Simplifying assumption, NOT measured telemetry -- FastF1/tracinginsights
 # don't expose actual fuel load. This approximates a full-tank start and
@@ -206,6 +236,88 @@ def add_fuel_load_estimate(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def load_weather(year: str, race: str, session: str) -> pd.DataFrame | None:
+    """Loads raw/fastf1/.../weather.csv and parses Time to the same
+    session-cumulative-seconds clock used by laps_flagged.csv (confirmed
+    via investigate_weather.py -- same clock, not requiring an offset)."""
+    path = f"{WEATHER_PREFIX}{year}/{race}/{session}/weather.csv"
+    try:
+        data = bucket.download_as_bytes(path)
+    except Exception:
+        return None  # not every session may have weather.csv -- handled by caller
+
+    weather_df = read_csv_robust(data)
+    if weather_df is None or weather_df.empty or "Time" not in weather_df.columns or "TrackTemp" not in weather_df.columns:
+        return None
+
+    weather_df["_time_sec"] = to_seconds(weather_df["Time"])
+    weather_df = weather_df.dropna(subset=["_time_sec"]).sort_values("_time_sec")
+    return weather_df[["_time_sec", "TrackTemp"]]
+
+
+def add_track_temp_bucket(df: pd.DataFrame, year: str, race: str, session: str) -> pd.DataFrame:
+    """
+    Matches each lap to the most recent weather reading at or before that
+    lap started (merge_asof, backward -- same approach validated for
+    telemetry alignment earlier), then buckets TrackTemp into discrete
+    bands. If weather.csv is missing or unmatched for a lap, both the raw
+    temp and bucket are left null rather than guessed.
+    """
+    df["track_temp_c"] = pd.NA
+    df["track_temp_bucket"] = pd.NA
+
+    weather_df = load_weather(year, race, session)
+    if weather_df is None:
+        return df  # no weather data available for this session -- stays null
+
+    anchor_col = "LapStartTime" if "LapStartTime" in df.columns else "Time"
+    if anchor_col not in df.columns:
+        return df
+
+    df["_lap_time_sec"] = to_seconds(df[anchor_col])
+    has_anchor = df["_lap_time_sec"].notna()
+    if not has_anchor.any():
+        df = df.drop(columns=["_lap_time_sec"])
+        return df
+
+    sortable = df.loc[has_anchor].sort_values("_lap_time_sec")
+    merged = pd.merge_asof(
+        sortable[["_lap_time_sec"]],
+        weather_df,
+        left_on="_lap_time_sec",
+        right_on="_time_sec",
+        direction="backward",
+    )
+    df.loc[sortable.index, "track_temp_c"] = merged["TrackTemp"].values
+    df["track_temp_bucket"] = pd.cut(
+        pd.to_numeric(df["track_temp_c"], errors="coerce"),
+        bins=TRACK_TEMP_BINS, labels=TRACK_TEMP_LABELS
+    )
+
+    df = df.drop(columns=["_lap_time_sec"])
+    return df
+
+
+RACE_LIKE_SESSIONS = {"R", "S"}  # gaps and fuel load only mean anything in a race context
+
+
+def null_race_only_features_for_non_race_sessions(df: pd.DataFrame, session: str) -> pd.DataFrame:
+    """
+    gap_to_leader / gap_to_car_ahead / fuel_load_estimate are only
+    meaningful in Race/Sprint sessions -- in FP1/FP2/FP3/Q, drivers aren't
+    racing each other (different out-laps, no shared fuel-burn-to-empty
+    assumption), so a computed number there would be misleading rather
+    than just missing. Null them explicitly so a downstream consumer who
+    forgets this caveat gets NaN (safely skipped/flagged) instead of a
+    silently wrong number.
+    """
+    if session not in RACE_LIKE_SESSIONS:
+        for col in ("gap_to_leader", "gap_to_car_ahead", "fuel_load_estimate"):
+            if col in df.columns:
+                df[col] = pd.NA
+    return df
+
+
 def engineer_session(year: str, race: str, session: str, force: bool = False) -> bool:
     out_path = f"{FEATURES_PREFIX}{year}/{race}/{session}/laps_features.csv"
     if not force and bucket.exists(out_path):
@@ -234,6 +346,8 @@ def engineer_session(year: str, race: str, session: str, force: bool = False) ->
     df = add_gaps(df)
     df = add_degradation_rate(df)
     df = add_fuel_load_estimate(df)
+    df = add_track_temp_bucket(df, year, race, session)
+    df = null_race_only_features_for_non_race_sessions(df, session)
 
     buf = io.StringIO()
     df.to_csv(buf, index=False)
