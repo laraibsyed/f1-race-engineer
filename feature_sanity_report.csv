@@ -452,7 +452,7 @@ year,race,session,issues,degradation_pct_null,track_temp_pct_null
 2022,French_Grand_Prix,FP2,[],28.2,0.0
 2022,French_Grand_Prix,FP3,[],38.9,0.0
 2022,French_Grand_Prix,Q,[],55.7,0.0
-2022,French_Grand_Prix,R,[],1.4,0.0
+2022,French_Grand_Prix,R,['VSC deployed fired at lap 53 but is_vsc_lap is False for every row on that lap -- message-based and TrackStatus-based flags disagree'],1.4,0.0
 2022,Hungarian_Grand_Prix,FP1,[],17.6,0.0
 2022,Hungarian_Grand_Prix,FP2,[],14.5,0.0
 2022,Hungarian_Grand_Prix,FP3,[],33.1,0.0

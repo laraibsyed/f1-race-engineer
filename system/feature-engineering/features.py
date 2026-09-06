@@ -298,6 +298,106 @@ def add_track_temp_bucket(df: pd.DataFrame, year: str, race: str, session: str) 
     return df
 
 
+def load_messages(year: str, race: str, session: str) -> pd.DataFrame | None:
+    """Loads raw/fastf1/.../messages.csv. Returns None if missing."""
+    path = f"{WEATHER_PREFIX}{year}/{race}/{session}/messages.csv"
+    try:
+        data = bucket.download_as_bytes(path)
+    except Exception:
+        return None
+    return read_csv_robust(data)
+
+
+def classify_sc_vsc_event(message: str, status: str) -> str | None:
+    """
+    Classifies a SafetyCar-category race control message into a specific
+    event type. Order matters: 'VIRTUAL SAFETY CAR' must be checked before
+    the generic 'SAFETY CAR' substring, since the former contains the
+    latter as a substring.
+
+    Confirmed via investigate_messages.py across 2018-2024: VSC explicitly
+    announces its own ending ("VIRTUAL SAFETY CAR ENDING"), but regular SC
+    does NOT use an "ENDING" status at all -- it uses "IN THIS LAP" instead
+    ("SAFETY CAR IN THIS LAP" = SC peels into the pits at the end of this
+    lap, racing resumes next lap). Treating these as symmetric would
+    silently miss every real SC ending.
+    """
+    message = message.upper()
+    status = str(status).upper() if pd.notna(status) else ""
+
+    if "VIRTUAL SAFETY CAR" in message:
+        if status == "DEPLOYED":
+            return "vsc_deployed"
+        if status == "ENDING":
+            return "vsc_ending"
+        return None
+    if "SAFETY CAR" in message:
+        if status == "DEPLOYED":
+            return "sc_deployed"
+        if status == "IN THIS LAP":
+            return "sc_ending"
+        if status == "THROUGH THE PIT LANE":
+            return "sc_through_pit_lane"  # ambiguous re-org event, not treated as deployment or ending
+        return None
+    return None
+
+
+SC_VSC_EVENT_COLUMNS = [
+    "is_sc_deployed_lap", "is_sc_ending_lap",
+    "is_vsc_deployed_lap", "is_vsc_ending_lap",
+    "is_sc_through_pit_lane_lap",
+]
+
+
+def add_sc_vsc_events(df: pd.DataFrame, year: str, race: str, session: str) -> pd.DataFrame:
+    """
+    Joins exact SC/VSC deployment/ending lap numbers from race control
+    messages.csv onto the lap-level table. These are precise EVENT markers
+    (true on exactly the lap the event was announced), distinct from
+    is_sc_lap/is_vsc_lap in laps_flagged.csv (which flags every lap where
+    TrackStatus shows SC/VSC was active at any point -- a broader "was it
+    happening" signal vs this one's "did the event happen here" signal).
+    Both are kept; neither overwrites the other.
+    """
+    for col in SC_VSC_EVENT_COLUMNS:
+        df[col] = False
+
+    messages_df = load_messages(year, race, session)
+    if messages_df is None or messages_df.empty:
+        return df
+
+    required = {"Category", "Message", "Status", "Lap"}
+    if not required.issubset(messages_df.columns):
+        return df
+
+    # Category filter is essential -- "SAFETY CAR" also appears in
+    # Other-category incident/stewards notes (e.g. "SAFETY CAR
+    # INFRINGEMENT"), which are not deployment/ending events at all.
+    sc_rows = messages_df[messages_df["Category"] == "SafetyCar"].copy()
+    if sc_rows.empty:
+        return df
+
+    sc_rows["event_type"] = sc_rows.apply(
+        lambda r: classify_sc_vsc_event(str(r["Message"]), r["Status"]), axis=1
+    )
+    sc_rows = sc_rows.dropna(subset=["event_type", "Lap"])
+
+    event_col_map = {
+        "sc_deployed": "is_sc_deployed_lap",
+        "sc_ending": "is_sc_ending_lap",
+        "vsc_deployed": "is_vsc_deployed_lap",
+        "vsc_ending": "is_vsc_ending_lap",
+        "sc_through_pit_lane": "is_sc_through_pit_lane_lap",
+    }
+
+    for event_type, col in event_col_map.items():
+        lap_numbers = set(sc_rows.loc[sc_rows["event_type"] == event_type, "Lap"])
+        if lap_numbers and "LapNumber" in df.columns:
+            df[col] = df["LapNumber"].isin(lap_numbers)
+
+    return df
+
+
 RACE_LIKE_SESSIONS = {"R", "S"}  # gaps and fuel load only mean anything in a race context
 
 
@@ -347,6 +447,7 @@ def engineer_session(year: str, race: str, session: str, force: bool = False) ->
     df = add_degradation_rate(df)
     df = add_fuel_load_estimate(df)
     df = add_track_temp_bucket(df, year, race, session)
+    df = add_sc_vsc_events(df, year, race, session)
     df = null_race_only_features_for_non_race_sessions(df, session)
 
     buf = io.StringIO()

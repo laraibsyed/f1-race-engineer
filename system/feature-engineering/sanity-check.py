@@ -179,7 +179,50 @@ def check_session(year: str, race: str, session: str) -> dict:
         if unexpected_buckets:
             result["issues"].append(f"UNEXPECTED track_temp_bucket VALUES: {sorted(unexpected_buckets)}")
 
+    # 6. SC/VSC event-marker columns present, and cross-checked against
+    # the broader is_sc_lap/is_vsc_lap flags built earlier from TrackStatus.
+    # These are two independent derivations (race control messages vs
+    # TrackStatus codes) -- if they disagree, one of them has a real bug.
+    sc_vsc_cols = ["is_sc_deployed_lap", "is_sc_ending_lap", "is_vsc_deployed_lap",
+                   "is_vsc_ending_lap", "is_sc_through_pit_lane_lap"]
+    missing_sc_vsc_cols = [c for c in sc_vsc_cols if c not in feat_df.columns]
+    if missing_sc_vsc_cols:
+        result["issues"].append(f"MISSING SC/VSC EVENT COLUMNS: {missing_sc_vsc_cols}")
+    else:
+        result["issues"].extend(
+            cross_check_sc_vsc_events(feat_df, "is_sc_deployed_lap", "is_sc_ending_lap", "is_sc_lap", "SC")
+        )
+        result["issues"].extend(
+            cross_check_sc_vsc_events(feat_df, "is_vsc_deployed_lap", "is_vsc_ending_lap", "is_vsc_lap", "VSC")
+        )
+
     return result
+
+
+def cross_check_sc_vsc_events(df: pd.DataFrame, deployed_col: str, ending_col: str,
+                               active_col: str, label: str) -> list[str]:
+    """
+    For every lap where a deployment or ending event fired, confirm the
+    broader active_col (is_sc_lap/is_vsc_lap, built from TrackStatus in
+    clean_laps.py) agrees that something was actually happening that lap.
+    Doesn't try to validate the full period between events -- just the
+    event laps themselves, which is the strongest signal without assuming
+    a fragile exact-pairing model between deploy/end events.
+    """
+    issues = []
+    if active_col not in df.columns:
+        return [f"Cannot cross-check {label}: {active_col} column missing"]
+
+    for event_col, event_label in [(deployed_col, "deployed"), (ending_col, "ending")]:
+        event_laps = sorted(df.loc[df[event_col], "LapNumber"].dropna().unique())
+        for lap in event_laps:
+            lap_rows = df[df["LapNumber"] == lap]
+            if not lap_rows[active_col].any():
+                issues.append(
+                    f"{label} {event_label} fired at lap {int(lap)} but {active_col} is False "
+                    f"for every row on that lap -- message-based and TrackStatus-based flags disagree"
+                )
+    return issues
 
 
 if __name__ == "__main__":
