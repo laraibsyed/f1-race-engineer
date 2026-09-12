@@ -196,10 +196,15 @@ def detect_cliff(x: np.ndarray, y: np.ndarray):
     improvement = (whole_sse - best["total_sse"]) / whole_sse if whole_sse > 0 else 0.0
     slope_ratio = (best["post_slope"] / best["pre_slope"]) if best["pre_slope"] > 0 else np.inf
 
-    # NEW: local step check - actual jump at the transition, not just an eventual trend
-    pre_tail_mean = float(np.mean(y[max(0, i - MIN_SEGMENT_LENGTH):i]))
-    post_head_mean = float(np.mean(y[i:i + MIN_SEGMENT_LENGTH]))
-    local_step = post_head_mean - pre_tail_mean
+    # NEW: local step check - actual jump at the transition, not just an eventual trend.
+    # Uses MEDIAN, not mean - confirmed necessary after visual inspection showed a
+    # single-lap spike inside the 3-lap post-window (Japan/PER and Qatar/GAS examples)
+    # could drag a MEAN-based step past the threshold even when the very next lap
+    # after the spike dropped back below the pre-cliff baseline entirely. Median is
+    # not moved by one extreme value the way a 3-point mean is.
+    pre_tail_median = float(np.median(y[max(0, i - MIN_SEGMENT_LENGTH):i]))
+    post_head_median = float(np.median(y[i:i + MIN_SEGMENT_LENGTH]))
+    local_step = post_head_median - pre_tail_median
 
     is_cliff = (
         improvement >= MIN_IMPROVEMENT
@@ -249,6 +254,15 @@ def build_stint_table(laps: pd.DataFrame) -> pd.DataFrame:
             "cliff_tyre_age": cliff_age,
             "slope_ratio": diag.get("slope_ratio"),
             "improvement": diag.get("improvement"),
+            # --- Cox (survival V2) covariates, added here so cliff detection
+            # and Cox don't need two separate stint-building passes ---
+            "track_temp_bucket": g["track_temp_bucket"].mode().iloc[0]
+                if g["track_temp_bucket"].notna().any() else np.nan,
+            "fuel_load_estimate": g["fuel_load_estimate"].mean(),
+            "stint_number": g["stint_number"].iloc[0] if "stint_number" in g.columns else np.nan,
+            "regulation_era": ("2018-2021" if keys[0] <= 2021
+                                else "2022-2025" if keys[0] <= 2025
+                                else "2026+"),
         })
     return pd.DataFrame(rows)
 
