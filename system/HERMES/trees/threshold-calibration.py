@@ -79,8 +79,8 @@ def calibrate_tyre_age_ratio():
 
     stints = pd.read_csv(STINTS_CSV)
     events = stints[stints["event"] == 1].copy()
-    events = events[events["n_laps"] > 0]
-    events["cliff_ratio"] = events["cliff_tyre_age"] / events["n_laps"]
+    events = events[events["n_laps_true"] > 0]
+    events["cliff_ratio"] = events["cliff_tyre_age"] / events["n_laps_true"]
 
     print(f"[data] {len(events)} real cliff events with a valid ratio")
     print("\nDistribution of cliff_tyre_age / n_laps (how far through the stint the cliff hit):")

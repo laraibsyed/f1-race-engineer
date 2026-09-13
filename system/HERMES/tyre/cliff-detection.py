@@ -228,7 +228,28 @@ def detect_cliff(x: np.ndarray, y: np.ndarray):
 # ---------------------------------------------------------------------------
 # 3. Build the stint-level survival table
 # ---------------------------------------------------------------------------
-def build_stint_table(laps: pd.DataFrame) -> pd.DataFrame:
+def compute_true_stint_lengths(raw_laps: pd.DataFrame) -> dict:
+    """
+    n_laps (post-cleaning row count) undercounts true stint length, since
+    filtered-out laps (pit in/out, missing/outlier, red-flag buffer) are
+    removed from the COUNT but tyre_age still reflects them - confirmed by a
+    max cliff_tyre_age/n_laps ratio of 1.857 in the calibration work, which
+    is logically impossible if n_laps meant true stint length.
+
+    Fix: compute true length from tyre_age's max value in the RAW, UNFILTERED
+    data for each stint - tyre_age is assigned to every lap on that tyre
+    regardless of whether the lap later gets excluded for modelling, so this
+    is immune to any of the cleaning filters applied downstream.
+
+    Must be called on `raw` BEFORE filter_valid_laps()/
+    filter_global_degradation_outliers() run, or this fix doesn't fix anything.
+    """
+    group_cols = ["Season", "Race", "Session", "Driver", "Stint"]
+    lengths = raw_laps.dropna(subset=["tyre_age"]).groupby(group_cols)["tyre_age"].max()
+    return lengths.to_dict()
+
+
+def build_stint_table(laps: pd.DataFrame, true_stint_lengths: dict = None) -> pd.DataFrame:
     laps = laps.copy()
     laps["LapTime_seconds"] = pd.to_timedelta(laps["LapTime"]).dt.total_seconds()
 
@@ -241,6 +262,8 @@ def build_stint_table(laps: pd.DataFrame) -> pd.DataFrame:
 
         cliff_age, is_cliff, diag = detect_cliff(x, y)
 
+        true_n_laps = true_stint_lengths.get(keys) if true_stint_lengths else None
+
         rows.append({
             "season": keys[0], "race": keys[1], "session": keys[2],
             "driver": keys[3], "stint": keys[4],
@@ -248,7 +271,8 @@ def build_stint_table(laps: pd.DataFrame) -> pd.DataFrame:
             "is_rbr": bool(g["is_rbr"].iloc[0]),
             "compound": g["Compound"].iloc[0],
             "circuit": keys[1],
-            "n_laps": len(g),
+            "n_laps_cleaned": len(g),           # rows surviving cleaning - for model-fitting sample size only
+            "n_laps_true": true_n_laps,          # TRUE stint length from raw tyre_age - use THIS for any ratio
             "duration": cliff_age if is_cliff else x.max(),   # tyre_age at event OR last observed lap
             "event": int(is_cliff),                            # 1 = cliff observed, 0 = censored
             "cliff_tyre_age": cliff_age,
@@ -276,11 +300,15 @@ if __name__ == "__main__":
     raw = load_all_teams_laps(bucket)
     print(f"[load] {len(raw)} raw rows, {raw['is_rbr'].sum()} of which are RBR")
 
+    # MUST compute this BEFORE filtering - tyre_age on raw laps is immune to
+    # any of the cleaning exclusions applied below, which is the whole point
+    true_stint_lengths = compute_true_stint_lengths(raw)
+
     clean = filter_valid_laps(raw)
     clean = filter_global_degradation_outliers(clean)
     print(f"[filter] {len(clean)} rows after full cleaning pipeline ({clean['is_rbr'].sum()} RBR)")
 
-    stint_table = build_stint_table(clean)
+    stint_table = build_stint_table(clean, true_stint_lengths)
     stint_table.to_csv("cliff_detection_stints.csv", index=False)
 
     n_stints = len(stint_table)

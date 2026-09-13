@@ -58,8 +58,41 @@ def get_driving_instruction(decision: str, cliff_probability_next_5_laps: Option
     the calibrated CLIFF_PROBABILITY_THRESHOLD - the closer, the more
     conservative, exactly as requested rather than a flat rule.
     """
+def get_driving_instruction(decision: str, cliff_probability_next_5_laps: Optional[float],
+                             tier3_reason: Optional[str] = None,
+                             driver_stress_signal: bool = False) -> str:
+    """
+    ARCHITECTURAL PRINCIPLE (per direct design correction): Tier 3 decides
+    WHETHER to pit, using only objective model/race signals. This function
+    does NOT re-evaluate the SC gamble or the stress signal itself - it only
+    uses Tier 3's OUTPUT (tier3_reason) and the raw stress flag as CONTEXT to
+    shape HOW the driver operates while executing Tier 3's already-made
+    decision. Neither input can override a PIT_NOW.
+
+    tier3_reason == "SC_GAMBLE": Tier 3 is deliberately waiting to catch a
+    cheap SC-window pit (see gate_tree_tier3.py / sc_gamble_evaluator.py) -
+    the driver should preserve tyres deliberately while that gamble plays
+    out, not push as if nothing is planned. Takes priority over the raw
+    cliff-probability banding below, since it reflects a considered decision
+    already made upstream, not just a raw number.
+
+    driver_stress_signal: driver-reported tyre distress (NLP classifier,
+    medium/high stress tyre_feedback radio message) - shifts toward a more
+    conservative instruction regardless of what the raw numbers say, since
+    the driver has direct information the models don't capture. Checked
+    after the SC gamble reason (a considered strategic decision takes
+    priority over a single noisy radio signal - see the NLP module's
+    validation finding: stress didn't significantly predict pit timing,
+    so it's treated as a soft nudge, not a hard override).
+    """
     if decision == "PIT_NOW":
         return "PIT_LAP"  # boxing this lap - no further pace guidance needed
+
+    if tier3_reason == "SC_GAMBLE":
+        return "MANAGE"  # deliberately preserving tyres while gambling on a cheap SC pit
+
+    if driver_stress_signal:
+        return "CONSERVE"  # driver-reported distress - operate cautiously regardless of raw numbers
 
     if cliff_probability_next_5_laps is None:
         return "MANAGE"  # unknown risk - default to conservative, don't push blind
@@ -85,6 +118,10 @@ class DriverPitContext:
     track_position: int                              # 1 = leading; higher number = further back
     can_delay_one_lap_without_position_loss: bool     # EXTERNAL - from gap/rival analysis, not computed here
     cliff_probability_next_5_laps: Optional[float] = None  # from tyre_life_projection feed - drives driving instruction
+    tier3_reason: Optional[str] = None                # from gate_tree_tier3.evaluate_tier3()'s "reason" field -
+                                                       # CONTEXT ONLY, not re-evaluated here
+    driver_stress_signal: bool = False                # from gate_tree_tier3.evaluate_tier3()'s passed-through
+                                                       # driver_stress_signal - CONTEXT ONLY, not re-evaluated here
 
 
 @dataclass
@@ -193,9 +230,11 @@ def evaluate_execution_tree(state: ExecutionTreeState) -> dict:
     driver_lookup = {d.driver_id: d for d in state.triggered_drivers}
 
     def _attach_instruction(driver_id: str, decision_dict: dict) -> dict:
-        cliff_prob = driver_lookup[driver_id].cliff_probability_next_5_laps
+        driver_ctx = driver_lookup[driver_id]
         decision_dict["driving_instruction"] = get_driving_instruction(
-            decision_dict["decision"], cliff_prob)
+            decision_dict["decision"], driver_ctx.cliff_probability_next_5_laps,
+            tier3_reason=driver_ctx.tier3_reason,
+            driver_stress_signal=driver_ctx.driver_stress_signal)
         return decision_dict
 
     trigger = which_driver_triggered(state)
@@ -271,6 +310,29 @@ if __name__ == "__main__":
 
     print("\nPit lane speed limit, Bahrain:", get_pit_lane_speed_limit("Bahrain_Grand_Prix"))
     print("Pit lane speed limit, Monaco:", get_pit_lane_speed_limit("Monaco_Grand_Prix"))
+
+    # --- NEW: Tier 3 context flowing through, per the architectural correction ---
+    # D2 has a very LOW cliff probability (would normally get PUSH), but Tier 3
+    # flagged reason="SC_GAMBLE" for this driver - Execution does NOT re-evaluate
+    # the gamble, it just honours the context -> MANAGE instead of PUSH.
+    sc_gamble_context = ExecutionTreeState(
+        triggered_drivers=[DriverPitContext("D1", 2, 18, 2, False, cliff_probability_next_5_laps=0.005),
+                            DriverPitContext("D2", 3, 15, 5, True, cliff_probability_next_5_laps=0.001,
+                                              tier3_reason="SC_GAMBLE")],
+        safety_car_active=False, circuit="Bahrain_Grand_Prix")
+    print("\nD2 delayed specifically for an SC gamble (low cliff risk, but reason overrides -> MANAGE):",
+          evaluate_execution_tree(sc_gamble_context))
+
+    # D2 also has low cliff probability (would normally get PUSH), but
+    # driver_stress_signal=True from the NLP classifier - Execution does NOT
+    # re-evaluate the radio message, it just honours the flag -> CONSERVE.
+    driver_stress_context = ExecutionTreeState(
+        triggered_drivers=[DriverPitContext("D1", 2, 18, 2, False, cliff_probability_next_5_laps=0.005),
+                            DriverPitContext("D2", 3, 15, 5, True, cliff_probability_next_5_laps=0.001,
+                                              driver_stress_signal=True)],
+        safety_car_active=False, circuit="Bahrain_Grand_Prix")
+    print("D2 delayed with low cliff risk, but reported driver stress (-> CONSERVE):",
+          evaluate_execution_tree(driver_stress_context))
 
     # --- Closing the loop: "Tyre Projection Updated - Fed to Gate Tree" ---
     # This is a structural demonstration, not new modelling - it shows that
