@@ -24,6 +24,7 @@ sample isn't accidentally all-one-circuit-character by chance - Monaco vs.
 Bahrain just proved that would badly distort results.
 """
 
+import argparse
 import os
 import json
 import random
@@ -37,7 +38,8 @@ load_dotenv()
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CLOSE_FOLLOWING_SECONDS = 1.0
 MIN_CAREER_RACES = 20    # matches the Second Driver Logic diagram's own archetype-fallback threshold
-CIRCUIT_TAXONOMY_PATH = r"src\taxanomy\circuit_taxonomy.xlsx"
+CIRCUIT_TAXONOMY_PATH = "src/taxanomy/circuit_taxonomy.xlsx"  # forward slashes - was
+                          # a Windows-only backslash path, would break on the Linux VM
 
 # Same circuit_id <-> race name mapping already built and used for the Cox
 # model - reused here rather than rebuilt, for consistency.
@@ -76,6 +78,23 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
+    def read_bytes(self, blob_path):
+        """Same read-through cache pattern as read_csv, but for raw telemetry
+        JSON files. Previously bypassed entirely - build_lap_summaries_for_race
+        called bucket.bucket.blob(path).download_as_bytes() directly, so every
+        run re-downloaded all ~50 races' telemetry from scratch even on a
+        crash/retry. At this scale (hundreds of files per race) that's the
+        difference between a re-run being instant vs. redoing an hour of work."""
+        local_path = os.path.join(self.cache_dir, blob_path)
+        if os.path.exists(local_path):
+            with open(local_path, "rb") as f:
+                return f.read()
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        data = self.bucket.blob(blob_path).download_as_bytes()
+        with open(local_path, "wb") as f:
+            f.write(data)
+        return data
+
 
 # ---------------------------------------------------------------------------
 # Step 1: who qualifies, and what races has each driver actually run?
@@ -106,8 +125,45 @@ def get_circuit_type_lookup() -> dict:
 
 RACES_PER_SEASON = 6     # global sample size per season - gives ~50-60 total races regardless
                           # of driver count, vs. the old up-to-468 driver-race pairs
-MIN_RACES_WITH_DATA = 5  # a driver whose career barely overlaps the global sample gets flagged,
-                          # not silently trusted - same small-sample caution as elsewhere in this project
+MIN_RACES_WITH_DATA = 15  # was 5 - too low: a handful of drivers at exactly 5-6 races
+                           # (e.g. MAZ, KUB) topped aggression_level purely from small-sample
+                           # noise, contradicting known real-world driver reputations - the
+                           # exact failure mode already documented in the project's own
+                           # established practices. Override at runtime with --min-races-with-data.
+
+CHECKPOINT_DIR = os.environ.get("CHECKPOINT_DIR", "./race_checkpoints")
+
+
+def checkpoint_path(season, race) -> str:
+    return os.path.join(CHECKPOINT_DIR, f"{season}_{race}.json")
+
+
+def save_checkpoint(season, race, counts_per_driver: pd.DataFrame, status: str = "ok") -> None:
+    """One JSON file per PROCESSED race, written the moment that race finishes
+    - not just at the end. status is only ever "ok" or "empty" (a real,
+    deterministic outcome for that race) - an exception is NEVER checkpointed,
+    since a network blip is transient and should retry next run, not be
+    treated as a permanent result for that race."""
+    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+    payload = {"status": status, "season": season, "race": race,
+               "counts": counts_per_driver.to_dict(orient="index") if status == "ok" else {}}
+    with open(checkpoint_path(season, race), "w") as f:
+        json.dump(payload, f)
+
+
+def load_checkpoint(season, race):
+    """Returns None if this race hasn't been checkpointed yet (needs
+    processing). Returns a counts-per-driver DataFrame (possibly empty) if it
+    has - so a dead-and-restarted run skips every race already done and picks
+    up exactly where it left off."""
+    path = checkpoint_path(season, race)
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        payload = json.load(f)
+    if payload["status"] == "empty":
+        return pd.DataFrame()
+    return pd.DataFrame.from_dict(payload["counts"], orient="index")
 
 
 def build_global_race_sample(participation: pd.DataFrame, race_to_type: dict,
@@ -189,9 +245,8 @@ def build_lap_summaries_for_race(bucket: CachedBucket, season: int, race_undersc
     for path in files:
         parts = path.split("/")
         driver, lap_number = parts[-2], int(parts[-1].replace("_tel.json", ""))
-        blob = bucket.bucket.blob(path)
         try:
-            summary = extract_lap_summary(blob.download_as_bytes())
+            summary = extract_lap_summary(bucket.read_bytes(path))
         except Exception:
             continue
         if summary is None:
@@ -293,16 +348,41 @@ def process_one_race(bucket: CachedBucket, season: int, race: str) -> pd.DataFra
 # ---------------------------------------------------------------------------
 # Step 3: aggregate across the sample, normalize into archetype-style scores
 # ---------------------------------------------------------------------------
-def normalize_to_archetype_range(series: pd.Series, low: float = 0.85, high: float = 1.15) -> pd.Series:
+def normalize_to_archetype_range(series: pd.Series, low: float = 0.85, high: float = 1.15,
+                                  fit_mask: pd.Series = None) -> pd.Series:
     """Min-max scale into the same 0.85-1.15 range driver_archetypes.xlsx uses,
     so these scores are directly comparable to/interchangeable with the
-    manual archetype fallback values for drivers below the race threshold."""
-    if series.max() == series.min():
+    manual archetype fallback values for drivers below the race threshold.
+
+    fit_mask restricts which rows DEFINE the min/max used for scaling (e.g.
+    only non-thin-sample drivers), while every row (including thin-sample
+    ones) still gets scaled against that range and returned. Without this,
+    a single 5-race outlier (e.g. a driver at 16.0 overtakes/race from a tiny
+    sample) sets the top of the whole scale, artificially compressing every
+    reliable driver's score toward the middle just to accommodate one noisy
+    data point - exactly the small-sample distortion this project has
+    repeatedly had to catch and fix."""
+    fit_values = series[fit_mask] if fit_mask is not None else series
+    lo, hi = fit_values.min(), fit_values.max()
+    if hi == lo:
         return pd.Series(1.0, index=series.index)
-    return low + (series - series.min()) / (series.max() - series.min()) * (high - low)
+    scaled = low + (series - lo) / (hi - lo) * (high - low)
+    return scaled.clip(low, high)  # thin-sample rows outside the fit range get clamped, not left to blow past it
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--min-races-with-data", type=int, default=MIN_RACES_WITH_DATA,
+                         help="Minimum races overlapping the global sample before a driver's "
+                              "score is trusted (not flagged thin_sample). Try a few values "
+                              "(10/15/20) cheaply - all race checkpoints are cached, so only "
+                              "the final aggregation reruns, not the full download/process step.")
+    parser.add_argument("--output", default="driver_taxonomy_sampled_scores.csv",
+                         help="Output CSV name - give each threshold run its own name so you "
+                              "can compare them side by side, e.g. scores_min15.csv")
+    args = parser.parse_args()
+    MIN_RACES_WITH_DATA = args.min_races_with_data
+
     bucket = CachedBucket()
 
     print("[load] scanning all Race-session results.csv for driver participation history...")
@@ -327,18 +407,31 @@ if __name__ == "__main__":
     # in from the global sample - one pass per race, not one pass per driver.
     driver_counts = {}  # driver -> {"overtakes": n, "defense_held": n, "defense_lost": n, "races_with_data": n}
 
+    n_skipped_from_checkpoint = 0
     for i, (season, race) in enumerate(global_sample, 1):
-        print(f"\n[{i}/{len(global_sample)}] processing {race} {season} ...")
-        try:
-            events = process_one_race(bucket, season, race)
-        except Exception as e:
-            print(f"  [warn] failed: {type(e).__name__}: {e} - skipping this race entirely")
-            continue
-        if events.empty:
-            print("  [warn] no events reconstructed for this race - skipping")
-            continue
+        cached = load_checkpoint(season, race)
+        if cached is not None:
+            print(f"\n[{i}/{len(global_sample)}] {race} {season} - already checkpointed, skipping reprocessing")
+            n_skipped_from_checkpoint += 1
+            counts_per_driver = cached
+            if counts_per_driver.empty:
+                continue
+        else:
+            print(f"\n[{i}/{len(global_sample)}] processing {race} {season} ...")
+            try:
+                events = process_one_race(bucket, season, race)
+            except Exception as e:
+                print(f"  [warn] failed: {type(e).__name__}: {e} - skipping this race for now "
+                      f"(NOT checkpointed - will retry on the next run, could be transient)")
+                continue
+            if events.empty:
+                print("  [warn] no events reconstructed for this race - skipping")
+                save_checkpoint(season, race, pd.DataFrame(), status="empty")
+                continue
 
-        counts_per_driver = events.groupby(["driver", "event"]).size().unstack(fill_value=0)
+            counts_per_driver = events.groupby(["driver", "event"]).size().unstack(fill_value=0)
+            save_checkpoint(season, race, counts_per_driver, status="ok")
+
         for driver, row in counts_per_driver.iterrows():
             if driver not in qualifying_drivers:
                 continue  # not enough career races to trust a real score - archetype fallback instead
@@ -349,6 +442,9 @@ if __name__ == "__main__":
             stats["defense_lost"] += row.get("defense_lost", 0)
             stats["races_with_data"] += 1
         print(f"  [done] {len(counts_per_driver)} drivers credited from this race")
+
+    print(f"\n[resume] {n_skipped_from_checkpoint}/{len(global_sample)} races were already "
+          f"checkpointed from a previous run and skipped entirely (no re-download, no re-processing)")
 
     driver_stats = []
     for driver, stats in driver_counts.items():
@@ -368,13 +464,14 @@ if __name__ == "__main__":
           f"(<{MIN_RACES_WITH_DATA} races) - flagged in the output, not silently trusted")
 
     stats_df = pd.DataFrame(driver_stats)
-    stats_df["aggression_level"] = normalize_to_archetype_range(stats_df["overtakes_per_race"])
-    stats_df["defensive_strength"] = normalize_to_archetype_range(stats_df["defense_hold_rate"])
+    reliable = ~stats_df["thin_sample"]
+    stats_df["aggression_level"] = normalize_to_archetype_range(stats_df["overtakes_per_race"], fit_mask=reliable)
+    stats_df["defensive_strength"] = normalize_to_archetype_range(stats_df["defense_hold_rate"], fit_mask=reliable)
 
     print("\n" + "=" * 70)
     print("=== Real, data-derived driver scores (global race sample) ===")
     print("=" * 70)
     print(stats_df.sort_values("aggression_level", ascending=False).to_string(index=False))
 
-    stats_df.to_csv("driver_taxonomy_sampled_scores.csv", index=False)
-    print("\n[save] driver_taxonomy_sampled_scores.csv")
+    stats_df.to_csv(args.output, index=False)
+    print(f"\n[save] {args.output}")
