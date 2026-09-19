@@ -7,3 +7,4 @@ tracinginsights/
 requirements.txt
 fastf1_cache
 gcs_cache
+metrics_checkpoints
