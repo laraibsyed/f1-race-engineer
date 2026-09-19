@@ -1,0 +1,202 @@
+race_label,status,coverage,pit_loss_constant_s,n_events,known_backfilled_limitation
+2018 Abu Dhabi Grand Prix (R),ok,1.0,10.12149999999999,7.0,False
+2018 Australian Grand Prix (R),ok,0.0,16.188999999999993,0.0,True
+2018 Austrian Grand Prix (R),ok,1.0,15.146,9.0,False
+2018 Azerbaijan Grand Prix (R),ok,1.0,10.2085,13.0,False
+2018 Bahrain Grand Prix (R),ok,0.0,4.513999999999996,0.0,True
+2018 Belgian Grand Prix (R),ok,1.0,4.713999999999999,11.0,False
+2018 Brazilian Grand Prix (R),ok,1.0,5.276499999999999,14.0,False
+2018 British Grand Prix (R),ok,1.0,0.8669999999999902,7.0,False
+2018 Canadian Grand Prix (R),ok,1.0,9.833999999999996,15.0,False
+2018 Chinese Grand Prix (R),ok,1.0,6.667000000000002,6.0,False
+2018 French Grand Prix (R),ok,1.0,19.830500000000015,13.0,False
+2018 German Grand Prix (R),ok,1.0,10.6235,23.0,False
+2018 Hungarian Grand Prix (R),ok,1.0,9.944749999999999,8.0,False
+2018 Japanese Grand Prix (R),ok,1.0,5.759,13.0,False
+2018 Mexican Grand Prix (R),ok,1.0,16.67275,11.0,False
+2018 Monaco Grand Prix (R),ok,1.0,14.994500000000002,18.0,False
+2018 Russian Grand Prix (R),ok,1.0,19.567999999999998,13.0,False
+2018 Singapore Grand Prix (R),ok,1.0,16.465000000000003,13.0,False
+2018 Spanish Grand Prix (R),ok,1.0,17.98625,12.0,False
+2018 United States Grand Prix (R),ok,1.0,10.724500000000006,15.0,False
+2019 Abu Dhabi Grand Prix (R),ok,1.0,6.134999999999991,14.0,False
+2019 Australian Grand Prix (R),ok,1.0,10.606000000000002,14.0,False
+2019 Austrian Grand Prix (R),ok,1.0,11.003,14.0,False
+2019 Azerbaijan Grand Prix (R),ok,1.0,13.002000000000002,20.0,False
+2019 Bahrain Grand Prix (R),ok,1.0,17.349999999999994,27.0,False
+2019 Belgian Grand Prix (R),ok,1.0,8.959499999999998,17.0,False
+2019 Brazilian Grand Prix (R),ok,1.0,5.758499999999998,27.0,False
+2019 British Grand Prix (R),ok,1.0,19.98625,15.0,False
+2019 Canadian Grand Prix (R),ok,1.0,15.266000000000005,21.0,False
+2019 Chinese Grand Prix (R),ok,1.0,7.789749999999998,20.0,False
+2019 French Grand Prix (R),ok,1.0,18.740499999999997,18.0,False
+2019 German Grand Prix (R),ok,1.0,10.804750000000006,30.0,False
+2019 Hungarian Grand Prix (R),ok,1.0,10.608250000000005,15.0,False
+2019 Italian Grand Prix (R),ok,1.0,10.61099999999999,14.0,False
+2019 Japanese Grand Prix (R),ok,1.0,10.267499999999998,23.0,False
+2019 Mexican Grand Prix (R),ok,1.0,7.268749999999997,19.0,False
+2019 Monaco Grand Prix (R),ok,1.0,14.53425,12.0,False
+2019 Russian Grand Prix (R),ok,1.0,5.199500000000015,9.0,False
+2019 Singapore Grand Prix (R),ok,1.0,18.79025,16.0,False
+2019 Spanish Grand Prix (R),ok,1.0,10.134499999999996,23.0,False
+2019 United States Grand Prix (R),ok,1.0,9.002000000000002,16.0,False
+2020 70th Anniversary Grand Prix (R),ok,1.0,4.677000000000007,22.0,False
+2020 Abu Dhabi Grand Prix (R),ok,1.0,12.233000000000004,11.0,False
+2020 Austrian Grand Prix (R),ok,0.9990574929311969,27.501000000000005,11.0,False
+2020 Bahrain Grand Prix (R),ok,1.0,11.642500000000005,33.0,False
+2020 Belgian Grand Prix (R),ok,1.0,8.940749999999987,6.0,False
+2020 British Grand Prix (R),ok,1.0,22.429999999999993,3.0,False
+2020 Eifel Grand Prix (R),ok,1.0,8.997,17.0,False
+2020 Emilia Romagna Grand Prix (R),ok,1.0,7.311500000000002,13.0,False
+2020 Hungarian Grand Prix (R),ok,1.0,20.270250000000004,20.0,False
+2020 Italian Grand Prix (R),ok,1.0,17.010999999999996,10.0,False
+2020 Portuguese Grand Prix (R),ok,1.0,18.963,17.0,False
+2020 Russian Grand Prix (R),ok,1.0,14.134750000000011,14.0,False
+2020 Sakhir Grand Prix (R),ok,1.0,19.773500000000006,19.0,False
+2020 Spanish Grand Prix (R),ok,1.0,7.140000000000001,18.0,False
+2020 Styrian Grand Prix (R),ok,1.0,4.033999999999992,11.0,False
+2020 Turkish Grand Prix (R),ok,1.0,10.197499999999991,21.0,False
+2020 Tuscan Grand Prix (R),ok,1.0,14.023250000000004,19.0,False
+2021 Abu Dhabi Grand Prix (R),ok,1.0,5.528500000000001,18.0,False
+2021 Austrian Grand Prix (R),ok,1.0,10.173000000000002,16.0,False
+2021 Azerbaijan Grand Prix (R),ok,1.0,11.4255,17.0,False
+2021 Bahrain Grand Prix (R),ok,1.0,5.134249999999994,22.0,False
+2021 Belgian Grand Prix (R),no_pit_loss_constant,1.0,,,True
+2021 British Grand Prix (R),ok,1.0,4.048000000000002,12.0,False
+2021 British Grand Prix (S),ok,0.0,6.454999999999998,0.0,True
+2021 Dutch Grand Prix (R),ok,1.0,12.498000000000005,16.0,False
+2021 Emilia Romagna Grand Prix (R),ok,1.0,3.9420000000000073,9.0,False
+2021 French Grand Prix (R),ok,1.0,14.64,17.0,False
+2021 Hungarian Grand Prix (R),ok,1.0,17.889500000000012,5.0,False
+2021 Italian Grand Prix (R),ok,1.0,5.21875,5.0,False
+2021 Italian Grand Prix (S),no_pit_loss_constant,0.0,,,True
+2021 Mexico City Grand Prix (R),ok,1.0,4.1155000000000115,7.0,False
+2021 Monaco Grand Prix (R),ok,1.0,12.143500000000003,13.0,False
+2021 Portuguese Grand Prix (R),ok,1.0,6.564750000000004,11.0,False
+2021 Qatar Grand Prix (R),ok,1.0,14.965500000000006,25.0,False
+2021 Russian Grand Prix (R),ok,1.0,18.1535,23.0,False
+2021 Saudi Arabian Grand Prix (R),ok,1.0,11.430999999999997,14.0,False
+2021 Spanish Grand Prix (R),ok,1.0,7.509500000000017,22.0,False
+2021 Styrian Grand Prix (R),ok,0.9992283950617284,11.661250000000003,14.0,False
+2021 São Paulo Grand Prix (R),ok,1.0,5.430500000000002,18.0,False
+2021 São Paulo Grand Prix (S),no_pit_loss_constant,0.0,,,True
+2021 Turkish Grand Prix (R),ok,1.0,11.453750000000014,10.0,False
+2021 United States Grand Prix (R),ok,1.0,4.498249999999999,16.0,False
+2022 Abu Dhabi Grand Prix (R),ok,1.0,19.525999999999996,18.0,False
+2022 Australian Grand Prix (R),ok,1.0,13.728000000000009,11.0,False
+2022 Austrian Grand Prix (R),ok,1.0,9.025249999999993,21.0,False
+2022 Azerbaijan Grand Prix (R),ok,1.0,17.307000000000002,13.0,False
+2022 Bahrain Grand Prix (R),ok,1.0,3.754000000000005,31.0,False
+2022 Belgian Grand Prix (R),ok,1.0,10.966999999999999,28.0,False
+2022 British Grand Prix (R),ok,1.0,7.447999999999993,11.0,False
+2022 Canadian Grand Prix (R),ok,1.0,15.485,24.0,False
+2022 Dutch Grand Prix (R),ok,1.0,5.971999999999994,37.0,False
+2022 Emilia Romagna Grand Prix (R),ok,1.0,15.417500000000004,0.0,False
+2022 French Grand Prix (R),ok,1.0,18.70049999999999,5.0,False
+2022 Hungarian Grand Prix (R),ok,1.0,16.471999999999994,29.0,False
+2022 Italian Grand Prix (R),ok,1.0,6.178750000000001,11.0,False
+2022 Japanese Grand Prix (R),ok,0.9980276134122288,19.334500000000006,3.0,False
+2022 Mexico City Grand Prix (R),ok,1.0,11.937249999999999,18.0,False
+2022 Miami Grand Prix (R),ok,1.0,15.629999999999995,14.0,False
+2022 Monaco Grand Prix (R),ok,1.0,14.546500000000002,5.0,False
+2022 Saudi Arabian Grand Prix (R),ok,1.0,3.989999999999988,4.0,False
+2022 Singapore Grand Prix (R),ok,1.0,6.7535000000000025,5.0,False
+2022 Spanish Grand Prix (R),ok,1.0,16.686000000000007,39.0,False
+2022 São Paulo Grand Prix (R),ok,1.0,16.517999999999994,31.0,False
+2022 United States Grand Prix (R),ok,1.0,11.032999999999987,18.0,False
+2023 Abu Dhabi Grand Prix (R),ok,1.0,3.4039999999999964,21.0,False
+2023 Australian Grand Prix (R),ok,1.0,11.021499999999996,10.0,False
+2023 Austrian Grand Prix (R),ok,1.0,6.005499999999998,18.0,False
+2023 Austrian Grand Prix (S),ok,0.0,13.633499999999998,0.0,True
+2023 Azerbaijan Grand Prix (R),ok,1.0,5.433,5.0,False
+2023 Azerbaijan Grand Prix (S),ok,0.0,14.667749999999991,0.0,True
+2023 Bahrain Grand Prix (R),ok,1.0,5.596500000000006,19.0,False
+2023 Belgian Grand Prix (R),ok,1.0,8.799000000000007,13.0,False
+2023 Belgian Grand Prix (S),ok,0.0,16.041500000000006,0.0,True
+2023 British Grand Prix (R),ok,1.0,0.04200000000000159,0.0,False
+2023 Canadian Grand Prix (R),ok,1.0,15.719999999999999,12.0,False
+2023 Dutch Grand Prix (R),ok,1.0,15.979,30.0,False
+2023 Hungarian Grand Prix (R),ok,1.0,16.20899999999999,23.0,False
+2023 Italian Grand Prix (R),ok,1.0,18.982500000000016,15.0,False
+2023 Japanese Grand Prix (R),ok,1.0,12.6295,24.0,False
+2023 Las Vegas Grand Prix (R),ok,1.0,16.482750000000003,10.0,False
+2023 Mexico City Grand Prix (R),ok,1.0,4.509750000000004,21.0,False
+2023 Miami Grand Prix (R),ok,1.0,13.85275,9.0,False
+2023 Monaco Grand Prix (R),ok,1.0,14.667000000000002,23.0,False
+2023 Qatar Grand Prix (R),ok,1.0,21.965999999999994,41.0,False
+2023 Qatar Grand Prix (S),no_pit_loss_constant,0.0,,,True
+2023 Saudi Arabian Grand Prix (R),ok,1.0,2.9920000000000044,3.0,False
+2023 Singapore Grand Prix (R),ok,1.0,20.968500000000006,5.0,False
+2023 Spanish Grand Prix (R),ok,1.0,14.108500000000006,36.0,False
+2023 São Paulo Grand Prix (R),ok,1.0,16.714,22.0,False
+2023 São Paulo Grand Prix (S),no_pit_loss_constant,0.0,,,True
+2023 United States Grand Prix (R),ok,1.0,8.174500000000002,26.0,False
+2023 United States Grand Prix (S),ok,0.0,8.557000000000002,0.0,True
+2024 Abu Dhabi Grand Prix (R),ok,1.0,19.392250000000004,11.0,False
+2024 Australian Grand Prix (R),ok,1.0,10.962000000000003,19.0,False
+2024 Austrian Grand Prix (R),ok,1.0,15.714249999999993,27.0,False
+2024 Austrian Grand Prix (S),no_pit_loss_constant,0.0,,,True
+2024 Azerbaijan Grand Prix (R),ok,1.0,13.420000000000002,9.0,False
+2024 Bahrain Grand Prix (R),ok,1.0,19.592,18.0,False
+2024 Belgian Grand Prix (R),ok,1.0,9.648000000000003,16.0,False
+2024 British Grand Prix (R),ok,1.0,16.918499999999995,4.0,False
+2024 Canadian Grand Prix (R),ok,1.0,14.093500000000006,8.0,False
+2024 Chinese Grand Prix (R),ok,1.0,8.424999999999997,23.0,False
+2024 Chinese Grand Prix (S),ok,0.0,9.513500000000008,0.0,True
+2024 Dutch Grand Prix (R),ok,1.0,13.473500000000001,17.0,False
+2024 Emilia Romagna Grand Prix (R),ok,1.0,8.072000000000003,12.0,False
+2024 Hungarian Grand Prix (R),ok,1.0,12.879499999999993,24.0,False
+2024 Italian Grand Prix (R),ok,1.0,9.55125000000001,15.0,False
+2024 Japanese Grand Prix (R),ok,1.0,17.2675,18.0,False
+2024 Las Vegas Grand Prix (R),ok,1.0,11.369999999999997,22.0,False
+2024 Mexico City Grand Prix (R),ok,1.0,6.594000000000008,9.0,False
+2024 Miami Grand Prix (R),ok,1.0,10.931750000000001,12.0,False
+2024 Miami Grand Prix (S),ok,0.0,8.9405,0.0,True
+2024 Monaco Grand Prix (R),ok,1.0,10.9835,4.0,False
+2024 Qatar Grand Prix (R),ok,1.0,5.502499999999998,13.0,False
+2024 Qatar Grand Prix (S),ok,0.0,14.907499999999999,0.0,True
+2024 Saudi Arabian Grand Prix (R),ok,1.0,10.037999999999997,3.0,False
+2024 Singapore Grand Prix (R),ok,1.0,11.907749999999993,14.0,False
+2024 Spanish Grand Prix (R),ok,1.0,11.373499999999993,30.0,False
+2024 São Paulo Grand Prix (R),ok,1.0,4.983249999999998,12.0,False
+2024 São Paulo Grand Prix (S),no_pit_loss_constant,0.0,,,True
+2024 United States Grand Prix (R),ok,1.0,6.633999999999993,16.0,False
+2024 United States Grand Prix (S),no_pit_loss_constant,0.0,,,True
+2025 Abu Dhabi Grand Prix (R),ok,1.0,11.788000000000004,14.0,False
+2025 Australian Grand Prix (R),ok,1.0,6.227499999999999,9.0,False
+2025 Austrian Grand Prix (R),ok,1.0,8.152500000000003,17.0,False
+2025 Azerbaijan Grand Prix (R),ok,1.0,10.326500000000003,12.0,False
+2025 Bahrain Grand Prix (R),ok,1.0,5.473500000000001,27.0,False
+2025 Belgian Grand Prix (R),ok,1.0,14.262999999999998,2.0,False
+2025 Belgian Grand Prix (S),ok,0.0,9.114999999999995,0.0,True
+2025 British Grand Prix (R),ok,1.0,12.374500000000005,10.0,False
+2025 Canadian Grand Prix (R),ok,1.0,15.378750000000004,40.0,False
+2025 Chinese Grand Prix (R),ok,1.0,13.409000000000006,11.0,False
+2025 Dutch Grand Prix (R),ok,1.0,3.961250000000007,10.0,False
+2025 Emilia Romagna Grand Prix (R),ok,1.0,16.914499999999997,15.0,False
+2025 Hungarian Grand Prix (R),ok,1.0,10.602249999999998,15.0,False
+2025 Italian Grand Prix (R),ok,1.0,4.674250000000001,8.0,False
+2025 Japanese Grand Prix (R),ok,1.0,11.793749999999996,15.0,False
+2025 Las Vegas Grand Prix (R),ok,1.0,6.177999999999997,8.0,False
+2025 Mexico City Grand Prix (R),ok,1.0,8.519249999999992,18.0,False
+2025 Miami Grand Prix (R),ok,1.0,9.785749999999993,2.0,False
+2025 Miami Grand Prix (S),ok,0.0,6.475999999999999,0.0,True
+2025 Monaco Grand Prix (R),ok,1.0,13.021500000000003,23.0,False
+2025 Qatar Grand Prix (R),ok,1.0,8.487499999999983,7.0,False
+2025 Qatar Grand Prix (S),ok,0.0,6.728499999999997,0.0,True
+2025 Saudi Arabian Grand Prix (R),ok,1.0,9.962250000000004,8.0,False
+2025 Singapore Grand Prix (R),ok,1.0,15.806250000000006,12.0,False
+2025 Spanish Grand Prix (R),ok,1.0,9.335749999999997,34.0,False
+2025 São Paulo Grand Prix (R),ok,1.0,12.897500000000008,27.0,False
+2025 São Paulo Grand Prix (S),ok,0.0,29.926000000000002,0.0,True
+2025 United States Grand Prix (R),ok,1.0,10.61699999999999,12.0,False
+2025 United States Grand Prix (S),no_pit_loss_constant,0.0,,,True
+2026 Australian Grand Prix (R),ok,1.0,9.317000000000007,8.0,False
+2026 Canadian Grand Prix (R),ok,1.0,8.15700000000001,13.0,False
+2026 Canadian Grand Prix (S),ok,0.0,17.242750000000008,0.0,True
+2026 Chinese Grand Prix (R),ok,1.0,6.137999999999991,13.0,False
+2026 Chinese Grand Prix (S),ok,0.0,18.305999999999997,0.0,True
+2026 Japanese Grand Prix (R),ok,1.0,3.0304999999999964,5.0,False
+2026 Miami Grand Prix (R),ok,1.0,10.698999999999998,12.0,False
+2026 Miami Grand Prix (S),ok,0.0,19.906750000000002,0.0,True
+2026 Monaco Grand Prix (R),ok,1.0,6.783000000000001,4.0,False
