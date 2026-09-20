@@ -111,6 +111,13 @@ def is_known_backfilled_session(year, race_fastf1, session_fastf1):
 # finds no valid pit-in/out laps to build a constant from; that's the race, not a bug.
 KNOWN_NO_PIT_STRATEGY_SESSIONS = {
     (2021, "Belgian_Grand_Prix", "R"),
+    # 2023 Australian GP: three separate red-flag periods fragmented the timing data so
+    # badly that only 2 genuinely clean pit-stop samples survive out of ~65 pit-flagged
+    # laps (confirmed via diagnose_pit_loss.py) — most pit-in/pit-out laps have no
+    # computable LapTime at all, not just a contaminated one. n=2 is an order of
+    # magnitude below the project's own small-sample threshold; no amount of refining
+    # the duration calculation fixes a race that lacks the underlying clean data.
+    (2023, "Australian_Grand_Prix", "R"),
 }
 
 

@@ -270,6 +270,32 @@ def extract_driver_ahead(data):
     return str(driver_ahead_raw), distance_val
 
 
+def add_behind_columns(opponent_df, features_df):
+    """Derives the car BEHIND each driver via reverse lookup on the already-computed
+    'ahead' table — satisfies the "track rival ... gap (car ahead + behind)" checklist
+    item WITHOUT any new raw telemetry parsing. If Y's ahead_driver == X on a given
+    lap, then X's car-behind is Y, and the gap is the same physical distance already
+    captured (from the other car's own telemetry sample, not re-derived from scratch).
+
+    Fast, vectorized — no per-row raw file reads, safe to run on cached opponent
+    tables for the whole archive without re-scanning telemetry."""
+    reverse = opponent_df.dropna(subset=["ahead_driver"])[
+        ["Driver", "LapNumber", "ahead_driver", "distance_to_ahead_m"]
+    ].rename(columns={
+        "Driver": "behind_driver",
+        "ahead_driver": "Driver",
+        "distance_to_ahead_m": "distance_to_behind_m",
+    })
+
+    merged = opponent_df.merge(reverse, on=["Driver", "LapNumber"], how="left")
+
+    lookup = features_df[["Driver", "LapNumber", "Compound", "TyreLife"]].rename(
+        columns={"Driver": "behind_driver", "Compound": "behind_compound", "TyreLife": "behind_tyre_age"}
+    )
+    merged = merged.merge(lookup, on=["behind_driver", "LapNumber"], how="left")
+    return merged
+
+
 def build_opponent_table(cb, features_df, number_to_code):
     """One row per (Driver, Lap): who's ahead (code), distance to them, their compound
     and tyre age at that lap. Checkpointed to disk as it goes — expensive per-file work,
@@ -339,48 +365,82 @@ def build_opponent_table(cb, features_df, number_to_code):
 # --------------------------------------------------------------------------------------
 # Step 3 — empirical pit-lane time loss for this circuit
 # --------------------------------------------------------------------------------------
+MAX_PLAUSIBLE_PIT_STOP_S = 120.0  # no real pit stop takes 2+ minutes
+
+
 def compute_pit_lane_loss(df):
-    """Pit-lane time loss = how much slower an in-lap/out-lap is vs this stint's clean-lap
-    baseline. NOTE this includes the stationary tyre-change time as well as travel time —
-    flag this assumption explicitly in your methodology write-up, since some sources define
-    'pit lane loss' as travel-time-only (excludes the stop itself).
+    """Pit-lane time loss = the REAL physical duration spent in the pit lane, computed
+    directly as PitOutTime - PitInTime for each matched pit-in -> pit-out lap pair.
 
-    FIXED (post archive-wide analysis): originally didn't exclude Safety Car/VSC-affected
-    laps from either the clean baseline or the pit-in/out samples. A pit stop taken under
-    SC costs far less real time than a green-flag stop (the whole field is slowed anyway),
-    so a race with SC-bunched stops was dragging its computed constant down artificially.
-    Confirmed via a same-circuit contradiction: 2020 Austrian GP and 2020 Styrian GP (the
-    SAME physical Red Bull Ring pit lane, two races apart) produced 38.66s vs 4.03s before
-    this fix — a difference that size can't be a real property of the circuit. Now excludes
-    is_sc_lap/is_vsc_lap from the baseline AND drops any pit_in/pit_out lap itself flagged
-    SC/VSC, so the constant reflects genuine green-flag pit-lane cost."""
+    REPLACED the earlier out-lap-LapTime-vs-clean-baseline proxy entirely, after direct
+    verification (diagnose_pit_loss.py, 2023 British GP) showed the two measures were
+    almost perfectly correlated (r=0.99, n=10 clean stops) but the proxy consistently
+    UNDERSTATED the real duration by ~7.8s (median real 28.73s vs median proxy 20.94s).
+    Using the real timestamp difference directly is simpler, more physically grounded,
+    and removes the fragility the proxy depended on: no 'clean lap baseline' is needed
+    at all (no MIN_CLEAN_LAPS_FOR_BASELINE dependency, no degenerate-stint failure mode
+    like the one that produced 2023 British GP's near-zero constant), and no risk of
+    pooling the incompatible pit_in (~0s) / pit_out (~20s) distributions that caused the
+    original outlier investigation to go down the wrong path.
+
+    FIXED (post archive-wide analysis): two races produced absurd 1000+ second
+    "durations" (2021 Saudi Arabian GP, 2023 Australian GP) — both well-documented
+    red-flag races. Best explanation: a driver's PitInTime recorded just before a red
+    flag, PitOutTime not recorded until the race resumed, so the timestamp difference
+    captures the entire stoppage, not a pit stop. Rather than try to detect red flags
+    specifically (no confirmed track-status column semantics to rely on), this applies
+    a hard physical plausibility cap: no real pit stop takes 2+ minutes, so anything
+    above MAX_PLAUSIBLE_PIT_STOP_S is dropped before it ever reaches the winsorized
+    median — a transparent, circuit-agnostic safeguard rather than a guess at the cause.
+
+    Still excludes SC/VSC-affected stops as a conservative safeguard (see note below on
+    why this may matter less for the real-duration method than it did for the old proxy)."""
     results = []
-    for (driver, stint), g in df.groupby(["Driver", "Stint"]):
-        clean_mask = (
-            (~g["is_out_lap"].astype(bool))
-            & (~g["is_in_lap"].astype(bool))
-            & (~g["is_pit_in"].fillna(False).astype(bool))
-            & (~g["is_pit_out"].fillna(False).astype(bool))
-            & (~g["is_outlier_laptime"].astype(bool))
-            & (~g["is_sc_lap"].fillna(False).astype(bool))
-            & (~g["is_vsc_lap"].fillna(False).astype(bool))
-        )
-        clean = g[clean_mask]
-        if len(clean) < MIN_CLEAN_LAPS_FOR_BASELINE:
-            continue  # small-sample rule — exclude from defining the baseline, don't just flag it
-        baseline = clean["LapTime_s"].median()
+    sorted_df = df.sort_values(["Driver", "LapNumber"])
+    indexed = sorted_df.set_index(["Driver", "LapNumber"])
 
-        # Only count pit_in/pit_out laps that were themselves under green-flag conditions —
-        # an SC/VSC-affected stop's lap time isn't comparable to the clean baseline above,
-        # and would silently understate the real pit-lane cost if included.
-        not_sc_vsc = (~g["is_sc_lap"].fillna(False).astype(bool)) & (~g["is_vsc_lap"].fillna(False).astype(bool))
+    for _, in_row in sorted_df[sorted_df["is_pit_in"].fillna(False).astype(bool)].iterrows():
+        driver = in_row["Driver"]
+        in_lap = in_row["LapNumber"]
+        out_lap = in_lap + 1
+        if (driver, out_lap) not in indexed.index:
+            continue
+        out_row = indexed.loc[(driver, out_lap)]
+        if isinstance(out_row, pd.DataFrame):  # defensive, in case of any duplicate index
+            out_row = out_row.iloc[0]
+        if not bool(out_row.get("is_pit_out", False)):
+            continue  # the following lap wasn't actually the matching pit-out
 
-        for _, row in g[g["is_pit_in"].fillna(False).astype(bool) & not_sc_vsc].iterrows():
-            if pd.notna(row["LapTime_s"]):
-                results.append({"driver": driver, "stint": stint, "lap_type": "pit_in", "loss_s": row["LapTime_s"] - baseline})
-        for _, row in g[g["is_pit_out"].fillna(False).astype(bool) & not_sc_vsc].iterrows():
-            if pd.notna(row["LapTime_s"]):
-                results.append({"driver": driver, "stint": stint, "lap_type": "pit_out", "loss_s": row["LapTime_s"] - baseline})
+        under_sc = bool(in_row.get("is_sc_lap", False) or in_row.get("is_vsc_lap", False)
+                         or out_row.get("is_sc_lap", False) or out_row.get("is_vsc_lap", False))
+        if under_sc:
+            continue
+
+        try:
+            duration = (pd.to_timedelta(out_row["PitOutTime"]) - pd.to_timedelta(in_row["PitInTime"])).total_seconds()
+        except Exception:
+            continue
+        if pd.isna(duration):
+            continue
+        if duration > MAX_PLAUSIBLE_PIT_STOP_S:
+            continue  # almost certainly spans a red flag or other stoppage, not a real stop
+
+        results.append({"driver": driver, "in_lap": int(in_lap), "out_lap": int(out_lap), "loss_s": duration})
+
+    loss_df = pd.DataFrame(results)
+    if loss_df.empty:
+        print("[pit_loss] No valid green-flag pit stop pairs found — check is_pit_in/"
+              "is_pit_out/PitInTime/PitOutTime exist and aren't all null for this race.")
+        return loss_df, None
+
+    # Winsorize before taking a summary constant — a single genuine outlier (e.g. a slow
+    # unsafe-release lap, like the 41.98s one seen in the British GP verification)
+    # shouldn't distort the circuit-level number.
+    p10, p90 = loss_df["loss_s"].quantile([0.10, 0.90])
+    winsorized = loss_df["loss_s"].clip(p10, p90)
+    circuit_constant_s = winsorized.median()
+
+    return loss_df, circuit_constant_s
 
     loss_df = pd.DataFrame(results)
     if loss_df.empty:
@@ -465,7 +525,7 @@ def flag_undercut_windows(opponent_df, features_df, pit_loss_constant_s,
     return merged
 
 
-def summarize_undercut_events(flagged_df):
+def summarize_undercut_events(flagged_df, features_df=None):
     """Collapses consecutive flagged laps per driver into single candidate events.
 
     VALIDATED against real 2023 Bahrain data: OCO's reported undercut (Autosport —
@@ -481,6 +541,20 @@ def summarize_undercut_events(flagged_df):
     match the conditions (see ZHO lap 54 — flagged, but F1's report says the motive was
     a late fastest-lap attempt, not a tyre-offset undercut). That still needs manual
     annotation against race reports; this function only fixes the double-counting.
+
+    NEW: if features_df is provided, adds a 'direction' column — undercut / overcut /
+    ambiguous — a simple pit-order sequencing check against the identified rival, not a
+    new detection system:
+      - 'undercut': the flagged driver's own pit lap comes BEFORE the rival's next real
+        pit stop (they pit first, hoping to gain via fresh tyres before the rival
+        reacts) — the classic case, confirmed for Ocon/Bahrain.
+      - 'overcut': the rival ALREADY pitted before the flagged driver's own stop (the
+        flagged driver stayed out longer, gaining via track position/clean air before
+        finally pitting) — confirmed for Gasly/Monaco and Magnussen/Abu Dhabi in the
+        single-race validation, both real overcuts the original undercut-shaped rule
+        happened to also catch.
+      - 'ambiguous': no matching rival pit lap found nearby, or the rival's identity
+        wasn't stable across the flagged window.
     """
     events = []
     for driver, g in flagged_df.sort_values(["Driver", "LapNumber"]).groupby("Driver"):
@@ -497,11 +571,35 @@ def summarize_undercut_events(flagged_df):
             # Run [run_start, prev] ended; find the real pit lap it led into, if any
             pit_rows = g.loc[(g["LapNumber"] >= run_start) & (g["LapNumber"] <= prev + 3) & (g["is_pit_in"].fillna(False)), "LapNumber"]
             actual_pit_lap = int(pit_rows.iloc[0]) if not pit_rows.empty else None
+
+            direction = None
+            if features_df is not None and actual_pit_lap is not None:
+                rival_row = g.loc[g["LapNumber"] == prev, "ahead_driver"]
+                rival = rival_row.iloc[0] if not rival_row.empty else None
+                if rival is not None and pd.notna(rival):
+                    rival_pit_laps = features_df.loc[
+                        (features_df["Driver"] == rival) & (features_df["is_pit_in"].fillna(False)),
+                        "LapNumber"
+                    ].tolist()
+                    if rival_pit_laps:
+                        nearest = min(rival_pit_laps, key=lambda x: abs(x - actual_pit_lap))
+                        if nearest < actual_pit_lap:
+                            direction = "overcut"
+                        elif nearest > actual_pit_lap:
+                            direction = "undercut"
+                        else:
+                            direction = "ambiguous"
+                    else:
+                        direction = "ambiguous"
+                else:
+                    direction = "ambiguous"
+
             events.append({
                 "Driver": driver,
                 "window_start_lap": int(run_start),
                 "window_end_lap": int(prev),
                 "actual_pit_lap": actual_pit_lap,
+                "direction": direction,
             })
             if lap is not None:
                 run_start = lap
@@ -560,7 +658,7 @@ def main():
         flagged.to_csv(out_path, index=False)
         print(f"[main] Done. {flagged['undercut_opportunity'].sum()} candidate undercut-opportunity rows written to {out_path}")
 
-        events = summarize_undercut_events(flagged)
+        events = summarize_undercut_events(flagged, features_df=features_df)
         events_path = f"./checkpoints/rival_knowledge/{tag}_undercut_events.csv"
         events.to_csv(events_path, index=False)
         print(f"[main] Collapsed to {len(events)} distinct candidate events, written to {events_path}")

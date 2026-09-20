@@ -8,3 +8,5 @@ requirements.txt
 fastf1_cache
 gcs_cache
 metrics_checkpoints
+checkpoints
+rolling_profile_checkpoints
