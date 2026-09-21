@@ -80,7 +80,7 @@ import pandas as pd
 import numpy as np
 from dotenv import load_dotenv
 from google.cloud import storage
-import fastf1
+from calender import RACE_CALENDAR
 
 load_dotenv()
 
@@ -139,52 +139,69 @@ def load_checkpoint(season, race):
     return payload["data"] if payload["status"] == "ok" else {}
 
 
-def build_race_order_lookup(seasons: list) -> dict:
-    """
-    (season, race_name) -> true chronological global rank, from FastF1's own
-    event schedule (RoundNumber, calendar order) -- not alphabetical by name.
-    fastf1 is not a new dependency; it's already used elsewhere in this
-    project (backfill_telemetry_fastf1.py). No date/round exists in the
-    bucket's own laps.csv/results.csv (checked directly: LapStartDate is
-    100% null; results.csv's Time is race duration, not a calendar date).
-    """
-    rows = []
-    for year in seasons:
-        schedule = fastf1.get_event_schedule(year, include_testing=False)
-        for _, event in schedule.iterrows():
-            race_name = event["EventName"].replace(" ", "_")
-            rows.append({"season": year, "race_name": race_name,
-                         "round_number": int(event["RoundNumber"])})
-    order_df = pd.DataFrame(rows).sort_values(["season", "round_number"]).reset_index(drop=True)
-    order_df["global_rank"] = range(len(order_df))
-    return {(r["season"], r["race_name"]): r["global_rank"] for _, r in order_df.iterrows()}
-
-
 def list_feature_race_files(bucket: CachedBucket) -> list:
-    """Every (season, race) with a Race-session laps_features.csv, ordered
-    by TRUE calendar order (via build_race_order_lookup), not alphabetically
-    by race name."""
+    """Every (season, race) with a Race-session laps_features.csv, ordered by
+    TRUE chronological order via the hardcoded RACE_CALENDAR (season+round),
+    not alphabetically by race name.
+
+    Only 'R' (Race) session files are read here -- sprint sessions are never
+    a separate entry in this list, so a driver's sprint laps never get
+    double-counted as an extra "career race" alongside that same weekend's
+    Grand Prix. This was already true structurally (list_blob_names filters
+    on "/R/laps_features.csv" specifically) -- documented here explicitly per
+    the point-in-time design's own requirement to confirm it, not silently
+    assumed.
+    """
     paths = [p for p in bucket.list_blob_names("clean/features/") if p.endswith("/R/laps_features.csv")]
     out = []
     for p in paths:
         parts = p.split("/")
         out.append((int(parts[2]), parts[3]))
+    out = sorted(set(out))
 
-    seasons = sorted({season for season, _ in out})
-    order_lookup = build_race_order_lookup(seasons)
-
-    missing = [(s, r) for (s, r) in out if (s, r) not in order_lookup]
-    if missing:
-        print(f"[warn] {len(missing)} (season, race) pairs not found in FastF1's schedule "
-              f"(name mismatch?): {missing[:10]}{'...' if len(missing) > 10 else ''} -- "
-              "falling back to alphabetical order for these only; investigate before trusting "
-              "their point-in-time profiles.")
+    validate_race_calendar_coverage(out)
 
     def sort_key(sr):
         season, race = sr
-        return order_lookup.get(sr, (season, race))  # fallback: old alphabetical-ish tuple sort
+        for (s, r), name in RACE_CALENDAR.items():
+            if s == season and name == race:
+                return (season, r)
+        return (season, 999, race)  # unmapped race: pushed to the end of its season, not silently ordered wrong
 
     return sorted(out, key=sort_key)
+
+
+def validate_race_calendar_coverage(race_files: list) -> None:
+    """
+    Confirms, before this calendar is trusted:
+    1. Every (season, race_name) in RACE_CALENDAR maps to exactly one round
+       (no duplicate race names within a season in the calendar itself).
+    2. Every race actually present in the bucket has a calendar entry.
+    Prints and does not raise, matching this project's existing
+    warn-and-continue style for coverage gaps (e.g. circuit taxonomy,
+    telemetry backfill) -- but the warnings are loud and specific.
+    """
+    # 1. calendar-internal uniqueness: no season should map two different
+    #    rounds to the same race name, and no round should appear twice
+    by_season = {}
+    for (season, rnd), name in RACE_CALENDAR.items():
+        by_season.setdefault(season, {"names": {}, "rounds": set()})
+        if name in by_season[season]["names"]:
+            print(f"[FAIL] calendar has duplicate race name in {season}: "
+                  f"'{name}' at rounds {by_season[season]['names'][name]} and {rnd}")
+        by_season[season]["names"][name] = rnd
+        if rnd in by_season[season]["rounds"]:
+            print(f"[FAIL] calendar has duplicate round number in {season}: round {rnd}")
+        by_season[season]["rounds"].add(rnd)
+
+    # 2. bucket coverage: every real (season, race) must have a calendar entry
+    calendar_pairs = {(s, name) for (s, _), name in RACE_CALENDAR.items()}
+    missing = [(s, r) for (s, r) in race_files if (s, r) not in calendar_pairs]
+    if missing:
+        print(f"[FAIL] {len(missing)} (season, race) pairs from the bucket have NO calendar "
+              f"entry -- these will sort to the end of their season, likely wrong: {missing}")
+    else:
+        print(f"[ok] every bucket race ({len(race_files)} total) has a calendar entry.")
 
 
 # ---------------------------------------------------------------------------
@@ -542,7 +559,7 @@ if __name__ == "__main__":
 
     print(f"\n[resume] {n_skipped}/{len(race_files)} races already checkpointed and skipped")
 
-    race_order = race_files  # now true chronological order via build_race_order_lookup()
+    race_order = race_files  # true chronological order via RACE_CALENDAR (hardcoded, fact-check before trusting)
     profiles = build_rolling_profiles(per_race_deltas, race_order, min_career_races=args.min_career_races)
 
     # DEBUG: pre-scaling raw deltas for SAR -- checking whether the flat 0.85/0.85
