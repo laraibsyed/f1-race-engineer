@@ -152,6 +152,14 @@ class Tier3State:
                                                      # - "WAIT", "NO_ADVANTAGE_TO_WAITING", or None/
                                                      # "INSUFFICIENT_DATA". NOT a trigger itself -
                                                      # see _apply_sc_gamble_suppression() below.
+    drying_crossover_opportunity: bool = False  # British GP investigation (2026 update): from
+                                                 # weather/drying_line.py's evaluate_drying_crossover()
+                                                 # reaching CONSIDER_DRIER_TYRE. Pace/strategy signal,
+                                                 # NOT a safety one (unlike Tier 1's unsafe_weather) -
+                                                 # staying on wets once the track is dry is slow, not
+                                                 # dangerous, so this belongs here, not in Tier 1.
+                                                 # Defaults False so existing callers/self-tests that
+                                                 # don't pass it keep working unchanged.
 
 
 TYRE_ONLY_TRIGGER_NAMES = {"cliff_proximity", "pace_lap_delta", "tyre_age"}
@@ -224,6 +232,10 @@ def count_active_triggers(state: Tier3State) -> dict:
         "safety_car": state.safety_car_deployed,
         "rival_undercut_threat": state.rival_undercut_threat,
         "dirty_air": state.in_dirty_air,
+        "drying_crossover": state.drying_crossover_opportunity,  # NOT tyre-only - not subject to
+                                                                  # SC-gamble suppression below; a
+                                                                  # drying opportunity is independent
+                                                                  # of whether we're gambling on an SC.
     }
     return _apply_sc_gamble_suppression(raw_triggers, state)
 

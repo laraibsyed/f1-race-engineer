@@ -784,7 +784,9 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
     result = {"driver": state.code, "driver_id": state.driver_id, "lap": lap_number,
               "compound": compound, "tyre_age": tyre_age, "gate_decision": t1,
               "tier_reached": 1, "reason": None, "triggers": {}, "projection": projection,
-              "sc_gamble": None, "gate_tree_trigger_tier": None, "adjacency": adjacency}
+              "sc_gamble": None, "gate_tree_trigger_tier": None, "adjacency": adjacency,
+              "t1_state": t1_state}  # kept for explanation_for()'s _tier1_plain_reason() -
+                                      # explainability only, never re-evaluated or re-decided from.
     if t1 == "PIT_NOW":
         result["gate_tree_trigger_tier"] = 1
         return result
@@ -834,6 +836,48 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
     dirty_air = in_dirty_air(gap_ahead_s)
     stress = get_driver_stress_trigger(radios_by_driver_lap, state.code, lap_number)
 
+    # --- drying crossover (British GP investigation, Tier 3 - NOT Tier 1: this
+    # is a pace/strategy signal, not a safety one - staying on wets too long
+    # once the track is dry is slow, not dangerous, unlike rain-on-slicks) ---
+    # Only meaningful while OUR driver is still on a wet compound - if we're
+    # already dry, there's nothing to "consider switching" to.
+    drying_crossover_opportunity = False
+    seconds_since_rain_end = _safe_float(row.get("_seconds_since_rain_end"))
+    if (drying_line is not None and compound in WET_COMPOUNDS
+            and seconds_since_rain_end is not None and seconds_since_rain_end >= 0
+            and lap_df is not None and not lap_df.empty):
+        def _is_clean(r):
+            return not any([bool(r.get("is_pit_in")), bool(r.get("is_pit_out")),
+                            bool(r.get("is_sc_lap")), bool(r.get("is_vsc_lap")),
+                            bool(r.get("is_outlier_laptime"))])
+        field_clean = lap_df[lap_df.apply(_is_clean, axis=1)]
+        # "mobile sensor": whichever car in the field has ALREADY switched to
+        # a dry compound and has driven the fewest laps on it (freshest
+        # switch, most representative of "just crossed over") - ASSUMPTION on
+        # the tie-break, flagged, since drying_line.py's own docstring doesn't
+        # specify which switched driver to use when several exist.
+        switched_candidates = field_clean[field_clean["Compound"].isin(DRY_COMPOUNDS)].sort_values("TyreLife")
+        reference_candidates = field_clean[field_clean["Compound"].isin(WET_COMPOUNDS)
+                                            & (field_clean["Driver"] != row.get("Driver"))]
+        if not switched_candidates.empty and not reference_candidates.empty:
+            switched_row = switched_candidates.iloc[0]
+            switched_lt = _safe_float(switched_row.get("LapTime_seconds"))
+            reference_laps_list = []
+            for _, r in reference_candidates.iterrows():
+                lt = _safe_float(r.get("LapTime_seconds"))
+                if lt is not None:
+                    reference_laps_list.append(
+                        drying_line.LapTimeSample(driver=r.get("Driver"), lap_time_seconds=lt,
+                                                   compound=r.get("Compound")))
+            if switched_lt is not None and reference_laps_list:
+                switched_sample = drying_line.LapTimeSample(
+                    driver=switched_row.get("Driver"), lap_time_seconds=switched_lt,
+                    compound=switched_row.get("Compound"))
+                drying_result = drying_line.evaluate_drying_crossover(
+                    seconds_since_rain_end=seconds_since_rain_end,
+                    switched_driver_lap=switched_sample, reference_laps=reference_laps_list)
+                drying_crossover_opportunity = (drying_result.state == drying_line.DryingState.CONSIDER_DRIER_TYRE)
+
     t3_state = gate3.Tier3State(
         cliff_probability_next_5_laps=projection["cliff_probability_next_5_laps"],
         predicted_pace_loss=projection["predicted_pace_loss"],
@@ -842,6 +886,7 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
         safety_car_deployed=safety_car_deployed, rival_undercut_threat=rival_threat,
         in_dirty_air=dirty_air, driver_stress_signal=stress,
         sc_gamble_recommendation=gamble.get("recommendation"),
+        drying_crossover_opportunity=drying_crossover_opportunity,
     )
     t3 = gate3.evaluate_tier3(t3_state)
     result["gate_decision"] = t3["decision"]
@@ -851,6 +896,9 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
     result["driver_stress_signal"] = stress
     result["track_position"] = row.get("Position")
     result["can_delay_one_lap_without_position_loss"] = can_delay_one_lap(gap_behind_s, ctx.pit_loss_s)
+    result["t3_state"] = t3_state  # kept for explanation_for()'s "top contributing signals"
+                                     # ranking - needs the raw values/thresholds, not just the
+                                     # trigger booleans already in result["triggers"].
     if t3["decision"] == "PIT_NOW":
         result["gate_tree_trigger_tier"] = 3
     return result
@@ -890,18 +938,227 @@ def merge_execution(ctx: RaceContext, results: list, safety_car_active: bool) ->
                                "driving_instruction": instruction}
 
 
-def explanation_for(r: dict) -> str:
+# ============================================================================
+# 6b. Explainability layer - decision trace for explanation_for()
+# ============================================================================
+# This is a TRACE FORMATTER, not a model-explainability tool - gate-tier-1/2/3
+# are transparent if/else rules, so there is nothing for SHAP (or any other
+# attribution method) to do here. SHAP belongs on the tyre model itself
+# (tyre_life_projection.py's regression + Cox output that FEEDS Tier 3), which
+# is a separate, later piece of work - see the module-level note below
+# SIGNAL_DESCRIPTIONS for where that plugs in.
+#
+# "Top contributing signals" for a Tier-3 decision means: of the triggers
+# that were actually active, which ones were furthest past their own
+# threshold. That's a real, non-arbitrary ranking (not dict order), built
+# from the same raw values/thresholds gate-tier-3.py already computes with -
+# nothing here re-derives or approximates those numbers.
+
+# Plain-English fragments per trigger name, written from a race engineer's
+# point of view - kept separate from gate-tier-3.py's own trigger names so
+# that file doesn't have to carry human-readable strings for a purpose it
+# was never designed for.
+SIGNAL_DESCRIPTIONS = {
+    "cliff_proximity": "tyre cliff risk in the next {h} laps is elevated",
+    "pace_lap_delta": "predicted pace loss is above the calibrated threshold",
+    "tyre_age": "tyre age relative to expected stint length is high",
+    "undercut": "an undercut opportunity is open on the car ahead",
+    "overcut": "an overcut opportunity is open (car ahead just pitted / about to cliff)",
+    "safety_car": "a safety car or VSC is already deployed",
+    "rival_undercut_threat": "the car behind is threatening an undercut",
+    "dirty_air": "running in dirty air behind another car",
+    "drying_crossover": "track is drying and a dry-tyre crossover point looks reached",
+}
+
+TIER_NAMES = {1: "Tier 1 (hard safety gate)", 2: "Tier 2 (regulatory gate)",
+              3: "Tier 3 (soft/strategic triggers)"}
+
+
+def _tier1_plain_reason(r: dict) -> str:
+    """Identifies WHICH Tier 1 hard-safety trigger(s) actually fired, from
+    the same Tier1State evaluate_tier1() was called with (kept on the
+    result as r["t1_state"] purely for this - see evaluate_driver_lap).
+    This is READ-ONLY inspection of gate-tier-1.py's own inputs/logic:
+    - red_flag_or_race_stopped / tyre_structurally_damaged / unsafe_weather
+      are read straight off t1_state, no re-derivation.
+    - the cliff-already-hit check calls gate1.tyre_cliff_already_hit() again
+      on the SAME tyre_age_history/laptime_seconds_history t1_state already
+      carries - the exact function evaluate_tier1() itself uses - so this
+      can never disagree with what actually fired. Nothing here changes
+      Tier 1's decision, thresholds, or evaluation order; it only reports
+      after the fact which of the four conditions were true.
+    If multiple triggers are true at once, all of them are reported -
+    gate-tier-1.py's own early-return means only the FIRST true one in its
+    checked order actually caused the short-circuit, but from a race
+    engineer's point of view "red flag AND damage" is more honest than
+    hiding the second one, so all active triggers are surfaced rather than
+    just the one gate-tier-1.py happened to check first.
+    """
+    t1_state = r.get("t1_state")
+    if t1_state is None:
+        # Should not happen for a Tier-1 PIT_NOW result (evaluate_driver_lap
+        # always sets it), but degrade honestly rather than guess.
+        return "a Tier 1 hard-safety trigger fired (detail unavailable)"
+
+    active = []
+    if t1_state.red_flag_or_race_stopped:
+        active.append("a red flag / race suspension is active")
+    if t1_state.tyre_structurally_damaged:
+        active.append("the tyre shows structural damage (retirement risk if not pitted)")
+    if t1_state.unsafe_weather:
+        active.append("rain/wet conditions make the current tyre unsafe")
+    if gate1.tyre_cliff_already_hit(t1_state.tyre_age_history, t1_state.laptime_seconds_history):
+        active.append("a tyre cliff has already been detected in the current stint")
+
+    if not active:
+        # Defensive only: gate-tier-1.py returned PIT_NOW but none of the
+        # four checks read back as True here - flag the mismatch rather
+        # than fabricate a reason, since that would hide a real bug.
+        return "a Tier 1 hard-safety trigger fired (could not identify which - check t1_state wiring)"
+    if len(active) == 1:
+        return active[0]
+    return "; ".join(active[:-1]) + f"; and {active[-1]}"
+
+
+def _tier2_plain_reason(r: dict) -> str:
+    return "the mandatory dry-compound rule isn't satisfied and the deadline to do it safely is approaching"
+
+
+def top_contributing_signals(r: dict, n: int = 3) -> list:
+    """Ranks ACTIVE Tier-3 triggers by how far past their own threshold they
+    are (a real strength measure, not dict order). Returns a list of dicts:
+    {"signal": name, "value": ..., "threshold": ..., "margin_ratio": ...,
+     "description": plain-English text}. Empty list if Tier 3 was never
+     reached, or nothing was active there (e.g. clean DONT_PIT lap)."""
+    t3_state = r.get("t3_state")
+    triggers = r.get("triggers") or {}
+    active_names = [k for k, v in triggers.items() if v]
+    if t3_state is None or not active_names:
+        return []
+
+    ranked = []
+    for name in active_names:
+        value = threshold = margin_ratio = None
+        if name == "cliff_proximity":
+            value = t3_state.cliff_probability_next_5_laps
+            threshold = gate3.CLIFF_PROBABILITY_THRESHOLD
+        elif name == "pace_lap_delta":
+            value = t3_state.predicted_pace_loss
+            threshold = gate3.PACE_LOSS_THRESHOLD_SECONDS
+        elif name == "tyre_age":
+            value = t3_state.tyre_age
+            threshold = gate3.TYRE_AGE_TRIGGER_RATIO * t3_state.expected_stint_length
+        # External/boolean-only triggers (undercut, overcut, safety_car,
+        # rival_undercut_threat, dirty_air, drying_crossover) have no
+        # continuous value to rank by - they're either on or off, so they
+        # get no margin_ratio and sort after every ranked numeric trigger,
+        # in the fixed order gate-tier-3.py declares them, not silently
+        # dropped or given a fabricated number.
+        if value is not None and threshold not in (None, 0):
+            margin_ratio = value / threshold
+        ranked.append({
+            "signal": name,
+            "value": value,
+            "threshold": threshold,
+            "margin_ratio": margin_ratio,
+            "description": SIGNAL_DESCRIPTIONS.get(name, name).format(h=HORIZON_LAPS),
+        })
+
+    ranked.sort(key=lambda d: (d["margin_ratio"] is None, -(d["margin_ratio"] or 0)))
+    return ranked[:n]
+
+
+def gate_path_for(r: dict) -> list:
+    """Exact tier path this lap actually walked, e.g. [1, 2, 3] for a lap
+    that cleared Tier 1 and Tier 2 and was decided at Tier 3, or [1] for a
+    lap that stopped dead at Tier 1. Matches tier_reached, which
+    evaluate_driver_lap already sets to the LAST tier evaluated - the path
+    is just range(1, tier_reached + 1) since the trees are a strict
+    sequential cascade with no skipping."""
+    return list(range(1, r["tier_reached"] + 1))
+
+
+def plain_english_for(r: dict) -> str:
+    """The 'PIT_NOW because...' sentence. Built per-tier since each tier's
+    reasoning shape is genuinely different (Tier 1: single hard trigger,
+    Tier 2: a regulatory deadline, Tier 3: N soft triggers combining) -
+    forcing one template across all three would either hide detail or
+    fabricate a "top signal" for a tier that fired for one specific,
+    already-known reason."""
+    decision = r["gate_decision"]
     tier = r["tier_reached"]
-    gd = r["gate_decision"]
-    bits = [f"Tier {tier} -> {gd}"]
-    if r.get("reason"):
-        bits.append(f"reason={r['reason']}")
-    active = [k for k, v in (r.get("triggers") or {}).items() if v]
-    if active:
-        bits.append("triggers=" + ",".join(active))
+
+    if tier == 1 and decision == "PIT_NOW":
+        return f"PIT_NOW because {_tier1_plain_reason(r)}."
+
+    if tier == 2 and decision == "PIT_FLEXIBLE":
+        return f"PIT_FLEXIBLE because {_tier2_plain_reason(r)}."
+
+    if tier == 3:
+        signals = top_contributing_signals(r)
+        if decision == "DONT_PIT":
+            return "DONT_PIT - no Tier 3 triggers are currently active."
+        if not signals:
+            # Reached here only if a boolean-only trigger set n_active>=1 but
+            # ranking somehow returned nothing - defensive, shouldn't happen
+            # given the active_names guard above, kept honest rather than silent.
+            return f"{decision} - Tier 3 triggers active but no signal detail available."
+        lead = signals[0]["description"]
+        if len(signals) > 1:
+            rest = "; ".join(s["description"] for s in signals[1:])
+            return f"{decision} because {lead} (also: {rest})."
+        return f"{decision} because {lead}."
+
+    # Tier 2 -> MOVE_TO_TIER_3 or Tier 1 -> MOVE_TO_TIER_2 never reach here
+    # (evaluate_driver_lap only stops early on PIT_NOW/PIT_FLEXIBLE), kept
+    # as a fallback rather than assumed unreachable.
+    return f"{decision} at Tier {tier}."
+
+
+def explanation_for(r: dict) -> dict:
+    """Full structured decision trace for one driver-lap result. Returns a
+    dict (not a string) so callers can render it as plain text (--explain
+    CLI output, unchanged in spirit), log it as JSONL alongside the rest of
+    `decisions`, or feed it into a dissertation write-up table without
+    re-parsing a formatted string.
+
+    Fields:
+      plain_text   - "PIT_NOW because ..." human-readable sentence
+      gate_path    - e.g. [1, 2, 3], the exact tiers walked this lap
+      decision     - final gate decision string (PIT_NOW/PIT_FLEXIBLE/etc)
+      triggers     - active Tier 3 trigger names (empty list if tier<3)
+      top_signals  - ranked list from top_contributing_signals()
+      instruction  - Execution Tree's driving_instruction, if computed yet
+    """
+    active_triggers = [k for k, v in (r.get("triggers") or {}).items() if v]
     exe = r.get("execution") or {}
-    if exe.get("driving_instruction"):
-        bits.append(f"instruction={exe['driving_instruction']}")
+    return {
+        "plain_text": plain_english_for(r),
+        "gate_path": gate_path_for(r),
+        "decision": r["gate_decision"],
+        "triggers": active_triggers,
+        "top_signals": top_contributing_signals(r),
+        "instruction": exe.get("driving_instruction"),
+    }
+
+
+def explanation_text_for(r: dict) -> str:
+    """Single-line summary for places that just want text (the --explain
+    CLI printout) - built from explanation_for()'s structured output so the
+    two never drift out of sync with each other."""
+    e = explanation_for(r)
+    path_str = "->".join(f"Tier {t}" for t in e["gate_path"])
+    bits = [path_str, e["plain_text"]]
+    if e["triggers"]:
+        bits.append("triggers=" + ",".join(e["triggers"]))
+    if e["top_signals"]:
+        top_str = ", ".join(
+            f"{s['signal']}" + (f" ({s['margin_ratio']:.2f}x threshold)" if s["margin_ratio"] else "")
+            for s in e["top_signals"]
+        )
+        bits.append(f"top_signals=[{top_str}]")
+    if e["instruction"]:
+        bits.append(f"instruction={e['instruction']}")
     return " | ".join(bits)
 
 
@@ -923,8 +1180,102 @@ def load_weather(season: int, race: str, session: str) -> Optional[pd.DataFrame]
     return None
 
 
+def _attach_weather_columns(laps: pd.DataFrame, weather_df: Optional[pd.DataFrame]) -> pd.DataFrame:
+    """PART 1/2 integration point (British GP investigation): attaches REAL
+    historical Rainfall, plus a derived seconds-since-last-rain-end column,
+    onto `laps` - once per race, not per lap/driver, not a second file load
+    (load_weather() is still called exactly once, in main()). After this,
+    row.get("Rainfall", False) at the existing Tier 1 call site needs ZERO
+    changes - the interface is preserved exactly, it just finally receives
+    real data instead of always missing the column.
+
+    NO LOOKAHEAD: uses pd.merge_asof with direction="backward" - a lap can
+    only ever be matched to a weather sample AT OR BEFORE its own session
+    time, never a later one. This is a hard guarantee from merge_asof's own
+    semantics, not a convention this function has to enforce by hand.
+
+    Does NOT touch rain_probability_pct (stays real-columns-absent -> None,
+    exactly as before) and does NOT feed anything into crossover.py -
+    crossover.py's forecast-probability path remains exactly as inert as it
+    was, for the same real reason as before (no forecast data exists in
+    replay), not because of a wiring bug."""
+    if weather_df is None:
+        note("No weather data available for this race - Rainfall will be False for every "
+             "lap (Tier 1's weather gate stays silent, same as before this integration) "
+             "and drying_crossover will never fire.")
+        laps = laps.copy()
+        laps["Rainfall"] = False
+        laps["_seconds_since_rain_end"] = None
+        return laps
+
+    laps_time_col = "Time" if "Time" in laps.columns else None
+    weather_time_col = "time_seconds" if "time_seconds" in weather_df.columns else (
+        "Time" if "Time" in weather_df.columns else None)
+    if laps_time_col is None or weather_time_col is None:
+        note(f"Could not find a usable time column to align weather data (laps has "
+             f"{'a Time column' if laps_time_col else 'no Time column'}, weather has "
+             f"{weather_time_col or 'no usable time column'}) - Rainfall will be False for "
+             f"every lap this race, same as if no weather data existed at all.")
+        laps = laps.copy()
+        laps["Rainfall"] = False
+        laps["_seconds_since_rain_end"] = None
+        return laps
+
+    def to_seconds(series):
+        if pd.api.types.is_numeric_dtype(series):
+            return series.astype(float)
+        return pd.to_timedelta(series, errors="coerce").dt.total_seconds()
+
+    laps = laps.reset_index(drop=True).copy()
+    laps["_lap_time_s"] = to_seconds(laps[laps_time_col])
+
+    weather = weather_df.copy()
+    weather["_weather_time_s"] = to_seconds(weather[weather_time_col])
+    weather = weather.dropna(subset=["_weather_time_s"]).sort_values("_weather_time_s")
+
+    if "is_rain_end" in weather.columns:
+        weather["_last_rain_end_time_s"] = weather["_weather_time_s"].where(
+            weather["is_rain_end"].fillna(False).astype(bool))
+        weather["_last_rain_end_time_s"] = weather["_last_rain_end_time_s"].ffill()
+    else:
+        weather["_last_rain_end_time_s"] = pd.NA
+        note("weather data has no 'is_rain_end' column - drying_crossover will never fire "
+             "this race (it needs a real rain-end event to measure time since).")
+
+    weather_cols = ["_weather_time_s", "_last_rain_end_time_s"]
+    if "Rainfall" in weather.columns:
+        weather_cols.insert(1, "Rainfall")
+    else:
+        note("weather data has no 'Rainfall' column - Tier 1's weather gate stays silent "
+             "this race, same as before this integration.")
+
+    # Never silently drop a lap row just because its own Time failed to
+    # parse - split, merge only the valid-time rows, then recombine so
+    # every original row survives (with weather columns as NaN/False if its
+    # own time couldn't be resolved).
+    laps["_orig_order"] = range(len(laps))
+    valid = laps[laps["_lap_time_s"].notna()].sort_values("_lap_time_s")
+    invalid = laps[laps["_lap_time_s"].isna()].copy()
+    for col in weather_cols:
+        if col not in invalid.columns:
+            invalid[col] = pd.NA
+
+    merged_valid = pd.merge_asof(valid, weather[weather_cols], left_on="_lap_time_s",
+                                  right_on="_weather_time_s", direction="backward")
+    combined = pd.concat([merged_valid, invalid], ignore_index=True).sort_values("_orig_order")
+    combined = combined.drop(columns=["_orig_order"]).reset_index(drop=True)
+
+    if "Rainfall" in combined.columns:
+        combined["Rainfall"] = combined["Rainfall"].fillna(False).astype(bool)
+    else:
+        combined["Rainfall"] = False
+    combined["_seconds_since_rain_end"] = combined["_lap_time_s"] - combined["_last_rain_end_time_s"]
+    return combined
+
+
 def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
-                radios_by_driver_lap: Optional[dict] = None, explain: bool = False) -> list:
+                radios_by_driver_lap: Optional[dict] = None, explain: bool = False,
+                weather_df: Optional[pd.DataFrame] = None) -> list:
     laps_path = find_laps_features(ctx.season, ctx.circuit, ctx.session)
     if laps_path is None:
         raise FileNotFoundError(
@@ -935,6 +1286,7 @@ def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
     laps = pd.read_csv(laps_path, dtype={"TrackStatus": str})
     if "LapTime_seconds" not in laps.columns and "LapTime" in laps.columns:
         laps["LapTime_seconds"] = pd.to_timedelta(laps["LapTime"], errors="coerce").dt.total_seconds()
+    laps = _attach_weather_columns(laps, weather_df)
 
     if radios_by_driver_lap is None:
         radios_by_driver_lap = build_radios_by_driver_lap(REPO_ROOT, laps, ctx)
@@ -966,7 +1318,8 @@ def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
 
         for r in lap_results:
             r["data_quality_notes"] = list(dq_notes)
-            r["explanation_text"] = explanation_for(r)
+            r["explanation"] = explanation_for(r)          # structured trace (dict)
+            r["explanation_text"] = explanation_text_for(r)  # single-line rendering of the same trace
             actual_pit = None
             actual_row = row_d1 if r["driver"] == ctx.d1_code else row_d2
             if actual_row is not None:
@@ -1160,12 +1513,18 @@ def main():
         else:
             lap_range = range(1, total_laps + 1) if total_laps else range(1, 1)
 
-        decisions = run_replay(ctx, resources, lap_range, explain=args.explain)
+        decisions = run_replay(ctx, resources, lap_range, explain=args.explain, weather_df=weather_df)
 
         if args.out:
             with open(args.out, "w") as f:
                 for d in decisions:
-                    f.write(json.dumps(d, default=str) + "\n")
+                    # t3_state is a dataclass kept on the result purely for
+                    # explanation_for()'s internal ranking (see evaluate_driver_lap) -
+                    # everything a reader needs from it is already surfaced in
+                    # d["explanation"], so drop the raw object rather than
+                    # json.dumps(default=str)-ing an unreadable repr into the file.
+                    d_out = {k: v for k, v in d.items() if k not in ("t1_state", "t3_state")}
+                    f.write(json.dumps(d_out, default=str) + "\n")
             note(f"wrote {len(decisions)} decisions to {args.out}")
 
         n_agree = sum(1 for d in decisions if d.get("actual_is_pit_in_lap")
