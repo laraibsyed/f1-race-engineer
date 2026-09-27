@@ -1,0 +1,1184 @@
+#!/usr/bin/env python3
+"""
+HERMES Master Orchestrator
+============================================================================
+ONE file that joins the Gate Tree (Tier 1 -> Tier 2 -> Tier 3), the
+Execution Tree, the tyre-life projection feed, the SC/VSC gamble evaluator
+and the weather crossover modules into a single per-lap, per-driver
+pit/pace recommendation. Built directly against HERMES_MASTER_BLUEPRINT.md
+and HERMES_CODE_BUNDLE.md (2026-09-26 snapshot of the repo) - every design
+choice below traces back to a specific section of that blueprint, quoted
+in comments as "BP §x.y".
+
+WHAT THIS DOES NOT DO (BP §11 open questions, decided here so this file is
+actually runnable rather than blocked on you):
+  1. One entry file that LOADS the existing tree/module files (BP §11 Q1
+     recommendation) - none of your tree logic is duplicated or rewritten
+     here, it's imported via a hyphen-safe loader and called as-is.
+  2. Replay-only (BP §11 Q2) - this reads real historical laps_features.csv
+     rows and evaluates the trees against them, then reports what HERMES
+     would have recommended alongside what actually happened (is_pit_in).
+     It does NOT simulate a counterfactual race forward - "live-style"
+     streaming is a thin follow-up (see LiveSource stub at the bottom).
+  3. D1/D2 are whatever two driver codes you pass on the CLI (BP §11 Q3)
+     - no hardcoded team.
+  4. 2026 mandatory-compound rule: BP §7-B9 flags a contradiction between
+     f1_tyre_constraints.json (0 mandatory compounds in 2026) and
+     gate-tier-2.py (always requires 2, era-independent). This file uses
+     gate-tier-2.py AS WRITTEN (trusts the code, not the JSON) because
+     that's the one module actually wired into the tree - flagged loudly
+     in the --selftest output and in every 2026 lap's data_quality_notes
+     so you see it, not so it's silently "resolved".
+  5. Definitions for can_delay_one_lap / overcut_opportunity /
+     rival_undercut_threat / unsafe_weather / tyre_structurally_damaged
+     (BP §11 Q5): implemented exactly per the proposals in BP §8.3, each
+     marked with "# ASSUMPTION (BP §8.3)" at its definition. Nothing here
+     was invented outside what the blueprint already proposed.
+  6. expected_stint_length (BP §11 Q6): historical median n_laps_true from
+     cliff_detection_stints.csv for (compound, circuit, era) if available,
+     falling back to (compound, era), falling back to a rough Pirelli
+     lap_survival table (flagged approximate - the exact C3/C4/C5->
+     compound-name mapping isn't in the blueprint, see PIRELLI_FALLBACK).
+  7. PIT_FLEXIBLE vs PIT_NOW (BP §11 Q7): kept as the tree files already
+     treat it - PIT_FLEXIBLE is fed into the Execution Tree exactly like a
+     Tier-1 PIT_NOW (BP §4.1 quirk (c), NOT changed here, since changing it
+     means changing your execution-tree.py, out of scope for a join file).
+  8. SC-gamble pit loss (BP §11 Q8): uses the real per-circuit empirical
+     constant from archive_per_race_analysis.csv when available, else the
+     22.0/11.0 assumptions already in sc-gamble.py.
+  9. Second-Driver priority (BP §11 Q9): v1 as the blueprint recommends -
+     priority_driver_id is always None (Execution Tree's own default:
+     lower gate-tree tier, then "Driver 1 Priority"). The reward-based v2
+     comparison (compute_team_reward + standings + risk) is a real,
+     separate piece of work and is deliberately NOT bolted on here half
+     finished - see `resolve_second_driver_priority_v1` for the extension
+     point if you build it later.
+
+Known, inherited limitations this file does NOT try to paper over (each
+one is a BUILD/ADAPT item from BP §5 the blueprint itself says has no real
+producer yet):
+  - driver_stress_signal (BP §7-B6, updated): the mapping pipeline
+    (`estimate_lap_start_times`, `match_messages_to_nearest_lap` from
+    notebooks/03-nlp-classifier.py) IS lifted into this file now - see
+    `load_radios_for_race`/`estimate_lap_start_times`/
+    `build_stress_lookup_for_driver` below - rather than left as a stub.
+    It is still an approximation, for the same reason the original notebook
+    flags it as one: LapStartDate is null for most seasons, so lap starts
+    are estimated from the earliest radio message timestamp of the race
+    plus cumulative LapTime, which drifts increasingly late through any
+    red-flag race (stoppage time isn't in LapTime). The "nearest lap can be
+    the next lap" leakage risk the blueprint calls out is handled by only
+    ever looking at matched laps <= the lap currently being evaluated
+    (STRESS_LOOKBACK_LAPS's window is `(lap - lookback, lap]`, never
+    forward). If classified_radios.csv isn't present, or has no rows for
+    this race, this honestly returns False for every lap - never fabricated.
+  - tyre_structurally_damaged has no live sensor feed; defaults False
+    unless you pass a per-lap override.
+  - undercut/overcut/rival-threat use `gap_to_car_ahead`/Position from
+    laps_features.csv (a lap-boundary proxy, BP §2.3/§7-B14), NOT the raw
+    telemetry archive - deliberately, since the telemetry JSON (~200k
+    files) isn't something a join file should require just to run.
+"""
+
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import json
+import os
+import pickle
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+
+# ============================================================================
+# 0. CONFIG (BP §8.1 step 0)
+# ============================================================================
+HORIZON_LAPS = 5                       # matches cliff_horizon_laps, SC prior HORIZON_LAPS,
+                                        # sc-gamble n_laps_horizon convention (BP §9)
+CLOSE_FOLLOWING_SECONDS = 1.0          # ADAPT (BP §8.3 in_dirty_air)
+UNDERCUT_MIN_TYRE_AGE_GAP = 3          # ADAPT (BP §8.3 live_undercut)
+DEFAULT_PIT_LOSS_SECONDS = 22.0        # sc-gamble.py's own NORMAL_PIT_LOSS_SECONDS default
+DELAY_MARGIN_SECONDS = 2.0             # ASSUMPTION (BP §8.3 can_delay_one_lap)
+STRESS_LOOKBACK_LAPS = 3               # BP §8.3 stress_trigger default (sweep used 1/3/5/7)
+RADIOS_CSV_RELATIVE = Path("data") / "external" / "team-radios" / "classified_radios.csv"
+
+DRY_COMPOUNDS = {"HARD", "MEDIUM", "SOFT", "HYPERSOFT", "SUPERSOFT", "ULTRASOFT"}
+WET_COMPOUNDS = {"WET", "INTERMEDIATE"}
+
+# Rough fallback only - the exact C3/C4/C5 -> HARD/MEDIUM/SOFT mapping is
+# race-weekend-relative (BP §4.5 taxonomy note 3) and NOT resolvable in
+# general, so this is a flagged approximation of last resort, used only
+# when cliff_detection_stints.csv has no data for (compound, circuit, era)
+# OR (compound, era). See expected_stint_length().
+PIRELLI_LAP_SURVIVAL_FALLBACK = {
+    "SOFT": 25, "HYPERSOFT": 22, "SUPERSOFT": 23, "ULTRASOFT": 24,
+    "MEDIUM": 35, "HARD": 45, "INTERMEDIATE": 45, "WET": 60,
+}
+
+REPO_ROOT = Path(os.environ.get("HERMES_REPO_ROOT", ".")).resolve()
+TREES_DIR = REPO_ROOT / "system" / "HERMES" / "trees"
+SC_DIR = REPO_ROOT / "system" / "HERMES" / "safety-car"
+WEATHER_DIR = REPO_ROOT / "system" / "HERMES" / "weather"
+RIVAL_DIR = REPO_ROOT / "system" / "HERMES" / "rival-awareness"
+CACHE_DIR = Path(os.environ.get("GCS_CACHE_DIR", REPO_ROOT / "gcs_cache"))
+
+
+def note(msg: str) -> None:
+    print(f"[hermes] {msg}", file=sys.stderr)
+
+
+# ============================================================================
+# 1. hyphen-safe loader (BP §3 point 2 / §7-B3)
+# ============================================================================
+def load_module(path: Path, name: str, required: bool = True):
+    """importlib.util loader for files that can't be `import`ed because of
+    hyphens in the filename. The tree files' `if __name__ == "__main__":`
+    blocks are guarded, so this is side-effect free for all of them (BP
+    §3 point 2), EXCEPT sc-vsc-probability-model.py, which imports
+    google.cloud.storage / dotenv at module level - that one is
+    deliberately NOT loaded here; we read its validated output CSV
+    directly instead (BP §4.3 "avoid the GCS import")."""
+    if not path.exists():
+        if required:
+            raise FileNotFoundError(
+                f"HERMES orchestrator needs '{path.name}' at {path} and it "
+                f"isn't there. Set HERMES_REPO_ROOT or check your tree "
+                f"directory layout matches system/HERMES/... ."
+            )
+        return None
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+gate1 = load_module(TREES_DIR / "gate-tier-1.py", "gate_tier_1")
+gate2 = load_module(TREES_DIR / "gate-tier-2.py", "gate_tier_2")
+gate3 = load_module(TREES_DIR / "gate-tier-3.py", "gate_tier_3")
+exec_tree = load_module(TREES_DIR / "execution-tree.py", "execution_tree")
+tyre_proj = load_module(TREES_DIR / "tyre_life_projection.py", "tyre_life_projection")
+sc_gamble = load_module(SC_DIR / "sc-gamble.py", "sc_gamble")
+
+# Weather + risk modules are soft constraints only - the system must still
+# run (with unsafe_weather always False, no risk-based priority) if they
+# aren't present, so these are optional loads.
+crossover = load_module(WEATHER_DIR / "crossover.py", "crossover", required=False)
+drying_line = load_module(WEATHER_DIR / "drying_line.py", "drying_line", required=False)
+risk_mod = load_module(RIVAL_DIR / "risk.py", "risk", required=False)
+
+if crossover is None:
+    note("weather/crossover.py not found - unsafe_weather will only ever "
+         "consider 'raining now while on slicks', never the forecast state.")
+if risk_mod is None:
+    note("rival-awareness/risk.py not found - Second-Driver risk appetite unavailable (v1 doesn't need it).")
+
+
+# ============================================================================
+# 2. B1 FIX - the confirmed silent bug in tyre_life_projection.py
+# ============================================================================
+# BP §7-B1: the pickle's temp_dummy_columns are built with prefix="temp"
+# (e.g. "temp_hot"), but the shipped _regression_design_row/_cox_design_row
+# compare col == f"track_temp_bucket_{bucket}", which never matches -> all
+# temp dummies are always 0 -> cool/warm/hot/extreme give IDENTICAL output.
+# Fix: match on "temp_{bucket}" instead. regulation_era_ matching is
+# already correct and is left untouched.
+#
+# This is done by monkeypatching the two module-level helper functions
+# AFTER loading the file (rather than hand-editing your source), so this
+# orchestrator is the single place the fix lives and re-running --selftest
+# proves it's actually applied every time this file runs.
+def _fixed_regression_design_row(tyre_age, fuel_load_estimate, stint_number,
+                                  track_temp_bucket, temp_dummy_columns):
+    row = {"tyre_age": tyre_age, "fuel_load_estimate": fuel_load_estimate,
+           "stint_number": stint_number}
+    for col in temp_dummy_columns:
+        row[col] = 1.0 if col == f"temp_{track_temp_bucket}" else 0.0
+    return pd.DataFrame([row])[["tyre_age", "fuel_load_estimate", "stint_number"] + temp_dummy_columns]
+
+
+def _fixed_cox_design_row(fuel_load_estimate, stint_number, circuit_degredation_ordinal,
+                           track_temp_bucket, regulation_era, temp_dummy_columns, era_dummy_columns):
+    row = {"fuel_load_estimate": fuel_load_estimate, "stint_number": stint_number,
+           "circuit_degredation_ordinal": circuit_degredation_ordinal}
+    for col in temp_dummy_columns:
+        row[col] = 1.0 if col == f"temp_{track_temp_bucket}" else 0.0
+    for col in era_dummy_columns:
+        row[col] = 1.0 if col == f"regulation_era_{regulation_era}" else 0.0
+    return pd.DataFrame([row])
+
+
+tyre_proj._regression_design_row = _fixed_regression_design_row
+tyre_proj._cox_design_row = _fixed_cox_design_row
+
+# BP §7-B13: duplicated constants must be asserted equal at startup, not
+# just trusted to stay in sync by hand.
+assert gate3.CLIFF_PROBABILITY_THRESHOLD == exec_tree.CLIFF_PROBABILITY_THRESHOLD, (
+    f"CLIFF_PROBABILITY_THRESHOLD drift: gate-tier-3.py={gate3.CLIFF_PROBABILITY_THRESHOLD} "
+    f"!= execution-tree.py={exec_tree.CLIFF_PROBABILITY_THRESHOLD}. Fix the source files, "
+    f"not this assert."
+)
+# Note re: BP §4.1 quirk (a), the duplicate get_driving_instruction stub in
+# execution-tree.py - harmless at runtime (Python's later `def` simply
+# overwrites the stub when the file executes top-to-bottom), so no
+# orchestrator-side fix is needed. Still worth deleting the stub for
+# cleanliness; not required for correctness.
+
+
+# ============================================================================
+# 3. Static loaders (cached once, all optional except the tyre pickle)
+# ============================================================================
+def load_tyre_models(path: Path) -> Optional[dict]:
+    if not path.exists():
+        note(f"tyre_life_models.pkl not found at {path} - every projection will be None "
+             f"and Tier 1's cliff check / Tier 3's tyre triggers will never fire.")
+        return None
+    with open(path, "rb") as f:
+        return pickle.load(f)
+
+
+def load_sc_prior(path: Path) -> Optional[pd.DataFrame]:
+    """BP §4.3: read the VALIDATED circuit-level prior CSV directly rather
+    than importing sc-vsc-probability-model.py (which pulls in
+    google.cloud.storage / dotenv at module level)."""
+    if not path.exists():
+        note(f"sc_vsc_circuit_level_prior.csv not found at {path} - SC gamble will "
+             f"always return INSUFFICIENT_DATA.")
+        return None
+    return pd.read_csv(path)
+
+
+def get_sc_probability(circuit_prior: Optional[pd.DataFrame], circuit: str) -> Optional[float]:
+    """Re-implements sc-vsc-probability-model.get_sc_probability() against
+    the CSV directly (lap_number has no effect, as validated - BP §4.3)."""
+    if circuit_prior is None:
+        return None
+    row = circuit_prior[circuit_prior["circuit"] == circuit]
+    if row.empty:
+        return None
+    return float(row["p_window_horizon"].iloc[0])
+
+
+def load_cliff_stints(path: Path) -> Optional[pd.DataFrame]:
+    if not path.exists():
+        note(f"cliff_detection_stints.csv not found at {path} - expected_stint_length "
+             f"will fall back to the Pirelli approximation for every stint.")
+        return None
+    return pd.read_csv(path)
+
+
+def load_circuit_taxonomy(path: Path) -> Optional[pd.DataFrame]:
+    if not path.exists():
+        note(f"circuit_taxonomy.xlsx not found at {path} - circuit_degredation_ordinal "
+             f"will default to 1 (medium) for every circuit.")
+        return None
+    try:
+        return pd.read_excel(path)
+    except ImportError:
+        note("openpyxl not installed - can't read circuit_taxonomy.xlsx, defaulting ordinal to 1.")
+        return None
+
+
+def load_pit_loss_table(path: Path) -> Optional[pd.DataFrame]:
+    if not path.exists():
+        return None
+    try:
+        return pd.read_csv(path)
+    except Exception as e:  # noqa: BLE001 - genuinely best-effort, never fatal
+        note(f"couldn't read archive_per_race_analysis.csv ({e}) - using flat pit-loss assumption.")
+        return None
+
+
+DEGR_ORDINAL_MAP = {"low": 0, "medium": 1, "high": 2}
+
+
+def circuit_degredation_ordinal_for(taxonomy: Optional[pd.DataFrame], race_folder_name: str) -> tuple:
+    """ADAPT: taxonomy.xlsx keys on circuit_name, not the Race folder name
+    (BP §2.2/§4.5). The exact CIRCUIT_ID_TO_RACE_NAMES alias table lives in
+    model-fit.py, which isn't part of the code bundle handed to this
+    orchestrator - so this does a best-effort normalised text match instead
+    of guessing the alias table, and says so in the note it returns."""
+    if taxonomy is None or "circuit_degredation" not in taxonomy.columns:
+        return 1, "no taxonomy loaded - defaulted to medium (1)"
+    needle = race_folder_name.replace("_", " ").replace("Grand Prix", "").strip().lower()
+    for _, row in taxonomy.iterrows():
+        hay = str(row.get("circuit_name", "")).lower()
+        if needle and (needle in hay or hay in needle):
+            band = str(row.get("circuit_degredation", "medium")).lower()
+            return DEGR_ORDINAL_MAP.get(band, 1), f"matched taxonomy row '{row.get('circuit_name')}'"
+    return 1, f"no taxonomy match for '{race_folder_name}' - defaulted to medium (1)"
+
+
+def pit_loss_for_circuit(pit_loss_table: Optional[pd.DataFrame], race_folder_name: str) -> tuple:
+    """BP §11 Q8 / §4.5: use the real per-circuit empirical constant if the
+    archive file is present and has a recognisable column; else the
+    sc-gamble.py assumption. Column names for archive_per_race_analysis.csv
+    aren't pinned down in the blueprint, so this tries a few plausible ones
+    defensively rather than assuming."""
+    if pit_loss_table is None:
+        return DEFAULT_PIT_LOSS_SECONDS, "sc-gamble.py assumption (no archive_per_race_analysis.csv)"
+    candidates = [c for c in pit_loss_table.columns if "pit_loss" in c.lower()]
+    circuit_col = next((c for c in pit_loss_table.columns if c.lower() in ("circuit", "race")), None)
+    if not candidates or circuit_col is None:
+        return DEFAULT_PIT_LOSS_SECONDS, "archive file present but columns unrecognised - using assumption"
+    row = pit_loss_table[pit_loss_table[circuit_col] == race_folder_name]
+    if row.empty:
+        return DEFAULT_PIT_LOSS_SECONDS, f"no archive row for '{race_folder_name}' - using assumption"
+    return float(row[candidates[0]].iloc[0]), f"empirical, from {candidates[0]}"
+
+
+def load_radios_for_race(csv_path: Path, season: int, race_folder: str) -> Optional[pd.DataFrame]:
+    """BP §7-B6 (updated): adapted from notebooks/03-nlp-classifier.py's
+    `load_classified_radios`, filtered down to one race so the caller isn't
+    loading all 17,619 messages per lookup. `classified_radios.csv`'s
+    `race_id` is `<season>_<race name>`; the race-name half's spacing
+    convention isn't pinned down in the blueprint, so this tries both an
+    underscore and a space match against the Race folder name rather than
+    assuming one."""
+    if not csv_path.exists():
+        return None
+    df = pd.read_csv(csv_path)
+    df = df[df["message_timestamp"] != "message_timestamp"]  # notebook's own embedded-header guard
+    df["message_timestamp"] = pd.to_datetime(df["message_timestamp"], format="ISO8601",
+                                              utc=True, errors="coerce")
+    df["season"] = pd.to_numeric(df["race_id"].astype(str).str.split("_", n=1).str[0], errors="coerce")
+    df["race"] = df["race_id"].astype(str).str.split("_", n=1).str[1]
+    df["racing_number"] = pd.to_numeric(df["racing_number"], errors="coerce")
+    df = df[(df["category"] == "tyre_feedback") & (df["season"] == season)]
+    race_variants = {race_folder, race_folder.replace("_", " ")}
+    df = df[df["race"].isin(race_variants)]
+    return df if not df.empty else None
+
+
+def estimate_lap_start_times(laps: pd.DataFrame, radios: pd.DataFrame) -> pd.DataFrame:
+    """Adapted, near-verbatim, from notebooks/03-nlp-classifier.py's
+    `estimate_lap_start_times` (BP §7-B6). FALLBACK time alignment only:
+    race_start is approximated as the earliest radio message timestamp for
+    this race, and each driver's lap starts are that plus their own
+    cumulative LapTime - a proxy, not a real timestamp, and one that drifts
+    increasingly late through any red-flag race since stoppage time isn't
+    captured in LapTime. Kept as a documented limitation, not hidden."""
+    laps = laps.copy()
+    if "LapTime_seconds" not in laps.columns:
+        laps["LapTime_seconds"] = pd.to_timedelta(laps["LapTime"], errors="coerce").dt.total_seconds()
+    race_start = radios["message_timestamp"].min()
+    laps = laps.sort_values(["Driver", "LapNumber"])
+    cum_prior = laps.groupby("Driver")["LapTime_seconds"].cumsum() - laps["LapTime_seconds"].fillna(0)
+    laps["LapStartDate_estimated"] = race_start + pd.to_timedelta(cum_prior, unit="s")
+    return laps
+
+
+def build_stress_lookup_for_driver(radios: pd.DataFrame, laps_with_starts: pd.DataFrame,
+                                    driver_number: int, driver_code: str) -> pd.DataFrame:
+    """Adapted from `match_messages_to_nearest_lap` (BP §7-B6), narrowed to
+    one driver and to what get_driver_stress_trigger actually needs: each
+    tyre_feedback message's nearest estimated lap start. The blueprint's own
+    caveat - 'nearest lap can be the NEXT lap, up to half a lap of
+    look-ahead' - is why get_driver_stress_trigger's window is `(lap -
+    lookback, lap]` and never looks past the lap currently being evaluated;
+    this function itself doesn't filter by time, only the caller does."""
+    msgs = radios[radios["racing_number"] == driver_number]
+    driver_laps = laps_with_starts[laps_with_starts["Driver"] == driver_code].dropna(
+        subset=["LapStartDate_estimated"])
+    if msgs.empty or driver_laps.empty:
+        return pd.DataFrame(columns=["LapNumber", "category", "stress_level"])
+    rows = []
+    for _, msg in msgs.iterrows():
+        if pd.isna(msg["message_timestamp"]):
+            continue
+        diffs = (driver_laps["LapStartDate_estimated"] - msg["message_timestamp"]).abs()
+        nearest_lap = driver_laps.loc[diffs.idxmin(), "LapNumber"]
+        rows.append({"LapNumber": nearest_lap, "category": "tyre_feedback",
+                     "stress_level": msg.get("stress_level")})
+    return pd.DataFrame(rows)
+
+
+def build_radios_by_driver_lap(repo_root: Path, laps: pd.DataFrame, ctx: "RaceContext") -> Optional[dict]:
+    """Ties the three functions above together for run_replay: loads this
+    race's radios (if the CSV exists), estimates lap starts once for the
+    whole race, then builds the {driver_code: DataFrame} shape
+    get_driver_stress_trigger expects, for D1 and D2 only (no need to match
+    every driver on the grid)."""
+    radios = load_radios_for_race(repo_root / RADIOS_CSV_RELATIVE, ctx.season, ctx.circuit)
+    if radios is None:
+        note("classified_radios.csv not found (or no tyre_feedback rows for this race) - "
+             "driver_stress_signal will be False all race (BP §7-B6 fallback).")
+        return None
+    laps_with_starts = estimate_lap_start_times(laps, radios)
+    number_map = laps[["Driver", "DriverNumber"]].drop_duplicates().set_index("Driver")["DriverNumber"]
+    result = {}
+    for code in (ctx.d1_code, ctx.d2_code):
+        num = number_map.get(code)
+        if num is None or pd.isna(num):
+            continue
+        result[code] = build_stress_lookup_for_driver(radios, laps_with_starts, int(num), code)
+    return result or None
+
+
+# ============================================================================
+# 4. Adapters (BP §8.3 - each proposal implemented exactly, flagged ASSUMPTION)
+# ============================================================================
+def get_regulation_era(season: int) -> str:
+    return gate2.get_regulation_era(season)
+
+
+def track_temp_bucket_from_c(temp_c: Optional[float]) -> str:
+    if temp_c is None or (isinstance(temp_c, float) and np.isnan(temp_c)):
+        return "warm"  # ASSUMPTION: mid-band default when weather.csv is missing for this session
+    if temp_c <= 25:
+        return "cool"
+    if temp_c <= 35:
+        return "warm"
+    if temp_c <= 45:
+        return "hot"
+    return "extreme"
+
+
+def fuel_load_estimate(lap_number: int, total_laps: int) -> float:
+    """features.py's own flat 110kg linear-burn assumption (BP §2.3) - not
+    reinvented here, just reapplied per-lap."""
+    if total_laps <= 0:
+        return 0.0
+    return max(0.0, 110.0 * (1 - (lap_number - 1) / total_laps))
+
+
+def expected_stint_length(cliff_stints: Optional[pd.DataFrame], compound: str,
+                           circuit: str, era: str) -> tuple:
+    """BP §8.3: median n_laps_true for (compound, circuit, era), fallback
+    (compound, era), fallback Pirelli. Returns (value, note-of-which-source)."""
+    if cliff_stints is not None and "n_laps_true" in cliff_stints.columns:
+        exact = cliff_stints[(cliff_stints["compound"] == compound)
+                              & (cliff_stints["circuit"] == circuit)
+                              & (cliff_stints["regulation_era"] == era)]
+        if not exact.empty:
+            return float(exact["n_laps_true"].median()), "historical median (compound, circuit, era)"
+        coarser = cliff_stints[(cliff_stints["compound"] == compound)
+                                & (cliff_stints["regulation_era"] == era)]
+        if not coarser.empty:
+            return float(coarser["n_laps_true"].median()), "historical median (compound, era) - no circuit match"
+    fallback = PIRELLI_LAP_SURVIVAL_FALLBACK.get(compound, 30)
+    return float(fallback), "Pirelli lap_survival approximation - flagged, not calibrated per this circuit"
+
+
+def unsafe_weather(rain_now: bool, on_slicks: bool, rain_probability_pct: Optional[float],
+                    laps_remaining: int, total_laps: int) -> bool:
+    """ASSUMPTION (BP §8.3): raining now while on slicks, OR the forecast
+    crossover state has already reached CONSIDER_INTERS/BOX_INTERS while
+    it's raining now."""
+    if rain_now and on_slicks:
+        return True
+    if crossover is not None and rain_now and rain_probability_pct is not None and total_laps > 0:
+        result = crossover.evaluate_crossover(rain_probability_pct, max(0, laps_remaining), total_laps)
+        if result.state in (crossover.CrossoverState.CONSIDER_INTERS, crossover.CrossoverState.BOX_INTERS):
+            return True
+    return False
+
+
+def live_undercut_opportunity(gap_ahead_s: Optional[float], own_tyre_age: Optional[float],
+                               ahead_tyre_age: Optional[float], pit_loss_s: float) -> bool:
+    """ADAPT (BP §5 Tier-3 wiring / §7-B4): the real flag_undercut_windows
+    needs hindsight (future pit lap) and can't run live. This is the
+    blueprint's own proposed live substitute: gap ahead is smaller than
+    the pit-loss cost AND our tyres are meaningfully older."""
+    if gap_ahead_s is None or own_tyre_age is None or ahead_tyre_age is None:
+        return False
+    return gap_ahead_s < pit_loss_s and (own_tyre_age - ahead_tyre_age) >= UNDERCUT_MIN_TYRE_AGE_GAP
+
+
+def rival_undercut_threat(gap_behind_s: Optional[float], own_tyre_age: Optional[float],
+                           behind_tyre_age: Optional[float], pit_loss_s: float) -> bool:
+    """BUILD (BP §5): mirror of live_undercut_opportunity using the car
+    BEHIND - is it close enough and fresh enough to undercut US."""
+    if gap_behind_s is None or own_tyre_age is None or behind_tyre_age is None:
+        return False
+    return gap_behind_s < pit_loss_s and (own_tyre_age - behind_tyre_age) >= UNDERCUT_MIN_TYRE_AGE_GAP
+
+
+def overcut_opportunity(ahead_pitted_recently: bool, own_cliff_probability: Optional[float],
+                         gap_ahead_s: Optional[float]) -> bool:
+    """BUILD (BP §5/§8.3): rival ahead has just pitted (or is assumed to
+    imminently), our own tyres are still healthy (cliff prob below the
+    calibrated threshold), and we have clean air to extend."""
+    cliff_ok = own_cliff_probability is not None and own_cliff_probability < gate3.CLIFF_PROBABILITY_THRESHOLD
+    clean_air = gap_ahead_s is None or gap_ahead_s >= CLOSE_FOLLOWING_SECONDS
+    return bool(ahead_pitted_recently) and cliff_ok and clean_air
+
+
+def in_dirty_air(gap_ahead_s: Optional[float]) -> bool:
+    """ADAPT (BP §8.3): DistanceToDriverAhead/speed < 1.0s is the real
+    telemetry-based rule; using the lap-boundary gap_to_car_ahead proxy
+    here since telemetry JSON isn't required by this orchestrator."""
+    if gap_ahead_s is None:
+        return False
+    return gap_ahead_s < CLOSE_FOLLOWING_SECONDS
+
+
+def can_delay_one_lap(gap_behind_s: Optional[float], pit_loss_s: float,
+                       margin: float = DELAY_MARGIN_SECONDS) -> bool:
+    """ASSUMPTION (BP §8.3): unknown gap -> assume delaying WOULD cost
+    position (the safer default for a mechanical decision), not the
+    reverse."""
+    if gap_behind_s is None:
+        return False
+    return gap_behind_s > (pit_loss_s + margin)
+
+
+def get_driver_stress_trigger(radios_by_driver_lap: Optional[dict], driver_code: str,
+                               lap_number: int, lookback: int = STRESS_LOOKBACK_LAPS) -> bool:
+    """BP §7-B6 (updated): `radios_by_driver_lap` is
+    {driver_code: DataFrame[LapNumber, category, stress_level]}, built by
+    `build_radios_by_driver_lap` (which adapts the mapping already written
+    in notebooks/03-nlp-classifier.py, rather than reinventing it). If no
+    radios data exists for this race, this honestly returns False rather
+    than guessing - never a fabricated signal, same convention as the rest
+    of the project. Also worth noting (BP §3): stress is validated to have
+    NO significant predictive link to pit timing, so this is context for
+    the Execution Tree only, never a Tier 3 vote."""
+    if not radios_by_driver_lap or driver_code not in radios_by_driver_lap:
+        return False
+    df = radios_by_driver_lap[driver_code]
+    if "LapNumber" not in df.columns:
+        return False
+    window = df[(df["LapNumber"] > lap_number - lookback) & (df["LapNumber"] <= lap_number)]
+    tyre_feedback = window[window.get("category") == "tyre_feedback"]
+    return bool(tyre_feedback["stress_level"].isin(["medium", "high"]).any())
+
+
+def marginal_pace_loss(build_projection, tyre_age: float, horizon: int = HORIZON_LAPS) -> Optional[float]:
+    """BP §7-B5 fix: sc-gamble.py's predicted_pace_loss_per_lap is
+    documented as per-lap but the regression output is an ABSOLUTE pace
+    loss at the current age - multiplying by the horizon overstates the
+    waiting cost. Use the marginal slope instead: (loss(age+h)-loss(age))/h,
+    floored at 0."""
+    p0 = build_projection(tyre_age)["predicted_pace_loss"]
+    p1 = build_projection(tyre_age + horizon)["predicted_pace_loss"]
+    if p0 is None or p1 is None:
+        return None
+    return max(0.0, (p1 - p0) / horizon)
+
+
+def resolve_second_driver_priority_v1(*_args, **_kwargs) -> Optional[str]:
+    """BP §11 Q9 v1: always None -> Execution Tree's own default
+    resolution (lower gate-tree tier, then "Driver 1 Priority"). The v2
+    reward-based comparison (compute_team_reward + standings.py +
+    risk.compute_risk_appetite) is real additional work, not a
+    ten-minute bolt-on - left as an explicit extension point rather than
+    a half-wired guess."""
+    return None
+
+
+# ============================================================================
+# 5. Contracts (BP §6)
+# ============================================================================
+@dataclass
+class RaceContext:
+    season: int
+    circuit: str                    # underscore Race folder name, e.g. Bahrain_Grand_Prix
+    total_laps: int
+    is_sprint_weekend: bool
+    d1_code: str
+    d2_code: str
+    session: str = "R"
+    regulation_era: str = field(init=False)
+    circuit_degredation_ordinal: int = 1
+    pit_loss_s: float = DEFAULT_PIT_LOSS_SECONDS
+    p_sc_5lap: Optional[float] = None
+
+    def __post_init__(self):
+        self.regulation_era = get_regulation_era(self.season)
+
+
+@dataclass
+class DriverRuntimeState:
+    """Accumulated, mutable per-driver state carried lap-to-lap across the
+    replay (BP §5 Loop closure) - NOT a forward simulation of future laps,
+    just the running totals a real system would maintain (compound
+    history, current clean-stint window)."""
+    driver_id: str                      # "D1" / "D2"
+    code: str
+    compound_history_dry: set = field(default_factory=set)
+    used_wet_or_inter: bool = False
+    stint_ages: list = field(default_factory=list)
+    stint_laptimes: list = field(default_factory=list)
+    current_stint: Optional[int] = None
+    stops_made: int = 0
+
+
+# ============================================================================
+# 6. The per-lap engine (BP §8.2)
+# ============================================================================
+def _safe_float(v):
+    try:
+        f = float(v)
+        return None if np.isnan(f) else f
+    except (TypeError, ValueError):
+        return None
+
+
+def _row_or_none(lap_df: pd.DataFrame, code: str):
+    match = lap_df[lap_df["Driver"] == code]
+    return match.iloc[0] if not match.empty else None
+
+
+def _rank_by_gap_to_leader(lap_df: pd.DataFrame) -> pd.DataFrame:
+    """BP §7-B14 fallback: Position isn't reliably populated in every
+    session/season - derive an order from gap_to_leader when it's missing."""
+    if "Position" in lap_df.columns and lap_df["Position"].notna().all():
+        return lap_df
+    ranked = lap_df.copy()
+    ranked["Position"] = ranked["gap_to_leader"].rank(method="first")
+    return ranked
+
+
+def build_projection_fn(tyre_models: Optional[dict], compound: str, circuit: str,
+                         regulation_era: str, fuel: float, stint_number: int,
+                         temp_bucket: str, degr_ordinal: int):
+    """Returns a closure over everything fixed for this lap so
+    marginal_pace_loss() only needs to vary tyre_age."""
+    def _call(tyre_age):
+        if tyre_models is None:
+            return {"predicted_pace_loss": None, "cliff_probability_next_5_laps": None}
+        try:
+            return tyre_proj.build_tyre_life_projection(
+                reg_models=tyre_models["reg_models"], cph=tyre_models["cph"],
+                temp_dummy_columns=tyre_models["temp_dummy_columns"],
+                era_dummy_columns=tyre_models["era_dummy_columns"],
+                compound=compound, circuit=circuit, regulation_era=regulation_era,
+                tyre_age=tyre_age, fuel_load_estimate=fuel, stint_number=stint_number,
+                track_temp_bucket=temp_bucket, circuit_degredation_ordinal=degr_ordinal,
+                cliff_horizon_laps=HORIZON_LAPS,
+            )
+        except Exception as e:  # noqa: BLE001 - BP convention: never let a projection crash the lap
+            note(f"projection failed for {compound}/{circuit}/{regulation_era} "
+                 f"at age {tyre_age}: {e} - treating as None/None this lap.")
+            return {"predicted_pace_loss": None, "cliff_probability_next_5_laps": None}
+    return _call
+
+
+def find_adjacent_rows(lap_df: pd.DataFrame, own_position: Optional[float]) -> tuple:
+    """BP §5 undercut/overcut/rival-threat/dirty-air inputs are about
+    whichever car is physically adjacent on track, NOT necessarily the
+    other tracked driver (D1/D2 are usually TEAMMATES, not rivals) - an
+    earlier version of this file wrongly used the teammate's row as a
+    stand-in, which also meant a leader's spurious `gap_to_car_ahead==0`
+    (there's no one ahead of P1, but the CSV doesn't encode that as null)
+    fed straight into in_dirty_air() and fired every single lap for
+    whoever was leading. Fixed by looking up the real Position-1/Position+1
+    rows in the FULL field for this lap (laps_features.csv has every
+    driver, not just D1/D2 - no reason to throw that away). Returns
+    (ahead_row, behind_row); either is None when there genuinely isn't one
+    (the leader has no ahead_row, last place has no behind_row)."""
+    if own_position is None or pd.isna(own_position):
+        return None, None
+    ahead = lap_df[lap_df["Position"] == own_position - 1]
+    behind = lap_df[lap_df["Position"] == own_position + 1]
+    return (ahead.iloc[0] if not ahead.empty else None,
+            behind.iloc[0] if not behind.empty else None)
+
+
+def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df: pd.DataFrame,
+                         resources: dict, radios_by_driver_lap: Optional[dict],
+                         data_quality_notes: list) -> dict:
+    """Runs Tier 1 -> Tier 2 -> Tier 3 (+ SC gamble) for one driver on one
+    lap. Returns a dict matching the DriverDecision shape in BP §6, minus
+    the Execution Tree part (added afterwards once both drivers are known)."""
+    lap_number = int(row["LapNumber"])
+    compound = row.get("Compound")
+    tyre_age = _safe_float(row.get("TyreLife")) or 0.0
+    track_status = str(row.get("TrackStatus", ""))
+
+    # --- update accumulated race state (BP §5 Tier-2 wiring: ADAPT) ---
+    if compound in DRY_COMPOUNDS:
+        state.compound_history_dry.add(compound)
+    elif compound in WET_COMPOUNDS:
+        state.used_wet_or_inter = True
+
+    stint = row.get("Stint")
+    if state.current_stint != stint:
+        state.current_stint = stint
+        state.stint_ages, state.stint_laptimes = [], []
+    is_clean_lap = not any([
+        bool(row.get("is_pit_in")), bool(row.get("is_pit_out")),
+        bool(row.get("is_sc_lap")), bool(row.get("is_vsc_lap")),
+        bool(row.get("is_outlier_laptime")), bool(row.get("is_missing_laptime")),
+    ])
+    if bool(row.get("is_pit_in")):
+        # REAL stop count, from the data - not from whatever HERMES itself
+        # recommended (see the fix note on `stops_made` below). This is what
+        # Tier2State.stops_made_so_far should reflect: a replay evaluates
+        # HERMES against the race that actually happened, not a hypothetical
+        # one where only HERMES's own advice was followed.
+        state.stops_made += 1
+    laptime_s = _safe_float(row.get("LapTime_seconds"))
+    if is_clean_lap and laptime_s is not None:
+        state.stint_ages.append(tyre_age)
+        state.stint_laptimes.append(laptime_s)
+
+    # --- derive_features (BP §8.2) ---
+    fuel = fuel_load_estimate(lap_number, ctx.total_laps)
+    temp_bucket = track_temp_bucket_from_c(_safe_float(row.get("track_temp_c")))
+    stint_number = int(stint) if stint is not None and not pd.isna(stint) else 1
+
+    proj_fn = build_projection_fn(resources["tyre_models"], compound, ctx.circuit,
+                                   ctx.regulation_era, fuel, stint_number, temp_bucket,
+                                   ctx.circuit_degredation_ordinal)
+    projection = proj_fn(tyre_age)
+    if projection["predicted_pace_loss"] is None and resources["tyre_models"] is not None:
+        data_quality_notes.append(
+            f"no tyre model for ({compound}, {ctx.circuit}, {ctx.regulation_era}) - "
+            f"pace_loss/cliff_probability are None this lap (BP §7-B11 coverage gap)."
+        )
+
+    # --- rival-awareness proxies from laps_features.csv (BP §5, adapted) ---
+    # Real adjacency, not the teammate: find whoever is actually one
+    # position ahead/behind in the full field this lap.
+    own_position = _safe_float(row.get("Position"))
+    ahead_row, behind_row = find_adjacent_rows(lap_df, own_position)
+    gap_ahead_s = _safe_float(row.get("gap_to_car_ahead")) if ahead_row is not None else None
+    # The car behind's own gap_to_car_ahead IS the gap between it and us -
+    # exact, not a proxy (we are, by definition, the car ahead of them).
+    gap_behind_s = _safe_float(behind_row.get("gap_to_car_ahead")) if behind_row is not None else None
+    ahead_tyre_age = _safe_float(ahead_row.get("TyreLife")) if ahead_row is not None else None
+    behind_tyre_age = _safe_float(behind_row.get("TyreLife")) if behind_row is not None else None
+    ahead_pitted_recently = bool(ahead_row.get("is_pit_in")) if ahead_row is not None else False
+
+    adjacency = {
+        "ahead_driver": ahead_row.get("Driver") if ahead_row is not None else None,
+        "ahead_tyre_age": ahead_tyre_age,
+        "behind_driver": behind_row.get("Driver") if behind_row is not None else None,
+        "behind_tyre_age": behind_tyre_age,
+    }
+    # A tyre-age gap this large before either car has pitted is implausible -
+    # far more likely find_adjacent_rows landed on a lapped/pitted car via a
+    # Position tie, gap-based fallback ranking, or a pre-race compound
+    # anomaly than a genuine live undercut window. Surfaced as data, not
+    # silently trusted.
+    for label, other_age in (("ahead", ahead_tyre_age), ("behind", behind_tyre_age)):
+        if other_age is not None and state.stops_made == 0 and abs(tyre_age - other_age) >= UNDERCUT_MIN_TYRE_AGE_GAP:
+            data_quality_notes.append(
+                f"{label} car (tyre_age={other_age}) is {abs(tyre_age - other_age):.0f} laps "
+                f"different from ours (tyre_age={tyre_age}) despite neither of us having pitted "
+                f"yet this race - check whether Position/adjacency picked the right car "
+                f"(adjacency={adjacency})."
+            )
+
+    # --- Tier 1 ---
+    red_flag = "5" in track_status
+    unsafe_wx = unsafe_weather(
+        rain_now=bool(row.get("Rainfall", False)), on_slicks=compound in DRY_COMPOUNDS,
+        rain_probability_pct=_safe_float(row.get("rain_probability_pct")),
+        laps_remaining=ctx.total_laps - lap_number, total_laps=ctx.total_laps,
+    )
+    t1_state = gate1.Tier1State(
+        red_flag_or_race_stopped=red_flag,
+        tyre_structurally_damaged=bool(row.get("tyre_structurally_damaged", False)),
+        unsafe_weather=unsafe_wx,
+        tyre_age_history=state.stint_ages,
+        laptime_seconds_history=state.stint_laptimes,
+    )
+    t1 = gate1.evaluate_tier1(t1_state)
+    result = {"driver": state.code, "driver_id": state.driver_id, "lap": lap_number,
+              "compound": compound, "tyre_age": tyre_age, "gate_decision": t1,
+              "tier_reached": 1, "reason": None, "triggers": {}, "projection": projection,
+              "sc_gamble": None, "gate_tree_trigger_tier": None, "adjacency": adjacency}
+    if t1 == "PIT_NOW":
+        result["gate_tree_trigger_tier"] = 1
+        return result
+
+    # --- Tier 2 ---
+    wet_exception = state.used_wet_or_inter  # ADAPT (BP §5): ran INTER/WET this race
+    t2_state = gate2.Tier2State(
+        season=ctx.season, circuit=ctx.circuit, is_sprint_weekend=ctx.is_sprint_weekend,
+        compound_history_dry=state.compound_history_dry, wet_race_exception=wet_exception,
+        laps_remaining_in_race=ctx.total_laps - lap_number,
+        remaining_sets={}, sets_used_so_far=0, stops_made_so_far=state.stops_made,
+    )
+    if ctx.season >= 2026:
+        data_quality_notes.append(
+            "2026 season: f1_tyre_constraints.json says 0 mandatory dry compounds but "
+            "gate-tier-2.py requires 2 regardless of era (BP §7-B9, unresolved) - this "
+            "orchestrator trusts gate-tier-2.py as written; PIT_FLEXIBLE near the end "
+            "of a 2026 race may be spurious."
+        )
+    t2 = gate2.evaluate_tier2(t2_state)
+    result["gate_decision"] = t2
+    result["tier_reached"] = 2
+    if t2 == "PIT_FLEXIBLE":
+        result["gate_tree_trigger_tier"] = 2
+        return result
+
+    # --- SC gamble (only worth computing once we know we're in Tier 3) ---
+    p_sc = ctx.p_sc_5lap
+    m_pace_loss = marginal_pace_loss(proj_fn, tyre_age)
+    gamble = sc_gamble.evaluate_sc_gamble(sc_gamble.SCGambleInputs(
+        p_sc_next_n_laps=p_sc, predicted_pace_loss_per_lap=m_pace_loss,
+        cliff_probability_next_n_laps=projection["cliff_probability_next_5_laps"],
+        n_laps_horizon=HORIZON_LAPS,
+    ))
+    result["sc_gamble"] = gamble
+
+    # --- Tier 3 ---
+    est_len, est_note = expected_stint_length(resources["cliff_stints"], compound,
+                                               ctx.circuit, ctx.regulation_era)
+    if "flagged" in est_note or "no circuit match" in est_note:
+        data_quality_notes.append(f"expected_stint_length: {est_note}")
+
+    safety_car_deployed = ("4" in track_status) or ("6" in track_status) or ("7" in track_status)  # ASSUMPTION: SC+VSC both count (BP §5 "decide VSC handling")
+    undercut = live_undercut_opportunity(gap_ahead_s, tyre_age, ahead_tyre_age, ctx.pit_loss_s)
+    overcut = overcut_opportunity(ahead_pitted_recently, projection["cliff_probability_next_5_laps"], gap_ahead_s)
+    rival_threat = rival_undercut_threat(gap_behind_s, tyre_age, behind_tyre_age, ctx.pit_loss_s)
+    dirty_air = in_dirty_air(gap_ahead_s)
+    stress = get_driver_stress_trigger(radios_by_driver_lap, state.code, lap_number)
+
+    t3_state = gate3.Tier3State(
+        cliff_probability_next_5_laps=projection["cliff_probability_next_5_laps"],
+        predicted_pace_loss=projection["predicted_pace_loss"],
+        tyre_age=tyre_age, expected_stint_length=est_len,
+        undercut_opportunity=undercut, overcut_opportunity=overcut,
+        safety_car_deployed=safety_car_deployed, rival_undercut_threat=rival_threat,
+        in_dirty_air=dirty_air, driver_stress_signal=stress,
+        sc_gamble_recommendation=gamble.get("recommendation"),
+    )
+    t3 = gate3.evaluate_tier3(t3_state)
+    result["gate_decision"] = t3["decision"]
+    result["reason"] = t3["reason"]
+    result["triggers"] = t3["triggers"]
+    result["tier_reached"] = 3
+    result["driver_stress_signal"] = stress
+    result["track_position"] = row.get("Position")
+    result["can_delay_one_lap_without_position_loss"] = can_delay_one_lap(gap_behind_s, ctx.pit_loss_s)
+    if t3["decision"] == "PIT_NOW":
+        result["gate_tree_trigger_tier"] = 3
+    return result
+
+
+def merge_execution(ctx: RaceContext, results: list, safety_car_active: bool) -> None:
+    """BP §8.2 tail + §4.1 quirk (b): fires the Execution Tree for whoever
+    triggered PIT_NOW/PIT_FLEXIBLE, and separately calls
+    get_driving_instruction for anyone who didn't trigger (PIT_LATER/
+    DONT_PIT), since the Execution Tree itself only outputs for triggered
+    drivers."""
+    triggered = [r for r in results if r["gate_tree_trigger_tier"] is not None]
+    if triggered:
+        contexts = [exec_tree.DriverPitContext(
+            driver_id=r["driver_id"], gate_tree_trigger_tier=r["gate_tree_trigger_tier"],
+            tyre_age=r["tyre_age"], track_position=int(r.get("track_position") or 99),
+            can_delay_one_lap_without_position_loss=r.get("can_delay_one_lap_without_position_loss", False),
+            cliff_probability_next_5_laps=r["projection"]["cliff_probability_next_5_laps"],
+            tier3_reason=r["reason"], driver_stress_signal=r.get("driver_stress_signal", False),
+        ) for r in triggered]
+        state = exec_tree.ExecutionTreeState(
+            triggered_drivers=contexts, safety_car_active=safety_car_active,
+            circuit=ctx.circuit, priority_driver_id=resolve_second_driver_priority_v1(),
+        )
+        exec_out = exec_tree.evaluate_execution_tree(state)
+        for r in triggered:
+            r["execution"] = exec_out.get(r["driver_id"])
+
+    for r in results:
+        if r["gate_tree_trigger_tier"] is None:
+            decision = r["gate_decision"]  # "PIT_LATER" or "DONT_PIT"
+            instruction = exec_tree.get_driving_instruction(
+                decision, r["projection"]["cliff_probability_next_5_laps"],
+                tier3_reason=r.get("reason"), driver_stress_signal=r.get("driver_stress_signal", False),
+            )
+            r["execution"] = {"decision": decision, "penalty_seconds": 0.0,
+                               "driving_instruction": instruction}
+
+
+def explanation_for(r: dict) -> str:
+    tier = r["tier_reached"]
+    gd = r["gate_decision"]
+    bits = [f"Tier {tier} -> {gd}"]
+    if r.get("reason"):
+        bits.append(f"reason={r['reason']}")
+    active = [k for k, v in (r.get("triggers") or {}).items() if v]
+    if active:
+        bits.append("triggers=" + ",".join(active))
+    exe = r.get("execution") or {}
+    if exe.get("driving_instruction"):
+        bits.append(f"instruction={exe['driving_instruction']}")
+    return " | ".join(bits)
+
+
+# ============================================================================
+# 7. ReplaySource (BP §8.1 step 5)
+# ============================================================================
+def find_laps_features(season: int, race: str, session: str) -> Optional[Path]:
+    p = CACHE_DIR / "clean" / "features" / str(season) / race / session / "laps_features.csv"
+    return p if p.exists() else None
+
+
+def load_weather(season: int, race: str, session: str) -> Optional[pd.DataFrame]:
+    for candidate in (
+        CACHE_DIR / "clean" / "fastf1" / str(season) / race / session / "weather_cleaned.csv",
+        CACHE_DIR / "raw" / "fastf1" / str(season) / race / session / "weather.csv",
+    ):
+        if candidate.exists():
+            return pd.read_csv(candidate)
+    return None
+
+
+def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
+                radios_by_driver_lap: Optional[dict] = None, explain: bool = False) -> list:
+    laps_path = find_laps_features(ctx.season, ctx.circuit, ctx.session)
+    if laps_path is None:
+        raise FileNotFoundError(
+            f"laps_features.csv not found under {CACHE_DIR}/clean/features/{ctx.season}/"
+            f"{ctx.circuit}/{ctx.session}/ - make sure gcs_cache/ is populated for this race "
+            f"(BP §8.5 runtime facts)."
+        )
+    laps = pd.read_csv(laps_path, dtype={"TrackStatus": str})
+    if "LapTime_seconds" not in laps.columns and "LapTime" in laps.columns:
+        laps["LapTime_seconds"] = pd.to_timedelta(laps["LapTime"], errors="coerce").dt.total_seconds()
+
+    if radios_by_driver_lap is None:
+        radios_by_driver_lap = build_radios_by_driver_lap(REPO_ROOT, laps, ctx)
+
+    states = {ctx.d1_code: DriverRuntimeState("D1", ctx.d1_code),
+              ctx.d2_code: DriverRuntimeState("D2", ctx.d2_code)}
+
+    all_decisions = []
+    for lap_number in lap_range:
+        lap_df = laps[laps["LapNumber"] == lap_number]
+        if lap_df.empty:
+            continue
+        lap_df = _rank_by_gap_to_leader(lap_df)
+        row_d1 = _row_or_none(lap_df, ctx.d1_code)
+        row_d2 = _row_or_none(lap_df, ctx.d2_code)
+        if row_d1 is None and row_d2 is None:
+            continue
+
+        safety_car_active = "4" in str(lap_df["TrackStatus"].iloc[0]) if not lap_df.empty else False
+        lap_results, dq_notes = [], []
+        if row_d1 is not None:
+            lap_results.append(evaluate_driver_lap(ctx, states[ctx.d1_code], row_d1, lap_df,
+                                                     resources, radios_by_driver_lap, dq_notes))
+        if row_d2 is not None:
+            lap_results.append(evaluate_driver_lap(ctx, states[ctx.d2_code], row_d2, lap_df,
+                                                     resources, radios_by_driver_lap, dq_notes))
+
+        merge_execution(ctx, lap_results, safety_car_active)
+
+        for r in lap_results:
+            r["data_quality_notes"] = list(dq_notes)
+            r["explanation_text"] = explanation_for(r)
+            actual_pit = None
+            actual_row = row_d1 if r["driver"] == ctx.d1_code else row_d2
+            if actual_row is not None:
+                actual_pit = bool(actual_row.get("is_pit_in"))
+            r["actual_is_pit_in_lap"] = actual_pit
+            all_decisions.append(r)
+            if explain:
+                flag = " <-- real pit lap" if actual_pit else ""
+                print(f"L{lap_number:>3} {r['driver']}: {r['explanation_text']}{flag}")
+                if dq_notes and r is lap_results[-1]:
+                    for note_text in dq_notes:
+                        print(f"      ! {note_text}")
+
+            # NOTE: stint-history reset already happens inside evaluate_driver_lap
+            # from the real Stint/is_pit_in columns (not from what HERMES itself
+            # recommended) - state.stops_made is likewise now driven by the real
+            # is_pit_in flag there, so there's nothing left to do here. An
+            # earlier version incremented stops_made when HERMES's own
+            # driving_instruction said PIT_LAP, which silently drifted out of
+            # sync with reality whenever HERMES disagreed with the actual pit
+            # lap (i.e. most of the time) - that's what caused stale
+            # "neither of us has pitted yet" diagnostic notes late in a race.
+
+    return all_decisions
+
+
+class LiveSource:
+    """Stub matching ReplaySource's interface (BP §8.1 step 5), so a
+    later live feed only needs to implement `next_lap_snapshot()` -
+    everything downstream (evaluate_driver_lap, merge_execution) already
+    takes a plain row-like object and doesn't care where it came from."""
+
+    def __init__(self, ctx: RaceContext):
+        self.ctx = ctx
+
+    def next_lap_snapshot(self, driver_code: str) -> dict:
+        raise NotImplementedError(
+            "LiveSource is a stub (BP §8.1: 'LiveSource stub (same interface)'). "
+            "Wire this to your live timing feed; it must return a dict/row with "
+            "the same keys evaluate_driver_lap() reads from laps_features.csv."
+        )
+
+
+# ============================================================================
+# 8. Self-checks (BP §8.4)
+# ============================================================================
+def selftest() -> bool:
+    ok = True
+
+    def check(label, condition):
+        nonlocal ok
+        status = "PASS" if condition else "FAIL"
+        if not condition:
+            ok = False
+        print(f"[selftest] {status}: {label}")
+
+    # 1. Constant-sync assert already ran at import time (would have raised).
+    check("CLIFF_PROBABILITY_THRESHOLD in sync (tier3 vs execution-tree)", True)
+
+    # 2. Re-run each tree's own documented scenarios through the shim.
+    s1 = gate1.Tier1State(False, False, False, [1, 2, 3], [90.1, 90.0, 89.9])
+    check("gate-tier-1 clean short stint -> MOVE_TO_TIER_2", gate1.evaluate_tier1(s1) == "MOVE_TO_TIER_2")
+    s2 = gate1.Tier1State(True, False, False, [1, 2, 3], [90.1, 90.0, 89.9])
+    check("gate-tier-1 red flag -> PIT_NOW", gate1.evaluate_tier1(s2) == "PIT_NOW")
+
+    t2 = gate2.Tier2State(2023, "Bahrain_Grand_Prix", False, {"SOFT"}, False, 3,
+                           {"SOFT": 2, "MEDIUM": 3, "HARD": 4}, 1, 0)
+    check("gate-tier-2 non-compliant, deadline close -> PIT_FLEXIBLE", gate2.evaluate_tier2(t2) == "PIT_FLEXIBLE")
+
+    t3_none = gate3.Tier3State(None, None, 10, 25, False, False, False, False, False)
+    check("gate-tier-3 all-None tyre model -> DONT_PIT", gate3.evaluate_tier3(t3_none)["decision"] == "DONT_PIT")
+    t3_three = gate3.Tier3State(0.05, 0.2, 22, 25, False, False, True, False, False)
+    check("gate-tier-3 three triggers -> PIT_NOW", gate3.evaluate_tier3(t3_three)["decision"] == "PIT_NOW")
+
+    d1_only = exec_tree.ExecutionTreeState(
+        triggered_drivers=[exec_tree.DriverPitContext("D1", 1, 22, 3, False, cliff_probability_next_5_laps=0.20)],
+        safety_car_active=False, circuit="Bahrain_Grand_Prix")
+    out = exec_tree.evaluate_execution_tree(d1_only)
+    check("execution-tree single driver -> PIT_LAP", out["D1"]["decision"] == "PIT_NOW"
+          and out["D1"]["driving_instruction"] == "PIT_LAP")
+
+    # 3. B1 regression test - synthetic models with a genuine temp
+    #    coefficient must give >=2 distinct outputs across the 4 buckets.
+    try:
+        from sklearn.linear_model import LinearRegression
+        from lifelines import CoxPHFitter
+        rng = np.random.default_rng(0)
+        n = 300
+        temp_cols = ["temp_extreme", "temp_hot", "temp_warm"]  # matches the REAL pickle's prefix
+        era_cols = ["regulation_era_2022-2025"]
+        X = pd.DataFrame({
+            "tyre_age": rng.integers(1, 30, n),
+            "fuel_load_estimate": rng.uniform(0, 110, n),
+            "stint_number": rng.integers(1, 4, n),
+            "temp_extreme": rng.integers(0, 2, n),
+            "temp_hot": rng.integers(0, 2, n),
+            "temp_warm": rng.integers(0, 2, n),
+        })
+        y = (0.03 * X["tyre_age"] + 0.5 * X["temp_hot"] + 0.8 * X["temp_extreme"]
+             + rng.normal(0, 0.05, n))
+        reg_models = {("MEDIUM", "Test_Circuit", "2022-2025"): LinearRegression().fit(X, y)}
+        cox_df = pd.DataFrame({
+            "duration": rng.integers(3, 40, n), "event": rng.integers(0, 2, n),
+            "compound": "MEDIUM", "fuel_load_estimate": rng.uniform(0, 110, n),
+            "stint_number": rng.integers(1, 4, n), "circuit_degredation_ordinal": rng.integers(0, 3, n),
+            "temp_extreme": rng.integers(0, 2, n), "temp_hot": rng.integers(0, 2, n),
+            "temp_warm": rng.integers(0, 2, n), "regulation_era_2022-2025": rng.integers(0, 2, n),
+        })
+        cph = CoxPHFitter(penalizer=0.1)
+        cph.fit(cox_df, duration_col="duration", event_col="event", strata=["compound"])
+
+        outputs = set()
+        for bucket in ("cool", "warm", "hot", "extreme"):
+            proj = tyre_proj.build_tyre_life_projection(
+                reg_models=reg_models, cph=cph, temp_dummy_columns=temp_cols, era_dummy_columns=era_cols,
+                compound="MEDIUM", circuit="Test_Circuit", regulation_era="2022-2025",
+                tyre_age=15, fuel_load_estimate=60, stint_number=2, track_temp_bucket=bucket,
+                circuit_degredation_ordinal=1,
+            )
+            outputs.add(round(proj["predicted_pace_loss"], 6))
+        check("B1 fix: 4 temp buckets give >=2 distinct pace_loss outputs", len(outputs) >= 2)
+    except ImportError as e:
+        print(f"[selftest] SKIP: B1 regression test needs sklearn/lifelines ({e})")
+
+    return ok
+
+
+# ============================================================================
+# 9. CLI
+# ============================================================================
+def main():
+    global REPO_ROOT, CACHE_DIR
+    parser = argparse.ArgumentParser(description="HERMES master orchestrator")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sp = sub.add_parser("replay", help="evaluate the trees against a historical race")
+    sp.add_argument("--repo-root", default=str(REPO_ROOT),
+                     help="Only affects where data files (pickle, CSVs) are read from. "
+                          "The tree/module .py files themselves are loaded at import time "
+                          "from HERMES_REPO_ROOT (env var) - set that instead if your trees "
+                          "live somewhere other than the default.")
+    sp.add_argument("--season", type=int, required=True)
+    sp.add_argument("--race", required=True, help="underscore Race folder name, e.g. Bahrain_Grand_Prix")
+    sp.add_argument("--session", default="R")
+    sp.add_argument("--d1", required=True, help="3-letter driver code, priority driver")
+    sp.add_argument("--d2", required=True, help="3-letter driver code, second car")
+    sp.add_argument("--sprint-weekend", action="store_true")
+    sp.add_argument("--laps", default=None, help="e.g. 1-57; default is the whole race")
+    sp.add_argument("--out", default=None, help="write per-driver-per-lap decisions as JSONL")
+    sp.add_argument("--explain", action="store_true")
+
+    sub.add_parser("selftest", help="run the wiring/regression self-checks (BP §8.4)")
+
+    args = parser.parse_args()
+
+    if args.command == "replay":
+        REPO_ROOT = Path(args.repo_root).resolve()
+        CACHE_DIR = Path(os.environ.get("GCS_CACHE_DIR", REPO_ROOT / "gcs_cache"))
+
+        tyre_models = load_tyre_models(REPO_ROOT / "tyre_life_models.pkl")
+        sc_prior = load_sc_prior(REPO_ROOT / "sc_vsc_circuit_level_prior.csv")
+        cliff_stints = load_cliff_stints(REPO_ROOT / "cliff_detection_stints.csv")
+        taxonomy = load_circuit_taxonomy(REPO_ROOT / "src" / "taxanomy" / "circuit_taxonomy.xlsx")
+        pit_loss_table = load_pit_loss_table(
+            REPO_ROOT / "checkpoints" / "rival_knowledge" / "archive_per_race_analysis.csv")
+
+        degr_ordinal, degr_note = circuit_degredation_ordinal_for(taxonomy, args.race)
+        pit_loss_s, pit_loss_note = pit_loss_for_circuit(pit_loss_table, args.race)
+        note(f"circuit_degredation_ordinal: {degr_ordinal} ({degr_note})")
+        note(f"pit_loss_s: {pit_loss_s} ({pit_loss_note})")
+
+        weather_df = load_weather(args.season, args.race, args.session)
+        total_laps = 0
+        laps_path = find_laps_features(args.season, args.race, args.session)
+        if laps_path is not None:
+            total_laps = int(pd.read_csv(laps_path, usecols=["LapNumber"])["LapNumber"].max())
+        else:
+            note("can't pre-read total_laps - laps_features.csv missing; will fail in run_replay.")
+
+        ctx = RaceContext(
+            season=args.season, circuit=args.race, total_laps=total_laps,
+            is_sprint_weekend=args.sprint_weekend, d1_code=args.d1, d2_code=args.d2,
+            session=args.session, circuit_degredation_ordinal=degr_ordinal,
+            pit_loss_s=pit_loss_s, p_sc_5lap=get_sc_probability(sc_prior, args.race),
+        )
+        resources = {"tyre_models": tyre_models, "cliff_stints": cliff_stints}
+
+        if args.laps:
+            start, end = (int(x) for x in args.laps.split("-"))
+            lap_range = range(start, end + 1)
+        else:
+            lap_range = range(1, total_laps + 1) if total_laps else range(1, 1)
+
+        decisions = run_replay(ctx, resources, lap_range, explain=args.explain)
+
+        if args.out:
+            with open(args.out, "w") as f:
+                for d in decisions:
+                    f.write(json.dumps(d, default=str) + "\n")
+            note(f"wrote {len(decisions)} decisions to {args.out}")
+
+        n_agree = sum(1 for d in decisions if d.get("actual_is_pit_in_lap")
+                      and d.get("execution", {}).get("driving_instruction") == "PIT_LAP")
+        n_actual_pits = sum(1 for d in decisions if d.get("actual_is_pit_in_lap"))
+        print(f"\n[summary] {len(decisions)} driver-lap decisions evaluated. "
+              f"{n_actual_pits} real pit-in laps in this window, HERMES also said "
+              f"PIT_LAP on {n_agree} of them (BP §8.4 point 4: report agreement, don't claim accuracy).")
+
+    elif args.command == "selftest":
+        ok = selftest()
+        sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()

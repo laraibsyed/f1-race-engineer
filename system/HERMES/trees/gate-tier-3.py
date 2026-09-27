@@ -24,6 +24,69 @@ ALL THREE THRESHOLDS BELOW WERE ORIGINALLY GUESSED PLACEHOLDERS - now calibrated
 against real historical data via tier3_threshold_calibration.py (same treatment
 DEADLINE_BUFFER_LAPS got). See that script and the comments below each constant
 for exactly how each number was derived and what it changed from.
+
+============================================================================
+2026 GATING UPDATE - cliff_proximity minimum tyre-age floor
+============================================================================
+Investigation trigger: a replay of 2023 Bahrain (VER/PER) showed
+cliff_proximity firing as early as tyre_age=4, contributing to PIT_NOW
+recommendations on the opening lap of a stint - strategically implausible
+on its face. Investigated per hermes_master.py's own decision tree (do NOT
+touch this threshold or gate on suspicion alone - inspect the fitted model
+first):
+
+  1. tyre_life_models.pkl's Cox model is stratified by COMPOUND ONLY (not
+     compound+circuit+era) - the fitted baseline hazard for SOFT is shared
+     across every circuit; Bahrain's own slice (n=122, 17 events) is not
+     what shaped the curve, the full SOFT-compound sample is
+     (n=1,729 stints, 156 events - not thin; ~19.5 events per covariate on
+     an 8-covariate model, consistent with this project's own documented
+     concordance=0.619, "weak but real").
+  2. The fitted SOFT baseline hazard is genuinely ~0 at tyre_age 2-4, rises
+     to a real peak around age 7-8 (matching the observed cliff_tyre_age
+     distribution's own median=11, IQR 8-17), then declines - a real,
+     data-supported shape, not a thin-stratum artifact.
+  3. BUT: a nonzero cliff_probability_next_5_laps can still arise at very
+     low tyre_age purely from P(T<=t+5 | T>t) integrating forward into that
+     age-7-8 peak from a young starting point - i.e. the conditional
+     probability being calibrated is not the same quantity as "is there
+     hazard right now", so an early trigger isn't strictly a modelling
+     bug either.
+  4. A 5-race, 4-condition sensitivity experiment (no floor, >=4, >=5, >=6 -
+     see system/HERMES/trees/experiment_cliff_age_floor.py, kept as the
+     record of this work) tested whether GATING cliff_proximity below a
+     minimum tyre age changes behaviour for the better, without retraining
+     the Cox model, without changing CLIFF_PROBABILITY_THRESHOLD, and
+     without changing the 3-trigger vote rule - exactly the same "port the
+     validated result, don't touch what wasn't tested" discipline used for
+     the SC-gamble calibration. Result, across Bahrain/Monaco/Australia/
+     Saudi Arabia/British GP (2023/2022/2023/2021/2024 - different
+     circuits, different degradation profiles, different eras):
+       - real pit-in laps MISSED: IDENTICAL across all 4 floor conditions,
+         in EVERY race (20/20 race x floor combinations, zero exceptions) -
+         the floor never once cost a real pit stop HERMES would otherwise
+         have caught.
+       - early PIT_NOW (tyre_age<5/<6): monotonically non-increasing as the
+         floor rises, in every race, never once reversing direction.
+       - the SPECIFIC age threshold does not generalize to one universal
+         number (Bahrain/Monaco keep improving through age 6, Australia is
+         already fully resolved by age 4, Saudi Arabia/British GP have no
+         early PIT_NOW to remove at any floor) - but the DIRECTION and
+         SAFETY of the effect generalizes cleanly, which is what this floor
+         actually claims.
+  5. DELIBERATELY NOT stratum-specific: a per-(compound, circuit, era) floor
+     would be a materially bigger modelling decision (another fitted
+     heuristic layered on top of an already-thin-in-places Cox stratum) and
+     the 5-race evidence doesn't justify that complexity - a single, fixed,
+     interpretable floor is the change the evidence actually supports.
+
+CLIFF_PROXIMITY_MIN_TYRE_AGE below is a TIER-3 GATING RULE, not a physical
+claim about when tyres start degrading: it exists to prevent the
+probabilistic cliff signal from influencing strategic decisions during the
+earliest laps of a stint, where a low-but-nonzero forward-looking
+probability is more likely to read as "strategically premature" than
+"genuinely at risk", per the reasoning above. It is not a claim that no
+real cliff risk exists before this age.
 """
 
 from dataclasses import dataclass
@@ -40,6 +103,16 @@ CLIFF_PROBABILITY_THRESHOLD = 0.017  # CALIBRATED via ROC validation against 533
                                        # is ~17x lower because cliffs are rare overall, so even
                                        # genuinely elevated risk rarely produces a "large" absolute
                                        # probability from this model.
+CLIFF_PROXIMITY_MIN_TYRE_AGE = 5      # EVIDENCE-BACKED GATING RULE (2026 update, see module
+                                       # docstring above for the full 5-race sensitivity
+                                       # analysis) - NOT a calibrated physical threshold like the
+                                       # two constants above. cliff_proximity cannot contribute to
+                                       # the Tier 3 vote while tyre_age is below this, regardless
+                                       # of how high cliff_probability_next_5_laps reads. Do not
+                                       # raise or lower this without re-running
+                                       # experiment_cliff_age_floor.py across at least this same
+                                       # 5-race set first - the evidence supports THIS specific
+                                       # value, not the general shape of "some floor helps".
 PACE_LOSS_THRESHOLD_SECONDS = 1.805   # CALIBRATED: 90th percentile of real pace_loss_seconds
                                        # across 148,041 cleaned dry-compound laps (same cleaning
                                        # pipeline as Regression V2). Was 1.0 (guessed) - close in
@@ -106,8 +179,15 @@ def _apply_sc_gamble_suppression(triggers: dict, state: Tier3State) -> dict:
 
 
 def _cliff_proximity_trigger(state: Tier3State) -> bool:
+    """Gated by CLIFF_PROXIMITY_MIN_TYRE_AGE (2026 update, see module
+    docstring) - a 5-race sensitivity analysis showed this consistently
+    reduces or leaves unchanged early PIT_NOW recommendations without
+    increasing missed real pit stops. This is a Tier-3 gating rule, not a
+    claim that no real cliff risk exists before this age."""
     if state.cliff_probability_next_5_laps is None:
         return False  # unknown compound/circuit/era - can't evaluate, don't false-trigger
+    if state.tyre_age < CLIFF_PROXIMITY_MIN_TYRE_AGE:
+        return False
     return state.cliff_probability_next_5_laps >= CLIFF_PROBABILITY_THRESHOLD
 
 
@@ -265,3 +345,19 @@ if __name__ == "__main__":
     print("\nDriver stress + one tyre trigger:", result6)
     print("  (OLD design would have counted stress as a 2nd vote -> PIT_NOW. FIXED: stress isn't")
     print("   a vote -> PIT_LATER, but driver_stress_signal=True is still passed through as context)")
+
+    # Scenario 7: NEW - the exact case this update addresses. High cliff
+    # probability at a very young tyre_age used to be able to vote; now it
+    # cannot, regardless of how high cliff_probability_next_5_laps reads.
+    s7_before_floor_would_trigger = Tier3State(
+        cliff_probability_next_5_laps=0.05, predicted_pace_loss=0.2,
+        tyre_age=3, expected_stint_length=25,
+        undercut_opportunity=True, overcut_opportunity=False,
+        safety_car_deployed=False, rival_undercut_threat=False, in_dirty_air=True)
+    result7 = evaluate_tier3(s7_before_floor_would_trigger)
+    print(f"\ntyre_age=3, cliff_probability=0.05 (>= {CLIFF_PROBABILITY_THRESHOLD}), "
+          f"+2 external triggers already active:", result7)
+    print(f"  (cliff_proximity is False despite cliff_probability clearing the threshold, because "
+          f"tyre_age={3} < CLIFF_PROXIMITY_MIN_TYRE_AGE={CLIFF_PROXIMITY_MIN_TYRE_AGE} - "
+          f"only 2 triggers active -> PIT_LATER, not PIT_NOW. Before this update, this exact "
+          f"case would have been PIT_NOW.)")
