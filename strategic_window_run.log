@@ -1,0 +1,96 @@
+====================================================================================================
+SELECTED RACE SAMPLE (10 races) - fixed BEFORE any HERMES output was inspected
+====================================================================================================
+  2023 Bahrain_Grand_Prix (circuit_id=BAH): SANITY CHECK - used during debugging this session; Track/high-degradation, moderate SC prior (0.077). Included per the task's explicit allowance, clearly labelled, not used to justify the rest of the sample.
+  2021 Monaco_Grand_Prix (circuit_id=MON): Street circuit, LOW degradation, LOW SC prior (0.041) - track-position/low-degradation regime, contrasts with Bahrain.
+  2022 Singapore_Grand_Prix (circuit_id=SIN): Street circuit, high real-world SC/VSC incidence historically; SC prior 0.054 (moderate in this dataset's own calibration - included specifically BECAUSE it is a well-known high-SC circuit in real-world terms even where the dataset's own circuit-level prior is more moderate, a useful contrast worth checking).
+  2021 Azerbaijan_Grand_Prix (circuit_id=AZR): Street circuit (Baku), HIGHEST SC prior in the candidate set (0.098) - chaotic/undercut-heavy street circuit.
+  2021 Austrian_Grand_Prix (circuit_id=AUS): Track circuit, HIGH degradation, early season (2021).
+  2022 Dutch_Grand_Prix (circuit_id=DUT): Track circuit, HIGH degradation, different season (2022) from the other high-degradation Track entries, for season diversity within that cell.
+  2023 Spanish_Grand_Prix (circuit_id=SPN): Track circuit, HIGH degradation but LOW SC prior (0.038) - degradation and SC influence varied independently, not bundled.
+  2021 Belgian_Grand_Prix (circuit_id=BEL): KNOWN REAL-WORLD wet/red-flag race (2021 Spa - the farcical 2-lap race behind the safety car in heavy rain) - included for weather/SC influence. NOTE: laps_features.csv has no reliable rain flag of its own (Rainfall is synthesised only from weather.csv at replay time, absent from the cached feature file), so this slot is picked from documented real-world race history, not a data column - stated plainly, not hidden as if it were data-derived like the other selection criteria.
+  2024 British_Grand_Prix (circuit_id=UK): Track circuit, MEDIUM degradation, LATER season (2024) - different regulation-era coverage from the 2021-2023 entries, high-profile undercut/traffic circuit.
+  2024 Abu_Dhabi_Grand_Prix (circuit_id=AUH): Track circuit, LOW degradation, LOW SC prior (0.044), LATE-season finale historically associated with late single-stop pit windows - contrasts with every high-degradation/high-SC entry above.
+  [replay] 2023 Bahrain_Grand_Prix VER/PER
+  [replay] 2021 Monaco_Grand_Prix VER/PER
+  [replay] 2022 Singapore_Grand_Prix VER/PER
+  [replay] 2021 Azerbaijan_Grand_Prix VER/PER
+  [replay] 2021 Austrian_Grand_Prix VER/PER
+  [replay] 2022 Dutch_Grand_Prix VER/PER
+  [replay] 2023 Spanish_Grand_Prix VER/PER
+  [replay] 2021 Belgian_Grand_Prix VER/PER
+  [replay] 2024 British_Grand_Prix VER/PER
+  [replay] 2024 Abu_Dhabi_Grand_Prix VER/PER
+
+====================================================================================================
+PER-RACE / PER-DRIVER TABLE
+====================================================================================================
+ season                  race driver  historical_pit_events  window_hits  pre_pit_hits  exact_pit_lap_matches  window_recall  pre_pit_recall  exact_agreement  median_warning_offset  mean_warning_offset
+   2021   Austrian_Grand_Prix    PER                    1.0          1.0           1.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2021   Austrian_Grand_Prix    VER                    2.0          2.0           2.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2021 Azerbaijan_Grand_Prix    PER                    3.0          3.0           3.0                    1.0            1.0            1.00            0.333                   -3.0                -3.00
+   2021 Azerbaijan_Grand_Prix    VER                    1.0          1.0           1.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2021    Belgian_Grand_Prix    PER                    1.0          1.0           1.0                    0.0            1.0            1.00            0.000                   -2.0                -2.00
+   2021    Belgian_Grand_Prix    VER                    1.0          1.0           1.0                    1.0            1.0            1.00            1.000                   -2.0                -2.00
+   2021     Monaco_Grand_Prix    PER                    1.0          1.0           1.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2021     Monaco_Grand_Prix    VER                    1.0          1.0           1.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2022      Dutch_Grand_Prix    PER                    4.0          4.0           4.0                    1.0            1.0            1.00            0.250                   -3.0                -2.75
+   2022      Dutch_Grand_Prix    VER                    4.0          4.0           3.0                    0.0            1.0            0.75            0.000                   -2.0                -1.75
+   2022  Singapore_Grand_Prix    PER                    1.0          1.0           1.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2022  Singapore_Grand_Prix    VER                    2.0          2.0           2.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2023    Bahrain_Grand_Prix    PER                    2.0          2.0           2.0                    1.0            1.0            1.00            0.500                   -3.0                -3.00
+   2023    Bahrain_Grand_Prix    VER                    2.0          2.0           2.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2023    Spanish_Grand_Prix    PER                    2.0          2.0           2.0                    1.0            1.0            1.00            0.500                   -3.0                -3.00
+   2023    Spanish_Grand_Prix    VER                    2.0          2.0           2.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2024  Abu_Dhabi_Grand_Prix    VER                    1.0          1.0           1.0                    0.0            1.0            1.00            0.000                   -3.0                -3.00
+   2024    British_Grand_Prix    PER                    4.0          4.0           4.0                    1.0            1.0            1.00            0.250                   -3.0                -3.00
+   2024    British_Grand_Prix    VER                    2.0          2.0           2.0                    1.0            1.0            1.00            0.500                   -3.0                -3.00
+
+====================================================================================================
+AGGREGATE (overall)
+====================================================================================================
+ total_historical_pit_events  total_window_hits  window_recall  total_pre_pit_hits  pre_pit_recall  total_exact_matches  exact_agreement  median_warning_offset  mean_warning_offset  n_misses
+                        37.0               37.0            1.0                36.0           0.973                  7.0            0.189                   -3.0               -2.784       0.0
+
+--- by driver ---
+driver  total_historical_pit_events  total_window_hits  window_recall  total_pre_pit_hits  pre_pit_recall  total_exact_matches  exact_agreement  median_warning_offset  mean_warning_offset  n_misses
+   PER                         19.0               19.0            1.0                19.0           1.000                  5.0            0.263                   -3.0               -2.895       0.0
+   VER                         18.0               18.0            1.0                17.0           0.944                  2.0            0.111                   -3.0               -2.667       0.0
+
+--- by race ---
+ season                  race  total_historical_pit_events  total_window_hits  window_recall  total_pre_pit_hits  pre_pit_recall  total_exact_matches  exact_agreement  median_warning_offset  mean_warning_offset  n_misses
+   2021   Austrian_Grand_Prix                          3.0                3.0            1.0                 3.0           1.000                  0.0            0.000                   -3.0                -3.00       0.0
+   2021 Azerbaijan_Grand_Prix                          4.0                4.0            1.0                 4.0           1.000                  1.0            0.250                   -3.0                -3.00       0.0
+   2021    Belgian_Grand_Prix                          2.0                2.0            1.0                 2.0           1.000                  1.0            0.500                   -2.0                -2.00       0.0
+   2021     Monaco_Grand_Prix                          2.0                2.0            1.0                 2.0           1.000                  0.0            0.000                   -3.0                -3.00       0.0
+   2022      Dutch_Grand_Prix                          8.0                8.0            1.0                 7.0           0.875                  1.0            0.125                   -3.0                -2.25       0.0
+   2022  Singapore_Grand_Prix                          3.0                3.0            1.0                 3.0           1.000                  0.0            0.000                   -3.0                -3.00       0.0
+   2023    Bahrain_Grand_Prix                          4.0                4.0            1.0                 4.0           1.000                  1.0            0.250                   -3.0                -3.00       0.0
+   2023    Spanish_Grand_Prix                          4.0                4.0            1.0                 4.0           1.000                  1.0            0.250                   -3.0                -3.00       0.0
+   2024  Abu_Dhabi_Grand_Prix                          1.0                1.0            1.0                 1.0           1.000                  0.0            0.000                   -3.0                -3.00       0.0
+   2024    British_Grand_Prix                          6.0                6.0            1.0                 6.0           1.000                  2.0            0.333                   -3.0                -3.00       0.0
+
+--- by season ---
+ season  total_historical_pit_events  total_window_hits  window_recall  total_pre_pit_hits  pre_pit_recall  total_exact_matches  exact_agreement  median_warning_offset  mean_warning_offset  n_misses
+   2021                         11.0               11.0            1.0                11.0           1.000                  2.0            0.182                   -3.0               -2.818       0.0
+   2022                         11.0               11.0            1.0                10.0           0.909                  1.0            0.091                   -3.0               -2.455       0.0
+   2023                          8.0                8.0            1.0                 8.0           1.000                  2.0            0.250                   -3.0               -3.000       0.0
+   2024                          7.0                7.0            1.0                 7.0           1.000                  2.0            0.286                   -3.0               -3.000       0.0
+
+Warning-offset distribution (laps, negative=before the real pit): min=-3 p25=-3.0 median=-3.0 p75=-3.0 max=0 mean=-2.78
+
+====================================================================================================
+MISSES (0 of 37 historical pit events - not silently discarded)
+====================================================================================================
+  (none)
+
+====================================================================================================
+DATA-QUALITY / SANITY-CHECK ISSUES (5)
+====================================================================================================
+  ! 2021 Azerbaijan_Grand_Prix PER: pit laps 47 and 48 are adjacent/duplicate (STEP 8 check #4) - evaluated independently, not merged, per the task spec.
+  ! 2022 Dutch_Grand_Prix VER: pit laps 56 and 57 are adjacent/duplicate (STEP 8 check #4) - evaluated independently, not merged, per the task spec.
+  ! 2022 Dutch_Grand_Prix PER: pit laps 56 and 57 are adjacent/duplicate (STEP 8 check #4) - evaluated independently, not merged, per the task spec.
+  ! 2021 Belgian_Grand_Prix VER L3: strategic window [0,6] extends outside replay range [1,3] - clipped to [1,3] for evaluation (STEP 8 check #5).
+  ! 2021 Belgian_Grand_Prix PER L3: strategic window [0,6] extends outside replay range [1,3] - clipped to [1,3] for evaluation (STEP 8 check #5).
+
+[strategic_window_validation] wrote CSVs to C:\Users\larai\f1-race-engineer\f1-race-engineer\eval_out_strategic_window

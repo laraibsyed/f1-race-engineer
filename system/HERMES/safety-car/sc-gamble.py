@@ -92,7 +92,9 @@ on) is UNCHANGED - this is a formula/constant port, not a rewrite.
 """
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
+import numpy as np
 import pandas as pd
 
 # --- validated (2026 calibration) - see the block above before changing these ---
@@ -222,6 +224,270 @@ def evaluate_sc_gamble(inputs: SCGambleInputs) -> dict:
     }
 
 
+# ============================================================================
+# MONTE CARLO VERSION - ADDITIVE. evaluate_sc_gamble() above is untouched and
+# remains the default; this is a second, opt-in evaluator with the SAME inputs
+# dataclass, the SAME return keys and the SAME recommendation vocabulary, so
+# it can be swapped in at hermes_master's call site with no other change.
+#
+# WHY: the analytic version collapses every uncertain quantity to its mean.
+# But the gamble's payoff is highly skewed - it wins big in the few futures
+# where an SC lands and loses a little in all the others - so the MEAN alone
+# hides how often waiting actually pays. This version simulates many futures
+# and reports the distribution: P(waiting beats pitting now), spread, tails.
+#
+# What is sampled (per simulated future):
+#   * does an SC/VSC land inside the horizon?  Bernoulli(p_sc)
+#   * when?  Uniform over the horizon - the SAME uniform-placement assumption
+#     the validated circuit prior is built on (so E[laps driven before an SC
+#     stop] = n/2, exactly the analytic model's laps_if_sc_comes)
+#   * the pit stop itself: RESAMPLED from the real PitIn->PitOut durations
+#     behind the 2026 calibration (pit_stop_durations.csv; green stops for
+#     pit-now and for the no-SC wait branch, caution-window stops for the SC
+#     branch), as DEVIATIONS from each stop's circuit baseline, winsorised
+#     per circuit at P10/P90 (knowledge.py's per-race convention), then placed
+#     on the calibrated constants. Full method + assumptions: see
+#     load_pit_durations() and the MODELLING ASSUMPTIONS block below. Falls
+#     back to a normal centred on the calibrated constants if the CSV is missing.
+#   * degradation noise: pace * laps + N(0, PACE_LOSS_RMSE * sqrt(laps))
+#   * does a cliff hit BEFORE the pit stop? Bernoulli(cliff_p) at a uniform
+#     time; an early SC stop avoids a later cliff (analytic model can't see
+#     this interaction - it only scales the penalty by laps/n).
+#
+# Deliberately NOT changed: the calibrated constants, the cost structure, the
+# cold-tyre penalty and cliff penalty (both still flagged ASSUMPTIONS), and the
+# advice in the docstring above not to re-inflate the caution discount. The MC
+# is a REPORTING / UNCERTAINTY layer around the analytic model, not a second
+# decision mechanism: what it adds is the spread, not a different answer.
+#
+# ---------------------------------------------------------------------------
+# MODELLING ASSUMPTIONS of the Monte Carlo layer (assumptions, NOT thresholds
+# proven optimal - none was tuned against outcomes; all fixed before looking at
+# the results they produce):
+#   1. Circuit baseline = median of that circuit's green stops (all years
+#      pooled); the circuit effect on a stop's duration is additive.
+#   2. MIN_STOPS_FOR_CIRCUIT_BASELINE = 30 green stops for a circuit to have a
+#      baseline. Thinner circuits are left out of the pools.
+#   3. MIN_STOPS_FOR_CIRCUIT_WINSOR = 10 stops for a (circuit, group) cell to get
+#      its own P10/P90 winsorisation band. Thinner cells are left out.
+#   4. Caution-window stops are measured against the same circuit's GREEN
+#      baseline (keeps circuit-to-circuit variation in the discount as
+#      uncertainty, because the pooled model does not know the circuit).
+#   5. Winsorisation is P10/P90 within each (circuit, group). This choice - not
+#      the centring - sets how much slow-stop tail risk is kept: the raw
+#      within-circuit green-vs-green spread is ~5.9 s, ~2.6 s after this
+#      winsorisation. It changes reported tails and win probabilities, not the
+#      decisions.
+#   6. Deviations are pooled across circuits whose spread differs a lot
+#      (per-circuit P10-P90 width 1.5 - 17.5 s), i.e. the pooled residual shape
+#      is a mixture; the specific circuit's own scale is not used.
+#   7. Pools are shifted so their MEDIANS equal the calibrated constants. The
+#      empirical green deviations are RIGHT-SKEWED (mean 24.13 s vs median
+#      23.685 s), while the analytic evaluator uses median-calibrated
+#      constants. The simulation averages a skewed distribution, so its mean
+#      discount is 0.97 s vs the analytic 0.78 s, giving a small POSITIVE
+#      MC-minus-analytic mean saving of about p_sc x 0.19 s (realistic range:
+#      +0.008 s on average, max 0.025 s). Understood and deliberately NOT
+#      corrected - the MC mean is not forced to match the analytic one.
+#
+# What the 2.6 s simulated spread does and does NOT show: the simulated
+# green-vs-green spread (2.61 s) agrees with the empirical within-circuit
+# spread computed under the SAME per-circuit P10/P90 convention (2.59 s). That
+# agreement is a consistency check that the centring was implemented
+# correctly - it is NOT independent validation, because the winsorisation
+# convention contributes to both numbers. The independent evidence is
+# decision-level: see sc-gamble-ab.py (decision agreement with the analytic
+# evaluator on sc-gamble-v2.py's own grids, mean-saving fidelity, seed
+# stability, schema/semantics parity) and the master.py replay comparison.
+#
+# The MC outcome probabilities (P(waiting wins), p05/p50/p95) are conditional
+# on this empirical pit-duration distribution and on the assumptions above;
+# they are not calibrated forecasts of real race outcomes.
+# ---------------------------------------------------------------------------
+# ============================================================================
+PIT_DURATIONS_CSV = Path(__file__).resolve().parents[3] / "pit_stop_durations.csv"
+                                        # columns: race, year, duration_s, under_caution. Produced by
+                                        # sc-gamble-v2.py's compute_real_pit_losses_from_laps() (4,224
+                                        # green + 1,520 caution-window stops from 178 races).
+PACE_LOSS_RMSE_SECONDS = 0.057          # DATA-DERIVED: mean RMSE of the pace-loss regression at the
+                                        # production outlier cut (z=4.0) - z_threshold_sensitivity.csv.
+                                        # Treated as independent per lap (ASSUMPTION - real model error is
+                                        # probably persistent, which would widen the spread).
+MIN_STOPS_FOR_CIRCUIT_BASELINE = 30     # ASSUMPTION: a circuit needs >= this many green stops for its median to serve
+                                        # as that circuit's baseline; stops from thinner circuits are left out of the
+                                        # pools (not pooled uncentred, which would re-import between-circuit noise).
+MIN_STOPS_FOR_CIRCUIT_WINSOR = 10       # ASSUMPTION: a (circuit, group) cell needs >= this many stops for its own P10/P90
+                                        # to be a usable winsorisation band; thinner cells are dropped (21 caution stops).
+FALLBACK_GREEN_SD_SECONDS = 1.80        # DATA-DERIVED: sd of the circuit-centred, per-circuit-winsorised(10/90) green pool
+FALLBACK_CAUTION_SD_SECONDS = 4.66      #   and caution-window pool that load_pit_durations() builds (33 circuits,
+                                        #   4,172 / 1,438 stops). Were 2.98 / 4.40 before circuit-centring. Used only
+                                        #   if pit_stop_durations.csv is missing; recompute if the CSV is regenerated.
+
+
+@dataclass
+class MCConfig:
+    n_sims: int = 20000
+    seed: int = 0                        # fixed for reproducible recommendations (same inputs -> same answer)
+    winsorize: tuple = (0.10, 0.90)
+    pace_loss_rmse_s: float = PACE_LOSS_RMSE_SECONDS
+    min_win_prob: float = 0.0            # 0.0 = pure expected-value rule (matches the analytic evaluator).
+                                          # Raise it (e.g. 0.3) for a risk-averse "only gamble if it pays in
+                                          # at least this share of futures" rule. Not a validated value.
+
+
+_PIT_POOL_CACHE: dict = {}
+_PIT_POOL_META: dict = {}
+
+
+def load_pit_durations(path: Optional[Path] = None, winsorize: tuple = (0.10, 0.90)):
+    """Returns (green, caution) arrays of pit-stop DEVIATIONS placed on the
+    calibrated constants, or None if the CSV isn't available (caller falls
+    back to a normal around the calibrated constants - never a silent guess:
+    the result's `pit_duration_source` says which was used).
+
+    WHY CIRCUIT-CENTRED. ~61% of the variance in raw green pit durations is
+    BETWEEN circuits (circuit medians run 21-30 s). The gamble compares
+    "pit now" with "wait, then pit later" at the SAME circuit, so that shared
+    circuit baseline cancels in reality. Resampling raw durations treated it as
+    random noise (two independent draws from a cross-circuit pool), inflating
+    the spread of the simulated saving ~1.6x. Fix, in three steps:
+      1. baseline_c = median green stop at circuit c (needs >=
+         MIN_STOPS_FOR_CIRCUIT_BASELINE green stops; other circuits are dropped);
+      2. deviation = duration - baseline_c, for BOTH green and caution-window
+         stops (caution stops are measured against the same circuit's GREEN
+         baseline, so the per-circuit caution discount stays in as genuine
+         uncertainty about which discount applies - the pooled model doesn't
+         know the circuit), then winsorised at the same P10/P90;
+      3. each pool is shifted so its median equals the calibrated constant
+         (NORMAL_PIT_LOSS_SECONDS / CAUTION_WINDOW_PIT_DURATION_SECONDS), so the
+         calibrated analytic constants are preserved exactly and only the SHAPE
+         (spread) comes from data.
+    Nothing here changes the cost formula or the decision rule."""
+    path = Path(path) if path else PIT_DURATIONS_CSV
+    key = (str(path), winsorize)
+    if key in _PIT_POOL_CACHE:
+        return _PIT_POOL_CACHE[key]
+    pools, meta = None, None
+    if path.exists():
+        d = pd.read_csv(path)
+        if {"duration_s", "under_caution", "race"} <= set(d.columns):
+            d = d.dropna(subset=["duration_s", "race"]).copy()
+            d["under_caution"] = d["under_caution"].astype(bool)
+            green = d[~d["under_caution"]].groupby("race")["duration_s"].agg(["median", "size"])
+            usable = green[green["size"] >= MIN_STOPS_FOR_CIRCUIT_BASELINE]
+            n_before = {False: int((~d["under_caution"]).sum()), True: int(d["under_caution"].sum())}
+            d = d[d["race"].isin(usable.index)]
+            d["deviation"] = d["duration_s"] - d["race"].map(usable["median"])
+            pools = []
+            for flag, constant in ((False, NORMAL_PIT_LOSS_SECONDS), (True, CAUTION_WINDOW_PIT_DURATION_SECONDS)):
+                x = d.loc[d["under_caution"] == flag, ["race", "deviation"]].copy()
+                x = x[x.groupby("race")["deviation"].transform("size") >= MIN_STOPS_FOR_CIRCUIT_WINSOR]
+                if len(x) < 30:
+                    pools = None
+                    break
+                # winsorise WITHIN each circuit (and group), like knowledge.py does per race - the data are
+                # homogeneous there. Clipping at the POOLED P10/P90 instead (first attempt) chopped the genuine
+                # slow-stop tail off every circuit (paired spread 1.71 s vs 2.55 s per-circuit).
+                dev = x.groupby("race")["deviation"].transform(
+                    lambda s: s.clip(s.quantile(winsorize[0]), s.quantile(winsorize[1]))).astype(float)
+                pools.append((dev - dev.median() + constant).to_numpy())
+            if pools:
+                pools = tuple(pools)
+                meta = {"n_circuits": int(len(usable)), "n_green": len(pools[0]), "n_caution": len(pools[1]),
+                        "dropped_green": n_before[False] - len(pools[0]), "dropped_caution": n_before[True] - len(pools[1])}
+    _PIT_POOL_CACHE[key] = pools
+    _PIT_POOL_META[key] = meta
+    return pools
+
+
+def evaluate_sc_gamble_mc(inputs: SCGambleInputs, config: Optional[MCConfig] = None,
+                          pit_durations=None) -> dict:
+    """
+    Monte Carlo counterpart of evaluate_sc_gamble(). Same inputs, same core
+    return keys ("recommendation", "cost_pit_now", "cost_wait",
+    "expected_saving_if_wait") plus distribution fields:
+
+      p_wait_better          share of simulated futures where waiting was cheaper
+      saving_p05/p50/p95     percentiles of (cost_pit_now - cost_wait); positive = waiting saved time
+      saving_std / saving_se spread of one outcome / standard error of the mean saving
+      decision_confident     |mean saving| > 2 standard errors (else the sign is simulation noise -
+                             raise n_sims or treat as a genuine toss-up)
+      analytic_expected_saving   the closed-form answer, for side-by-side comparison
+      pit_duration_source    "empirical, circuit-centred (...)" or "normal fallback"
+
+    "INSUFFICIENT_DATA" (never a guess) under the same conditions as the
+    analytic evaluator, and for a non-positive horizon.
+    """
+    if (inputs.p_sc_next_n_laps is None or inputs.predicted_pace_loss_per_lap is None
+            or inputs.n_laps_horizon is None or inputs.n_laps_horizon <= 0):
+        return {"recommendation": "INSUFFICIENT_DATA", "cost_pit_now": None, "cost_wait": None,
+                "method": "monte_carlo"}
+
+    cfg = config or MCConfig()
+    rng = np.random.default_rng(cfg.seed)
+    n = int(cfg.n_sims)
+    H = float(inputs.n_laps_horizon)
+    p_sc = float(np.clip(inputs.p_sc_next_n_laps, 0.0, 1.0))
+    pace = float(inputs.predicted_pace_loss_per_lap)
+    cliff_p = float(np.clip(inputs.cliff_probability_next_n_laps or 0.0, 0.0, 1.0))
+
+    pools = pit_durations if pit_durations is not None else load_pit_durations(winsorize=cfg.winsorize)
+    if pools is not None:
+        green_pool, caution_pool = pools
+        draw_green = lambda: rng.choice(green_pool, n)
+        draw_caution = lambda: rng.choice(caution_pool, n)
+        meta = _PIT_POOL_META.get((str(PIT_DURATIONS_CSV), cfg.winsorize)) if pit_durations is None else None
+        source = (f"empirical, circuit-centred ({meta['n_green']} green / {meta['n_caution']} caution-window stops "
+                  f"from {meta['n_circuits']} circuits)" if meta else
+                  f"empirical ({len(green_pool)} green / {len(caution_pool)} caution-window stops, caller-supplied pools)")
+    else:
+        draw_green = lambda: rng.normal(NORMAL_PIT_LOSS_SECONDS, FALLBACK_GREEN_SD_SECONDS, n)
+        draw_caution = lambda: rng.normal(CAUTION_WINDOW_PIT_DURATION_SECONDS, FALLBACK_CAUTION_SD_SECONDS, n)
+        source = "normal fallback around calibrated constants (pit_stop_durations.csv not found)"
+
+    # --- the futures -------------------------------------------------------
+    sc_lands = rng.random(n) < p_sc
+    sc_time = rng.uniform(0.0, H, n)                       # laps driven before the SC stop, if one comes
+    laps_waited = np.where(sc_lands, sc_time, H)           # otherwise wait the whole horizon, then pit
+
+    degradation = pace * laps_waited + rng.standard_normal(n) * cfg.pace_loss_rmse_s * np.sqrt(laps_waited)
+
+    cliff_occurs = rng.random(n) < cliff_p
+    cliff_time = rng.uniform(0.0, H, n)
+    cliff_hit_before_stop = cliff_occurs & (cliff_time <= laps_waited)
+
+    stop_if_sc = draw_caution() + RESTART_COLD_TYRE_PENALTY_SECONDS
+    stop_if_no_sc = draw_green()
+    cost_wait_each = (np.where(sc_lands, stop_if_sc, stop_if_no_sc)
+                      + degradation + CLIFF_PENALTY_SCALE * cliff_hit_before_stop)
+    cost_now_each = draw_green()
+    saving = cost_now_each - cost_wait_each
+
+    mean_saving = float(saving.mean())
+    p_better = float((saving > 0).mean())
+    se = float(saving.std(ddof=1) / np.sqrt(n))
+    recommend_wait = mean_saving > 0 and p_better >= cfg.min_win_prob
+
+    analytic = evaluate_sc_gamble(inputs)
+    return {
+        "recommendation": "WAIT" if recommend_wait else "NO_ADVANTAGE_TO_WAITING",
+        "cost_pit_now": float(cost_now_each.mean()),
+        "cost_wait": float(cost_wait_each.mean()),
+        "expected_saving_if_wait": mean_saving,
+        "method": "monte_carlo",
+        "n_sims": n,
+        "p_wait_better": p_better,
+        "saving_p05": float(np.percentile(saving, 5)),
+        "saving_p50": float(np.percentile(saving, 50)),
+        "saving_p95": float(np.percentile(saving, 95)),
+        "saving_std": float(saving.std(ddof=1)),
+        "saving_se": se,
+        "decision_confident": bool(abs(mean_saving) > 2 * se),
+        "analytic_expected_saving": analytic.get("expected_saving_if_wait"),
+        "pit_duration_source": source,
+    }
+
+
 if __name__ == "__main__":
     print("=== SC Gamble Evaluator scenarios (2026 calibration: validated pit-loss constants) ===")
     print(f"NORMAL_PIT_LOSS_SECONDS = {NORMAL_PIT_LOSS_SECONDS} (was 22.0, ASSUMPTION)")
@@ -268,3 +534,25 @@ if __name__ == "__main__":
     print("  (expect NO_ADVANTAGE_TO_WAITING with the pooled global constants above - "
           "the ~0.78s discount doesn't clear the 1.5s cold-tyre penalty; this is the "
           "validated result, not a regression.)")
+    # ------------------------------------------------------------------
+    # Monte Carlo vs analytic, side by side (same inputs as the scenarios above)
+    # ------------------------------------------------------------------
+    print("\n=== Monte Carlo evaluator vs analytic (mean saving in seconds; + = waiting saves time) ===")
+    print(f"{'scenario':<34}{'analytic':>9}{'MC mean':>9}{'+-2se':>7}{'P(wait wins)':>14}{'p05':>8}{'p95':>8}  MC rec")
+    for name, s in [("1 high P(SC), low degr", s1), ("2 low P(SC), high degr", s2),
+                    ("3 moderate", s3), ("5 zero degr, p=0.15", s5)]:
+        r = evaluate_sc_gamble_mc(s)
+        print(f"{name:<34}{r['analytic_expected_saving']:>9.2f}{r['expected_saving_if_wait']:>9.2f}"
+              f"{2 * r['saving_se']:>7.2f}{r['p_wait_better']:>14.1%}{r['saving_p05']:>8.1f}{r['saving_p95']:>8.1f}"
+              f"  {r['recommendation']}")
+    print("  (source:", evaluate_sc_gamble_mc(s1)["pit_duration_source"], ")")
+    print("  Unknown P(SC):", evaluate_sc_gamble_mc(s4))
+
+    print("\n=== Break-even sweep: zero degradation/cliff, 5-lap horizon - how does P(SC) change the gamble? ===")
+    print(f"{'p_sc':>6}{'analytic':>10}{'MC mean':>9}{'P(wait wins)':>14}{'MC rec':>26}")
+    for p in (0.05, 0.10, 0.25, 0.50, 0.75, 1.00):
+        si = SCGambleInputs(p_sc_next_n_laps=p, predicted_pace_loss_per_lap=0.0,
+                             cliff_probability_next_n_laps=0.0, n_laps_horizon=5)
+        r = evaluate_sc_gamble_mc(si)
+        print(f"{p:>6.2f}{r['analytic_expected_saving']:>10.2f}{r['expected_saving_if_wait']:>9.2f}"
+              f"{r['p_wait_better']:>14.1%}{r['recommendation']:>26}")

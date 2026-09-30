@@ -1,0 +1,17 @@
+[rl_train] config: QLearningConfig(n_episodes=3000, alpha=0.15, gamma=0.97, epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_fraction=0.8, seed=42)
+  episode    300/3000  epsilon=0.882  recent mean return=-521.84s  compliance=100%  visited states=203
+  episode    600/3000  epsilon=0.763  recent mean return=-409.19s  compliance=100%  visited states=251
+  episode    900/3000  epsilon=0.644  recent mean return=-415.63s  compliance=100%  visited states=286
+  episode   1200/3000  epsilon=0.525  recent mean return=-390.17s  compliance=100%  visited states=329
+  episode   1500/3000  epsilon=0.407  recent mean return=-477.95s  compliance=100%  visited states=374
+  episode   1800/3000  epsilon=0.288  recent mean return=-374.05s  compliance=100%  visited states=409
+  episode   2100/3000  epsilon=0.169  recent mean return=-314.68s  compliance=100%  visited states=452
+  episode   2400/3000  epsilon=0.050  recent mean return=-161.31s  compliance=89%  visited states=494
+  episode   2700/3000  epsilon=0.050  recent mean return=-128.40s  compliance=87%  visited states=541
+  episode   3000/3000  epsilon=0.050  recent mean return=-121.43s  compliance=87%  visited states=560
+[rl_train] training took 1033.5s for 3000 episodes
+
+[rl_train] mean return, FIRST 150 episodes: -427.57s  (mandatory-compound compliance: 100%)
+[rl_train] mean return, LAST  150 episodes: -121.43s  (mandatory-compound compliance: 87%)
+[rl_train] visited states: 560  (table size: 560)
+[rl_train] saved: system\HERMES\trees\rl_artifacts\qtable.json, training_curve.csv, training_curve.png

@@ -1,0 +1,4137 @@
+{
+ "config": {
+  "n_episodes": 3000,
+  "alpha": 0.15,
+  "gamma": 0.97,
+  "epsilon_start": 1.0,
+  "epsilon_end": 0.05,
+  "epsilon_decay_fraction": 0.8,
+  "seed": 42
+ },
+ "q_table": {
+  "HARD|0-4|early|low|False|False|NEUTRAL|OK": [
+   -15.450949670777224,
+   -39.99432369617011,
+   -41.95166897981682,
+   -40.82948214751722
+  ],
+  "MEDIUM|0-4|early|low|False|False|NEUTRAL|OK": [
+   -17.715206660779756,
+   -44.398842915871285,
+   -41.29777589189323,
+   -39.70635224392522
+  ],
+  "MEDIUM|0-4|early|medium|False|False|NEUTRAL|OK": [
+   -17.858732774982958,
+   -38.77415234206399,
+   -41.07620390932699,
+   -41.30435878561903
+  ],
+  "MEDIUM|0-4|early|low|True|False|NEUTRAL|OK": [
+   -14.765765246466927,
+   -34.200149804760066,
+   -36.21767638307976,
+   -43.48899963139471
+  ],
+  "HARD|0-4|early|low|True|False|NEUTRAL|OK": [
+   -15.253190629757519,
+   -36.28637098367372,
+   -37.01162018095156,
+   -36.63770716718768
+  ],
+  "HARD|0-4|early|low|False|False|NEUTRAL|LOW": [
+   -38.78002200907111,
+   -78.30857589436849,
+   -63.24375443785522,
+   -62.350994961898024
+  ],
+  "MEDIUM|0-4|early|low|False|False|NEUTRAL|LOW": [
+   -39.63411669401503,
+   -81.78035285483345,
+   -64.74820445802901,
+   -63.656870846566406
+  ],
+  "MEDIUM|0-4|early|medium|False|False|NEUTRAL|LOW": [
+   -31.846370566854432,
+   -64.67842899821915,
+   -59.54266110923847,
+   -53.79577610992168
+  ],
+  "MEDIUM|5-9|early|high|False|False|NEUTRAL|LOW": [
+   -50.20418581056898,
+   -12.134347335091851,
+   -4.3836385834605,
+   0.0
+  ],
+  "MEDIUM|10-14|mid|high|False|False|NEUTRAL|LOW": [
+   -37.642068198848044,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|mid|medium|False|False|NEUTRAL|LOW": [
+   -29.34884926970231,
+   -7.2955051381806255,
+   -11.242797393657286,
+   -9.304689917552569
+  ],
+  "MEDIUM|15+|mid|medium|False|False|NEUTRAL|LOW": [
+   -30.707561618205727,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|False|False|NEUTRAL|LOW": [
+   -41.15538847719741,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|low|False|False|NEUTRAL|LOW": [
+   -36.36344472411116,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|medium|False|False|NEUTRAL|LOW": [
+   -8.107461541095821,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|False|False|NEUTRAL|LOW": [
+   -20.156883888999147,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|False|False|NEUTRAL|LOW": [
+   -10.12516511498836,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|low|False|False|NEUTRAL|OK": [
+   -14.05682432044568,
+   -41.989314260500926,
+   -40.44077415722524,
+   -39.71275907666652
+  ],
+  "SOFT|0-4|early|medium|False|False|NEUTRAL|OK": [
+   -21.128113460586473,
+   -41.1547965382057,
+   -41.60741032323009,
+   -39.6080384131222
+  ],
+  "SOFT|0-4|early|low|True|False|NEUTRAL|OK": [
+   -12.331453866902944,
+   -39.34178787441763,
+   -35.96650668172499,
+   -36.38525295725264
+  ],
+  "SOFT|0-4|early|low|True|False|NEUTRAL|LOW": [
+   -32.59235117516251,
+   -36.07270964339774,
+   -37.55180868499101,
+   -34.43797269665525
+  ],
+  "MEDIUM|0-4|early|low|True|False|NEUTRAL|LOW": [
+   -25.818813332448197,
+   -32.40452261373041,
+   -36.32065701923938,
+   -31.052444545224994
+  ],
+  "MEDIUM|5-9|mid|high|False|False|NEUTRAL|LOW": [
+   -17.50142405692498,
+   -46.95357862133789,
+   -44.25750739167393,
+   -49.16090109695917
+  ],
+  "MEDIUM|15+|mid|medium|True|False|NEUTRAL|LOW": [
+   -32.20687537130908,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|low|False|False|NEUTRAL|LOW": [
+   -46.15041119128778,
+   -80.60421069889756,
+   -63.125543982839694,
+   -64.20829770958629
+  ],
+  "HARD|5-9|early|low|False|False|NEUTRAL|LOW": [
+   -50.877233459201555,
+   0.0,
+   -18.340279918088683,
+   0.0
+  ],
+  "HARD|5-9|mid|low|False|False|NEUTRAL|LOW": [
+   -32.31293567947806,
+   -52.1112050161484,
+   -54.520983631058186,
+   -47.98983416749056
+  ],
+  "HARD|5-9|mid|medium|False|False|NEUTRAL|LOW": [
+   -25.049551784785418,
+   -36.61191834047647,
+   -40.39839265076407,
+   -41.7959973825698
+  ],
+  "HARD|10-14|mid|medium|False|False|NEUTRAL|LOW": [
+   -31.541536077914394,
+   -8.029387119904793,
+   -7.379925481489665,
+   -6.743954750897475
+  ],
+  "HARD|15+|mid|low|False|False|NEUTRAL|LOW": [
+   -45.940735355438726,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|medium|False|False|NEUTRAL|LOW": [
+   -43.92125875715855,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|low|False|False|NEUTRAL|LOW": [
+   -15.038605532575948,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|medium|False|False|NEUTRAL|LOW": [
+   -18.125119057137507,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|early|medium|False|False|NEUTRAL|LOW": [
+   -51.76143752894864,
+   -11.451574742311783,
+   -10.400395441254062,
+   0.0
+  ],
+  "MEDIUM|10-14|early|medium|False|False|NEUTRAL|LOW": [
+   -38.31149676398221,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|mid|low|False|False|NEUTRAL|LOW": [
+   -42.11900246780066,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|mid|medium|False|False|NEUTRAL|LOW": [
+   -25.13422709886943,
+   -43.930823163722685,
+   -36.282029161702866,
+   -41.94214713477808
+  ],
+  "HARD|10-14|mid|low|False|False|NEUTRAL|LOW": [
+   -35.67386346512009,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|0-4|mid|low|True|False|NEUTRAL|LOW": [
+   -29.66288555516965,
+   -41.326177510562125,
+   -40.39490171302609,
+   -41.67818855697972
+  ],
+  "HARD|0-4|mid|low|False|False|NEUTRAL|LOW": [
+   -35.44427795479054,
+   -51.215141902759434,
+   -54.70565649597789,
+   -52.919196429224364
+  ],
+  "MEDIUM|0-4|mid|low|False|False|NEUTRAL|LOW": [
+   -24.4595684614653,
+   -52.48285438990015,
+   -58.071649564620515,
+   -56.556118683931686
+  ],
+  "MEDIUM|0-4|mid|medium|False|False|NEUTRAL|LOW": [
+   -24.70402775406255,
+   -65.44847868845444,
+   -56.78882735143622,
+   -55.98744206012153
+  ],
+  "MEDIUM|10-14|late|medium|False|False|NEUTRAL|LOW": [
+   -8.52894941103356,
+   -8.999389023875043,
+   -6.278613707602452,
+   -11.69009730676807
+  ],
+  "SOFT|0-4|early|high|True|False|NEUTRAL|LOW": [
+   -1.6582152175988225,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|mid|high|True|False|NEUTRAL|LOW": [
+   -52.92261656070744,
+   -10.108375022823028,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|mid|high|False|False|NEUTRAL|LOW": [
+   -22.53523132721969,
+   -30.219313813329467,
+   -31.973993229418888,
+   -30.738597067877482
+  ],
+  "SOFT|10-14|mid|high|False|False|NEUTRAL|LOW": [
+   -26.302740351934556,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|mid|medium|False|False|NEUTRAL|LOW": [
+   -22.22868842048908,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|False|False|NEUTRAL|LOW": [
+   -26.573364969952845,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|False|False|NEUTRAL|LOW": [
+   -26.28143454154655,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|medium|False|False|NEUTRAL|LOW": [
+   -3.970197570927316,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|high|False|False|NEUTRAL|LOW": [
+   -12.218484069895698,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|mid|low|False|False|NEUTRAL|LOW": [
+   -24.097573773980542,
+   -55.080882292404134,
+   -56.94349418817338,
+   -58.21033195148284
+  ],
+  "SOFT|0-4|mid|medium|False|False|NEUTRAL|LOW": [
+   -24.513023824436505,
+   -51.09614830428807,
+   -52.710772663882146,
+   -53.98154132135826
+  ],
+  "SOFT|0-4|mid|high|False|False|NEUTRAL|LOW": [
+   -23.081345154826412,
+   -41.70574582481113,
+   -45.22017677242846,
+   -45.667967273534686
+  ],
+  "MEDIUM|0-4|early|high|False|False|NEUTRAL|OK": [
+   -15.099969242248104,
+   -42.550328530402574,
+   -41.369220319224226,
+   -40.48860520018738
+  ],
+  "MEDIUM|5-9|early|high|False|False|NEUTRAL|OK": [
+   -17.265280239418853,
+   -38.58367790886339,
+   -40.882821167176644,
+   -40.65450321383638
+  ],
+  "HARD|0-4|mid|low|False|False|NEUTRAL|OK": [
+   -15.373821120777283,
+   -61.50516064474408,
+   -43.36777566659117,
+   -40.39190314552956
+  ],
+  "SOFT|0-4|early|medium|False|False|NEUTRAL|LOW": [
+   -60.405907057836714,
+   -45.88773411145246,
+   -41.1079382270266,
+   -42.21521227633489
+  ],
+  "SOFT|0-4|early|high|False|False|NEUTRAL|LOW": [
+   -54.467485981561474,
+   -18.291189143110735,
+   -23.156481234414926,
+   -19.380851817669644
+  ],
+  "SOFT|5-9|early|high|False|False|NEUTRAL|LOW": [
+   -66.93150384535404,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|high|False|False|NEUTRAL|LOW": [
+   -28.215146333994998,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|False|False|NEUTRAL|LOW": [
+   25.26977142020113,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|False|False|NEUTRAL|LOW": [
+   9.664093888575518,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|medium|True|False|NEUTRAL|LOW": [
+   -13.295358964408722,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|True|False|NEUTRAL|LOW": [
+   -14.238553037128941,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|low|False|True|NEUTRAL|OK": [
+   -4.462041019778066,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|medium|False|True|NEUTRAL|OK": [
+   -5.7003558552099705,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|high|False|True|NEUTRAL|OK": [
+   -7.032014097790521,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|False|True|NEUTRAL|OK": [
+   -8.93287377651639,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|high|False|True|NEUTRAL|OK": [
+   -10.597463124946886,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|high|False|True|NEUTRAL|OK": [
+   -12.035464203761233,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|False|True|NEUTRAL|OK": [
+   -17.547905588494125,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|False|True|NEUTRAL|OK": [
+   -17.47609721804067,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|False|True|NEUTRAL|OK": [
+   -18.723591379179904,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|True|True|NEUTRAL|OK": [
+   -11.71041758185523,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -18.38241752422147,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|False|True|NEUTRAL|OK": [
+   -11.427689271214968,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|medium|True|False|NEUTRAL|LOW": [
+   -7.594829876839523,
+   -3.3551249999999997,
+   0.0,
+   0.0
+  ],
+  "HARD|0-4|early|low|True|False|NEUTRAL|LOW": [
+   -25.981094415748785,
+   -37.290382423232785,
+   -32.99337103777887,
+   -40.95258258774145
+  ],
+  "HARD|5-9|early|medium|False|False|NEUTRAL|LOW": [
+   -47.47232956563247,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|high|False|False|NEUTRAL|LOW": [
+   -14.712875140634235,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|True|False|NEUTRAL|LOW": [
+   -31.30494587468225,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|low|True|False|NEUTRAL|LOW": [
+   -38.632128233592645,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|medium|True|False|NEUTRAL|LOW": [
+   -34.87936451133889,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|low|True|False|NEUTRAL|LOW": [
+   -18.368629127647157,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|early|low|False|True|NEUTRAL|OK": [
+   -8.351272341785602,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|early|medium|False|True|NEUTRAL|OK": [
+   -9.859595574410724,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|early|high|False|True|NEUTRAL|OK": [
+   -11.352616953478604,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|early|high|False|True|NEUTRAL|OK": [
+   -12.73219372232162,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|high|False|True|NEUTRAL|OK": [
+   -11.275162709184915,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|medium|False|True|NEUTRAL|OK": [
+   -12.083646489033127,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|medium|False|True|NEUTRAL|OK": [
+   -12.112432920065476,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -5.855892162919948,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -8.343156822613102,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|medium|False|True|NEUTRAL|OK": [
+   -12.331523328016553,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|False|True|NEUTRAL|OK": [
+   -11.731596563220105,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|low|False|True|NEUTRAL|OK": [
+   -11.316660684584864,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|False|True|NEUTRAL|OK": [
+   -10.32578789454964,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|False|True|NEUTRAL|OK": [
+   -6.782576620753488,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|low|True|False|NEUTRAL|LOW": [
+   -20.533647489429775,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|medium|True|False|NEUTRAL|LOW": [
+   -5.625502932510507,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|mid|medium|True|False|NEUTRAL|LOW": [
+   -32.32546751338978,
+   -9.408316353897623,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|mid|high|True|False|NEUTRAL|LOW": [
+   -25.32704928396982,
+   -6.161148849617961,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|mid|medium|True|False|NEUTRAL|LOW": [
+   -34.022514248864674,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|mid|medium|True|False|NEUTRAL|LOW": [
+   -32.71774811180752,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|True|False|NEUTRAL|LOW": [
+   -49.38669185955713,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|high|True|False|NEUTRAL|LOW": [
+   -25.869327748319662,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|high|False|False|NEUTRAL|OK": [
+   -17.59423462806213,
+   -38.71165164268887,
+   -41.123787070407246,
+   -39.33990377159087
+  ],
+  "HARD|5-9|mid|low|True|False|NEUTRAL|LOW": [
+   -32.74643449826243,
+   -8.934499199729215,
+   -8.815408998680637,
+   -7.465996335044423
+  ],
+  "HARD|10-14|mid|medium|True|False|NEUTRAL|LOW": [
+   -34.33822523878715,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|low|False|False|OPPORTUNITY_AHEAD|LOW": [
+   -0.17061713664631933,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|low|False|False|OPPORTUNITY_AHEAD|LOW": [
+   -0.43496827893554874,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|medium|False|False|OPPORTUNITY_AHEAD|LOW": [
+   -1.3842502166383621,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|medium|False|False|NEUTRAL|LOW": [
+   -42.50088149682356,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|high|True|False|NEUTRAL|LOW": [
+   -20.81495255740956,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|mid|low|True|False|NEUTRAL|LOW": [
+   -37.93703619836854,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|mid|high|True|False|NEUTRAL|LOW": [
+   -47.68556595688753,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|mid|medium|True|False|NEUTRAL|LOW": [
+   -42.35194758847771,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|low|False|False|NEUTRAL|LOW": [
+   -15.628032680295302,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|low|True|False|NEUTRAL|LOW": [
+   -29.986274976779995,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|low|False|False|NEUTRAL|OK": [
+   -16.435992101385274,
+   -44.03317723347702,
+   -40.62757832445856,
+   -39.9191290181311
+  ],
+  "MEDIUM|10-14|mid|low|True|False|NEUTRAL|LOW": [
+   -27.3000158256318,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|True|True|NEUTRAL|OK": [
+   -2.617158296367967,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|True|True|THREAT_BEHIND|OK": [
+   -1.1282485967434583,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|high|True|True|THREAT_BEHIND|OK": [
+   -1.4402658642600459,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|high|False|True|THREAT_BEHIND|OK": [
+   -3.8382298636976695,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|high|False|True|THREAT_BEHIND|OK": [
+   -10.794351216570606,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|False|True|THREAT_BEHIND|OK": [
+   -11.202725580962229,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -10.501274470284146,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|False|True|THREAT_BEHIND|OK": [
+   -13.36902801134606,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -4.685642590568611,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|False|True|THREAT_BEHIND|OK": [
+   -18.8893108610471,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -14.292408193646516,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|True|True|OPPORTUNITY_AHEAD|OK": [
+   -3.217132914669455,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -0.18552763371448727,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -1.529918802963536,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -5.008118118041175,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -0.7943078895072785,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|mid|low|False|False|NEUTRAL|OK": [
+   -19.420601770845888,
+   -60.859497985209515,
+   -42.90575769851992,
+   -42.41192361029488
+  ],
+  "SOFT|10-14|late|medium|False|False|NEUTRAL|LOW": [
+   -6.29689545305712,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|low|False|False|NEUTRAL|LOW": [
+   9.300416415362129,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|mid|low|False|False|NEUTRAL|LOW": [
+   19.078967334277298,
+   0.0,
+   0.0,
+   -8.22030383008807
+  ],
+  "SOFT|10-14|mid|low|False|False|NEUTRAL|LOW": [
+   19.761478141268398,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|medium|False|False|NEUTRAL|LOW": [
+   -34.30349630630708,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|True|False|NEUTRAL|LOW": [
+   -5.210815540710684,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|mid|low|True|False|NEUTRAL|LOW": [
+   -35.922882186481075,
+   -50.23871364165225,
+   -48.12549107688727,
+   -50.901169355147914
+  ],
+  "SOFT|0-4|mid|medium|True|False|NEUTRAL|LOW": [
+   -52.49430060351657,
+   -10.03975457137389,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|medium|True|False|NEUTRAL|LOW": [
+   -23.346847878972547,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|low|False|False|NEUTRAL|LOW": [
+   6.509493028207429,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|mid|low|True|False|NEUTRAL|LOW": [
+   -26.512493434153697,
+   -49.41867863441789,
+   -43.02297907691096,
+   -44.177447660972966
+  ],
+  "MEDIUM|0-4|mid|medium|True|False|NEUTRAL|LOW": [
+   -28.89136313915395,
+   -14.385701891304162,
+   -17.367030089660595,
+   -16.271050426543468
+  ],
+  "MEDIUM|0-4|early|medium|True|False|NEUTRAL|LOW": [
+   -20.012574493748915,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|mid|high|True|False|NEUTRAL|LOW": [
+   -63.807874062273555,
+   0.0,
+   0.0,
+   -8.402433475717881
+  ],
+  "SOFT|5-9|early|high|False|True|THREAT_BEHIND|OK": [
+   -2.8424356361927154,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|True|True|NEUTRAL|OK": [
+   -10.740444348972217,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|medium|True|False|NEUTRAL|LOW": [
+   -10.33483225131393,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|medium|True|False|NEUTRAL|OK": [
+   -15.162094217290534,
+   -32.32777602987915,
+   -17.950785861919382,
+   -37.51679721331334
+  ],
+  "SOFT|0-4|early|high|False|True|THREAT_BEHIND|OK": [
+   -0.062172390213696874,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|False|True|THREAT_BEHIND|OK": [
+   -15.806292552271096,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|late|low|False|False|NEUTRAL|LOW": [
+   -15.33765543628404,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|True|False|NEUTRAL|LOW": [
+   10.9209929747989,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|False|False|THREAT_BEHIND|LOW": [
+   9.773963453743697,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|False|False|THREAT_BEHIND|LOW": [
+   -7.530675665499747,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|medium|False|False|THREAT_BEHIND|LOW": [
+   -3.2454704505381087,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|high|True|False|NEUTRAL|LOW": [
+   -0.14568234472507835,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|medium|True|False|NEUTRAL|LOW": [
+   -5.404247788078858,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|mid|low|False|False|NEUTRAL|OK": [
+   -46.18778786280301,
+   -56.435301670641394,
+   -43.14406005380254,
+   -38.940280066555644
+  ],
+  "MEDIUM|0-4|early|medium|True|False|NEUTRAL|OK": [
+   -15.584807022100271,
+   -33.81818046026026,
+   -37.618831433409774,
+   -38.15800464487221
+  ],
+  "HARD|0-4|early|low|False|True|NEUTRAL|OK": [
+   -8.070685010360595,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|low|False|True|NEUTRAL|OK": [
+   -10.119902367156056,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|medium|False|True|NEUTRAL|OK": [
+   -12.408322786364977,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|medium|False|True|NEUTRAL|OK": [
+   -16.158606180689688,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|medium|False|True|NEUTRAL|OK": [
+   -18.867099045797364,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|low|False|True|NEUTRAL|OK": [
+   -9.269203915961912,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|medium|False|True|NEUTRAL|OK": [
+   -20.331319736753592,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|low|False|True|NEUTRAL|OK": [
+   -14.618199535958697,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|high|False|True|NEUTRAL|OK": [
+   -20.614603995074212,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|high|False|True|NEUTRAL|OK": [
+   -11.84047074344267,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|low|False|True|NEUTRAL|OK": [
+   -8.897866277836407,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|low|False|True|NEUTRAL|OK": [
+   -6.621067214151926,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|low|False|True|NEUTRAL|OK": [
+   -12.57140713185208,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|low|False|True|NEUTRAL|OK": [
+   -14.372596074140315,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|medium|False|True|NEUTRAL|OK": [
+   -10.336443749762491,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|True|False|NEUTRAL|LOW": [
+   -18.797603025241933,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|medium|False|True|NEUTRAL|OK": [
+   -2.9365941595330263,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|high|True|True|NEUTRAL|OK": [
+   -0.6326347274368362,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|high|False|False|NEUTRAL|LOW": [
+   -6.785651686465189,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|medium|True|True|NEUTRAL|OK": [
+   -2.568032888977898,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|medium|False|True|NEUTRAL|OK": [
+   -4.8178101980968835,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|True|True|NEUTRAL|OK": [
+   -4.462707432992889,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|False|False|THREAT_BEHIND|LOW": [
+   -4.61358328620866,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|high|True|False|NEUTRAL|OK": [
+   -12.157739137731946,
+   -29.997135869529107,
+   -28.547141841730042,
+   -22.447969464972964
+  ],
+  "MEDIUM|5-9|early|high|True|False|NEUTRAL|LOW": [
+   -7.538055574091498,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|medium|True|False|NEUTRAL|LOW": [
+   -7.913514457883723,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|True|False|NEUTRAL|LOW": [
+   -10.115492056598477,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|0-4|early|medium|False|True|NEUTRAL|OK": [
+   -2.208449848674729,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|high|False|True|NEUTRAL|OK": [
+   -1.667909084421531,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|high|False|True|NEUTRAL|OK": [
+   -10.92312643622541,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|high|False|True|NEUTRAL|OK": [
+   -2.0690294284957194,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|high|False|False|NEUTRAL|LOW": [
+   -6.74040268123351,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|medium|False|True|THREAT_BEHIND|OK": [
+   -0.21440165023319355,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|medium|False|True|THREAT_BEHIND|OK": [
+   -6.1020282419071865,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|medium|False|True|THREAT_BEHIND|OK": [
+   -14.17115514067688,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|high|False|True|THREAT_BEHIND|OK": [
+   -15.993769531109393,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|high|True|True|THREAT_BEHIND|OK": [
+   -0.21207984006990852,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|high|True|True|NEUTRAL|OK": [
+   -2.4348351104424006,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|low|False|True|THREAT_BEHIND|OK": [
+   -15.681342338391136,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|False|False|NEUTRAL|OK": [
+   -15.721031081015003,
+   -40.51718564631907,
+   -40.839616055194575,
+   -41.31780106325822
+  ],
+  "MEDIUM|0-4|mid|medium|False|False|NEUTRAL|OK": [
+   -18.287039594254704,
+   -58.9753750927513,
+   -41.59245734808914,
+   -42.19352302443911
+  ],
+  "MEDIUM|15+|mid|medium|False|False|OPPORTUNITY_AHEAD|LOW": [
+   -5.779742145715021,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|False|False|OPPORTUNITY_AHEAD|LOW": [
+   -1.2603105590029713,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|late|low|False|False|NEUTRAL|LOW": [
+   -12.219568705783713,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|high|False|True|THREAT_BEHIND|OK": [
+   -0.2793056405243851,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -0.3759211831201097,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|medium|False|True|THREAT_BEHIND|OK": [
+   -6.659893168465741,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -11.122155210642148,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|False|True|THREAT_BEHIND|OK": [
+   -10.307686444198305,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|medium|False|True|THREAT_BEHIND|OK": [
+   -9.57947696261284,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|low|False|True|THREAT_BEHIND|OK": [
+   -7.110128690603096,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|False|True|THREAT_BEHIND|OK": [
+   -5.852560587562588,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|late|high|False|False|NEUTRAL|LOW": [
+   -8.84812738120773,
+   -38.82552794362152,
+   -17.071736042322048,
+   -19.567591505567552
+  ],
+  "SOFT|15+|mid|high|False|False|THREAT_BEHIND|LOW": [
+   -11.11798710754784,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|False|False|THREAT_BEHIND|LOW": [
+   4.205878581679845,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -9.742867956858307,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|high|False|True|NEUTRAL|OK": [
+   -12.500579482939743,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|False|True|THREAT_BEHIND|OK": [
+   -8.185175294937897,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|mid|low|True|False|NEUTRAL|LOW": [
+   -2.6092383548951528,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|mid|low|True|False|NEUTRAL|OK": [
+   -16.1278323594687,
+   -40.02229528915522,
+   -28.07445428660702,
+   -28.930571150518105
+  ],
+  "HARD|0-4|mid|low|True|False|NEUTRAL|OK": [
+   -16.01313076793883,
+   -43.408082649133945,
+   -38.29959815995692,
+   -36.453970920275054
+  ],
+  "SOFT|0-4|mid|medium|False|False|NEUTRAL|OK": [
+   -44.3619133212676,
+   -53.12400390062947,
+   -47.07613494445272,
+   -39.71088114931288
+  ],
+  "MEDIUM|15+|mid|low|False|False|OPPORTUNITY_AHEAD|LOW": [
+   -8.178149617414041,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|medium|False|False|OPPORTUNITY_AHEAD|LOW": [
+   -4.333985005194832,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|False|False|OPPORTUNITY_AHEAD|LOW": [
+   -10.898382910188456,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|low|True|True|NEUTRAL|OK": [
+   -3.7961658550615707,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|medium|True|True|NEUTRAL|OK": [
+   -8.216686900997015,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|True|True|NEUTRAL|OK": [
+   -2.1138105826851445,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|True|True|OPPORTUNITY_AHEAD|OK": [
+   -1.5876683970832808,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|True|True|OPPORTUNITY_AHEAD|OK": [
+   -2.635313440759065,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|late|medium|False|False|NEUTRAL|LOW": [
+   -15.45206611448511,
+   -11.45241193771512,
+   -7.757394802511953,
+   -7.513965052901125
+  ],
+  "HARD|5-9|early|medium|False|False|NEUTRAL|OK": [
+   -14.591094726535944,
+   -39.94976986854761,
+   -41.89933782387674,
+   -40.039409131379394
+  ],
+  "MEDIUM|5-9|early|medium|True|False|NEUTRAL|LOW": [
+   -3.031964433051682,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|mid|high|False|False|NEUTRAL|OK": [
+   -14.781340254084991,
+   -62.08773895197466,
+   -42.16622963732822,
+   -40.81640002431359
+  ],
+  "HARD|5-9|late|low|False|False|NEUTRAL|LOW": [
+   -24.58566374885355,
+   -36.96069180310391,
+   -33.7823406104428,
+   -32.09777335632226
+  ],
+  "HARD|5-9|late|medium|False|False|NEUTRAL|LOW": [
+   -17.129767502326253,
+   -39.99475648937303,
+   -22.788340226891478,
+   -23.302809630310172
+  ],
+  "MEDIUM|15+|mid|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -8.076695366249469,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|medium|True|True|NEUTRAL|OK": [
+   -9.91208461194786,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|low|True|True|NEUTRAL|OK": [
+   -1.5152038972563562,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|low|True|True|NEUTRAL|OK": [
+   -1.4373540288953852,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -9.627296126398594,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|medium|True|True|NEUTRAL|OK": [
+   -7.3260271720533785,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|mid|low|False|False|NEUTRAL|OK": [
+   -15.506720425690956,
+   -60.275505779070485,
+   -41.88184120501497,
+   -43.44315795798562
+  ],
+  "HARD|0-4|early|medium|False|False|NEUTRAL|OK": [
+   -16.355726274545653,
+   -16.171664434490147,
+   -17.54704497865983,
+   -18.397229103796104
+  ],
+  "MEDIUM|0-4|late|medium|False|False|NEUTRAL|LOW": [
+   -14.793632975672557,
+   -34.74772530111794,
+   -40.826443309535506,
+   -36.6504068871825
+  ],
+  "MEDIUM|10-14|late|high|False|False|NEUTRAL|LOW": [
+   -15.772212161378656,
+   -3.5036999999999994,
+   -6.4504190127681795,
+   0.0
+  ],
+  "SOFT|15+|mid|high|True|True|THREAT_BEHIND|OK": [
+   -0.31125015699886655,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|True|True|NEUTRAL|OK": [
+   -0.7729352751146288,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|mid|high|False|False|NEUTRAL|OK": [
+   -49.64070989583222,
+   -59.450342004495184,
+   -45.172093647082406,
+   -39.839876088939405
+  ],
+  "MEDIUM|5-9|mid|high|True|False|NEUTRAL|OK": [
+   -14.023822210070051,
+   -35.8240373292612,
+   -23.672187538319406,
+   -20.54879911016697
+  ],
+  "SOFT|5-9|late|high|False|False|NEUTRAL|LOW": [
+   -27.95666301794422,
+   -8.381406733997538,
+   -11.982091894211422,
+   -8.312404093900431
+  ],
+  "SOFT|10-14|late|high|False|False|NEUTRAL|LOW": [
+   -9.611063155982638,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|low|False|False|NEUTRAL|OK": [
+   -13.107568577431552,
+   -29.265242443857183,
+   -37.94532285889012,
+   -35.721584213923286
+  ],
+  "SOFT|5-9|mid|high|False|False|NEUTRAL|OK": [
+   -15.617363748079883,
+   -56.229676833762674,
+   -43.04159842563295,
+   -42.750618790633375
+  ],
+  "SOFT|10-14|mid|low|True|False|NEUTRAL|LOW": [
+   -2.840224746660887,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|mid|low|True|False|NEUTRAL|OK": [
+   -31.10077122800284,
+   -34.346462152475304,
+   -33.13096642575509,
+   -33.302954416509586
+  ],
+  "SOFT|15+|early|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -10.536206468410267,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|early|high|True|False|NEUTRAL|OK": [
+   -14.137130110689014,
+   -17.539567162198246,
+   -17.355381638554555,
+   -18.563153422649194
+  ],
+  "MEDIUM|5-9|early|medium|False|False|NEUTRAL|OK": [
+   -0.24436095293997392,
+   -10.32937441679092,
+   -5.61636904427684,
+   -6.106023580997271
+  ],
+  "SOFT|10-14|early|low|False|True|THREAT_BEHIND|OK": [
+   -0.681867921563609,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|low|False|True|THREAT_BEHIND|OK": [
+   -9.968528965192876,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|medium|False|False|NEUTRAL|OK": [
+   -13.31944644921365,
+   -39.54650323387672,
+   -41.83380514600411,
+   -39.927606414695006
+  ],
+  "MEDIUM|0-4|late|low|False|False|NEUTRAL|LOW": [
+   -16.82082810623912,
+   -54.257963968997984,
+   -42.56382393929118,
+   -38.102064078230065
+  ],
+  "MEDIUM|5-9|late|medium|False|False|NEUTRAL|LOW": [
+   -12.858601314304805,
+   -21.791017664428498,
+   -25.466796681825052,
+   -17.101748840604234
+  ],
+  "MEDIUM|5-9|early|high|True|True|NEUTRAL|OK": [
+   -3.5946870201311327,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|high|True|True|NEUTRAL|OK": [
+   -2.3331426965465107,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|medium|True|True|NEUTRAL|OK": [
+   -0.4940311290202608,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|late|low|True|False|NEUTRAL|LOW": [
+   -16.58546900559889,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|True|False|NEUTRAL|LOW": [
+   -5.008964473509864,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|late|low|True|False|NEUTRAL|LOW": [
+   -7.6954854193021776,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|medium|True|True|THREAT_BEHIND|OK": [
+   -1.455414102525253,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|True|True|THREAT_BEHIND|OK": [
+   -0.4004918616341597,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|mid|medium|True|False|NEUTRAL|OK": [
+   -15.803492287024646,
+   -37.37741154206172,
+   -26.859666497272418,
+   -29.52476884357742
+  ],
+  "HARD|0-4|late|low|False|False|NEUTRAL|LOW": [
+   -17.919212056001363,
+   -66.48778638696105,
+   -40.548906776347664,
+   -42.228661723252905
+  ],
+  "SOFT|10-14|early|high|True|True|NEUTRAL|OK": [
+   -2.2042148355153435,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|True|True|NEUTRAL|OK": [
+   -2.3021313860305987,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|mid|low|True|False|NEUTRAL|OK": [
+   -12.685585464760882,
+   -19.98158643204614,
+   -17.09646327434344,
+   -18.341256173083078
+  ],
+  "HARD|0-4|late|low|True|False|NEUTRAL|LOW": [
+   -18.889197778802696,
+   -12.823020629602757,
+   -7.17162654388054,
+   -6.213087599377842
+  ],
+  "HARD|5-9|late|medium|True|False|NEUTRAL|LOW": [
+   -15.903185525833239,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|late|medium|True|False|NEUTRAL|LOW": [
+   -13.560377441048898,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|high|False|True|THREAT_BEHIND|OK": [
+   -3.478039686321579,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -7.195191691258225,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|mid|medium|False|False|NEUTRAL|OK": [
+   -15.419664552646063,
+   -63.585263980720875,
+   -41.68088078646074,
+   -40.87781001872968
+  ],
+  "SOFT|5-9|late|high|True|False|NEUTRAL|LOW": [
+   -9.765706488136864,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|late|high|True|False|NEUTRAL|LOW": [
+   -7.528382585684243,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|late|medium|True|False|NEUTRAL|LOW": [
+   -10.86814644029223,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|low|True|False|NEUTRAL|OK": [
+   -11.988837767090278,
+   -16.698674756865934,
+   -14.60067711978458,
+   -15.109655588054473
+  ],
+  "SOFT|0-4|mid|medium|True|False|NEUTRAL|OK": [
+   -24.11827212504431,
+   -29.78998888531695,
+   -28.458606914854055,
+   -29.727330149279812
+  ],
+  "SOFT|0-4|mid|high|True|False|NEUTRAL|OK": [
+   -24.256346790294014,
+   -29.842848843434176,
+   -24.61710252518793,
+   -25.858758916010622
+  ],
+  "MEDIUM|5-9|early|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -0.011586713575281876,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -0.04390780251379879,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -1.2406444730398767,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -5.0357053254974975,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|late|medium|False|False|NEUTRAL|LOW": [
+   -40.87617904582413,
+   -47.8344630274033,
+   -25.594246692188207,
+   -26.72198436616353
+  ],
+  "SOFT|0-4|late|high|False|False|NEUTRAL|LOW": [
+   -39.72957335620418,
+   -27.159767733137844,
+   -19.856962448328563,
+   -15.538740167748994
+  ],
+  "MEDIUM|5-9|mid|medium|False|False|NEUTRAL|OK": [
+   -15.095896678581324,
+   -18.317179768680063,
+   -16.37544806549014,
+   -20.187714294643452
+  ],
+  "HARD|5-9|late|low|True|False|NEUTRAL|LOW": [
+   -20.360061721675194,
+   0.0,
+   -4.416577250379988,
+   0.0
+  ],
+  "MEDIUM|5-9|early|medium|True|False|NEUTRAL|OK": [
+   -0.1800348697146242,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|high|False|False|NEUTRAL|OK": [
+   -15.821501824502429,
+   -39.846877860445694,
+   -39.63646319498598,
+   -36.14977503158772
+  ],
+  "MEDIUM|5-9|early|high|True|False|NEUTRAL|OK": [
+   -12.360293557721443,
+   -15.923017868464708,
+   -18.327393631564668,
+   -24.89368886710276
+  ],
+  "SOFT|0-4|late|low|False|False|NEUTRAL|LOW": [
+   -52.6356621396206,
+   -53.958418432929776,
+   -43.761207909286895,
+   -42.94772027108149
+  ],
+  "SOFT|15+|early|medium|True|True|NEUTRAL|OK": [
+   -1.4654469519305497,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|0-4|late|low|False|False|NEUTRAL|OK": [
+   -8.656763738410929,
+   -52.67032403196866,
+   -33.61439459183876,
+   -32.03567190576905
+  ],
+  "HARD|15+|early|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -10.063222473293697,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -17.18524251374074,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -4.917136420618081,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|mid|high|False|False|NEUTRAL|OK": [
+   -16.698652481792912,
+   -51.908956276238264,
+   -33.84273757681472,
+   -31.121210656180487
+  ],
+  "HARD|15+|mid|high|True|True|OPPORTUNITY_AHEAD|OK": [
+   -1.763184334162857,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -2.293584604807005,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|high|False|True|THREAT_BEHIND|OK": [
+   -10.73036815979202,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|True|False|NEUTRAL|OK": [
+   -11.243814566771357,
+   -17.58388927470187,
+   -21.216688523662324,
+   -23.196417006266582
+  ],
+  "MEDIUM|0-4|late|low|True|False|NEUTRAL|LOW": [
+   -15.33418443977153,
+   -25.2575165907656,
+   -14.390714329678785,
+   -15.446825290605304
+  ],
+  "MEDIUM|0-4|mid|high|False|False|NEUTRAL|OK": [
+   -16.750057146417284,
+   -47.780310978820864,
+   -40.909124807176546,
+   -38.79400760863947
+  ],
+  "MEDIUM|0-4|late|low|False|False|NEUTRAL|OK": [
+   -9.455326893970517,
+   -45.133685321822774,
+   -35.54234821591936,
+   -34.90899613284728
+  ],
+  "MEDIUM|0-4|late|medium|True|False|NEUTRAL|LOW": [
+   -10.251295217221253,
+   -3.0834217124999994,
+   0.0,
+   -2.719274999999999
+  ],
+  "SOFT|0-4|late|medium|True|False|NEUTRAL|LOW": [
+   -3.7577019189809286,
+   -4.098040689296469,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|late|high|True|False|NEUTRAL|LOW": [
+   -5.881905371323945,
+   0.0,
+   0.0,
+   -4.585125254220834
+  ],
+  "MEDIUM|15+|early|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -1.0665240571825976,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|mid|medium|False|False|NEUTRAL|OK": [
+   -14.391155530813649,
+   -61.77545083943876,
+   -42.991246239127584,
+   -40.71184757374995
+  ],
+  "SOFT|5-9|early|low|True|True|NEUTRAL|OK": [
+   -2.057983351588842,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|low|True|True|NEUTRAL|OK": [
+   -2.665374744642903,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|low|True|True|NEUTRAL|OK": [
+   -5.143817638141806,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -8.396362051776693,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|medium|True|False|NEUTRAL|OK": [
+   -13.679476256377985,
+   -25.373728776395765,
+   -16.87267725838602,
+   -17.9013077034795
+  ],
+  "MEDIUM|5-9|late|medium|True|False|NEUTRAL|LOW": [
+   -8.731259902858014,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|medium|True|True|NEUTRAL|OK": [
+   -7.509363168787985,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|high|True|True|NEUTRAL|OK": [
+   -2.879221896437457,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|medium|True|True|THREAT_BEHIND|OK": [
+   -0.8587367302734931,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|late|low|False|False|NEUTRAL|OK": [
+   -34.075710945714434,
+   -48.441043693283824,
+   -32.54400476627892,
+   -31.0902316650102
+  ],
+  "SOFT|0-4|late|medium|False|False|NEUTRAL|OK": [
+   -17.628767097828344,
+   -21.956978250262733,
+   -22.569616319248823,
+   -23.372498484392235
+  ],
+  "SOFT|5-9|mid|high|True|False|NEUTRAL|OK": [
+   -10.542468821113253,
+   -17.41217935291716,
+   -13.624445624261046,
+   -13.809512781277924
+  ],
+  "MEDIUM|10-14|mid|high|False|False|NEUTRAL|OK": [
+   -16.8664646148833,
+   -44.61057043320673,
+   -36.28136033329056,
+   -38.416133681186516
+  ],
+  "MEDIUM|10-14|mid|medium|False|False|NEUTRAL|OK": [
+   -15.120978718898773,
+   -56.720788830270784,
+   -40.385715277418505,
+   -39.193894002130904
+  ],
+  "HARD|10-14|early|high|False|False|NEUTRAL|OK": [
+   -18.5283811257539,
+   -22.38650345643201,
+   -29.423497448691542,
+   -21.521678553881394
+  ],
+  "SOFT|15+|early|high|True|True|NEUTRAL|OK": [
+   -4.824352109854724,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -1.3812389300701295,
+   -5.690671857554288,
+   -5.616262876555139,
+   -5.30195477962124
+  ],
+  "MEDIUM|10-14|early|high|False|False|NEUTRAL|OK": [
+   -17.10338051511385,
+   -35.08634426289936,
+   -39.83255480620588,
+   -38.64769017778132
+  ],
+  "MEDIUM|10-14|early|medium|False|False|NEUTRAL|OK": [
+   -17.355775963964838,
+   -35.390799452889,
+   -36.46497190623098,
+   -35.843117295299876
+  ],
+  "HARD|15+|mid|low|False|True|THREAT_BEHIND|OK": [
+   -9.179240176409275,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|mid|medium|True|False|NEUTRAL|OK": [
+   -15.025855881498263,
+   -20.44267994436945,
+   -22.84949642092144,
+   -22.286148894515545
+  ],
+  "HARD|5-9|late|medium|False|False|NEUTRAL|OK": [
+   -9.593793652805264,
+   -39.87856925743529,
+   -31.781621991776102,
+   -31.434377915253293
+  ],
+  "HARD|10-14|late|medium|False|False|NEUTRAL|OK": [
+   -7.001781549545569,
+   -46.306961233374174,
+   -32.854087935375276,
+   -31.00995617194346
+  ],
+  "SOFT|15+|late|low|True|True|THREAT_BEHIND|OK": [
+   -4.928004832674411,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -1.4674978798158846,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|low|True|False|NEUTRAL|OK": [
+   -6.547131121506824,
+   -10.715953621753663,
+   -5.550868309120961,
+   -7.771679828921262
+  ],
+  "MEDIUM|10-14|late|medium|True|False|NEUTRAL|LOW": [
+   -8.575823256868162,
+   -4.724667821772429,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|late|medium|False|False|NEUTRAL|OK": [
+   -8.7632269761364,
+   -44.50232879157764,
+   -34.16033573899172,
+   -32.372670138388585
+  ],
+  "MEDIUM|10-14|mid|high|True|False|NEUTRAL|LOW": [
+   -10.349401775475776,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|low|False|False|THREAT_BEHIND|OK": [
+   -1.477587582614175,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|late|high|False|False|NEUTRAL|OK": [
+   -7.469403805150831,
+   -43.34604190261434,
+   -34.4502410308623,
+   -32.765304869584476
+  ],
+  "HARD|0-4|late|low|True|False|NEUTRAL|OK": [
+   -7.082852777630566,
+   -21.10306498314469,
+   -16.84012740514091,
+   -17.73221669391605
+  ],
+  "SOFT|0-4|late|low|True|False|NEUTRAL|OK": [
+   -17.596443107157008,
+   -20.10648560537463,
+   -16.461277457175477,
+   -15.849088671398647
+  ],
+  "MEDIUM|10-14|early|high|True|False|NEUTRAL|OK": [
+   -10.117319395527996,
+   -11.956905220813617,
+   -10.143049461831527,
+   -13.790723705381252
+  ],
+  "MEDIUM|5-9|late|high|True|False|NEUTRAL|LOW": [
+   -6.528251312813575,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|medium|True|True|NEUTRAL|OK": [
+   -1.44168108008601,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|early|high|False|False|THREAT_BEHIND|OK": [
+   -0.19499968170339158,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|early|high|False|False|THREAT_BEHIND|OK": [
+   -2.0174365194350554,
+   -6.289543312697291,
+   -11.216995993461172,
+   -6.312702351846359
+  ],
+  "MEDIUM|0-4|late|low|True|False|NEUTRAL|OK": [
+   -7.7804592709105815,
+   -13.43191911949808,
+   -13.95353148078154,
+   -10.832750022791455
+  ],
+  "SOFT|0-4|late|low|True|False|NEUTRAL|LOW": [
+   -18.85542592867197,
+   -10.670432114597926,
+   -12.679225988846747,
+   -14.282609190597917
+  ],
+  "HARD|15+|mid|medium|False|False|NEUTRAL|OK": [
+   -14.621584332176075,
+   -61.86668253996672,
+   -42.70693240907664,
+   -40.19783316891075
+  ],
+  "HARD|0-4|early|low|True|True|NEUTRAL|OK": [
+   -1.7205461670104751,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|low|True|True|NEUTRAL|OK": [
+   -1.9564443671787484,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|late|medium|False|False|NEUTRAL|OK": [
+   -3.4484009105760722,
+   -5.715815375455974,
+   -7.394847093435177,
+   -4.825959974971334
+  ],
+  "SOFT|0-4|early|high|True|True|NEUTRAL|OK": [
+   -0.6255106347982657,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|late|low|False|False|NEUTRAL|OK": [
+   -8.393726280678631,
+   -42.78634112007688,
+   -34.00816316078278,
+   -28.549184856058783
+  ],
+  "SOFT|5-9|mid|low|False|False|NEUTRAL|OK": [
+   0.3510200279643313,
+   -21.486183086568154,
+   -16.896439093065794,
+   -15.844799839785722
+  ],
+  "SOFT|5-9|late|low|False|False|NEUTRAL|OK": [
+   5.226526444105004,
+   -3.5491699716720415,
+   -10.414643152546095,
+   -9.027649547728247
+  ],
+  "SOFT|0-4|late|high|False|False|NEUTRAL|OK": [
+   -10.251913578682096,
+   -28.747825153521482,
+   -17.18529162156782,
+   -18.354181849401588
+  ],
+  "SOFT|10-14|late|high|False|False|NEUTRAL|OK": [
+   -1.9606076061910733,
+   -5.360223215826067,
+   -4.172098179598125,
+   -9.342593339513021
+  ],
+  "HARD|15+|early|medium|False|False|NEUTRAL|OK": [
+   -14.45913564605949,
+   -38.65404024488324,
+   -39.75567921577417,
+   -32.56219587436715
+  ],
+  "SOFT|5-9|late|high|False|False|NEUTRAL|OK": [
+   -9.152632574222197,
+   -28.383195832665546,
+   -19.977471198651557,
+   -18.979314179419298
+  ],
+  "HARD|0-4|early|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -2.8396742252592397,
+   -11.754634889510848,
+   -5.675835636692671,
+   -5.560413280142671
+  ],
+  "SOFT|10-14|early|low|False|False|NEUTRAL|OK": [
+   -16.043946166635592,
+   -23.952840450083315,
+   -29.90586809905362,
+   -27.045376754399093
+  ],
+  "HARD|10-14|early|medium|True|False|NEUTRAL|OK": [
+   -7.144521214984654,
+   -15.309946711586907,
+   -15.016176839281066,
+   -22.57924129350545
+  ],
+  "HARD|5-9|early|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.12494240534202572,
+   -6.300056295529072,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -4.181194490908149,
+   -6.224154464467215,
+   -5.332897584892639,
+   -5.654855397483421
+  ],
+  "HARD|15+|mid|low|False|False|NEUTRAL|OK": [
+   -14.370598262333155,
+   -28.733746408041675,
+   -32.91083058231826,
+   -28.280254614074522
+  ],
+  "SOFT|5-9|late|low|False|False|NEUTRAL|LOW": [
+   7.29422644641201,
+   0.0,
+   -7.239173347520848,
+   0.0
+  ],
+  "SOFT|10-14|late|low|False|False|NEUTRAL|LOW": [
+   10.915373269412719,
+   0.0,
+   -7.4168052275151295,
+   0.0
+  ],
+  "SOFT|15+|early|medium|False|False|NEUTRAL|OK": [
+   -16.98710299325936,
+   -20.168350104946285,
+   -19.746137064497532,
+   -20.047267520890987
+  ],
+  "MEDIUM|5-9|early|high|False|True|THREAT_BEHIND|OK": [
+   -0.5594025472275121,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|medium|False|True|THREAT_BEHIND|OK": [
+   -1.270176735240064,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|True|True|NEUTRAL|OK": [
+   -3.012109311059552,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|True|True|THREAT_BEHIND|OK": [
+   -0.08244516084899103,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|True|True|THREAT_BEHIND|OK": [
+   -1.2965677171898642,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|medium|False|False|NEUTRAL|OK": [
+   -17.320593220367066,
+   -31.803133611495262,
+   -39.92854869257387,
+   -31.094912660014664
+  ],
+  "HARD|10-14|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -2.7440626304126994,
+   -9.32844460477641,
+   -6.820671143146946,
+   -8.448802725322732
+  ],
+  "SOFT|15+|mid|medium|False|False|NEUTRAL|OK": [
+   -19.021556283679075,
+   -40.559840673942055,
+   -30.001013515060272,
+   -23.521964626059
+  ],
+  "SOFT|15+|mid|high|True|False|NEUTRAL|OK": [
+   -6.284755171174399,
+   -13.744021968962453,
+   -16.16469019029766,
+   -11.788145690764217
+  ],
+  "MEDIUM|0-4|mid|high|True|False|NEUTRAL|OK": [
+   -12.541615209567706,
+   -13.597600883972461,
+   -13.841193366741242,
+   -19.891924076838603
+  ],
+  "SOFT|10-14|mid|medium|False|False|NEUTRAL|OK": [
+   -6.0986138146375914,
+   -15.095846315859312,
+   -6.524515934159285,
+   -6.164169963264711
+  ],
+  "HARD|10-14|late|low|False|False|NEUTRAL|OK": [
+   -3.606667010445633,
+   -4.566916683450042,
+   -5.955976704960475,
+   -3.5901749999999995
+  ],
+  "HARD|15+|late|low|False|False|NEUTRAL|OK": [
+   -7.645133889385736,
+   -28.57099525391689,
+   -16.466273574996432,
+   -22.047007282274418
+  ],
+  "SOFT|10-14|early|high|True|False|NEUTRAL|OK": [
+   -10.393454906855048,
+   -9.839714629224684,
+   -14.513705997988316,
+   -10.590876942226505
+  ],
+  "MEDIUM|15+|mid|medium|False|False|NEUTRAL|OK": [
+   -14.936405132122054,
+   -59.75014052116786,
+   -40.958115733613546,
+   -40.01390405585411
+  ],
+  "MEDIUM|0-4|late|medium|True|False|NEUTRAL|OK": [
+   -7.6173601820404375,
+   -14.407371877923854,
+   -14.311917648255104,
+   -10.87863451846654
+  ],
+  "HARD|15+|early|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -3.6682222852062623,
+   -5.685070068930938,
+   -10.825198883943933,
+   -5.77297282971138
+  ],
+  "HARD|15+|early|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.1328333965463007,
+   -4.800439830561371,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|late|high|False|False|NEUTRAL|OK": [
+   -8.218379268033523,
+   -20.535702659507745,
+   -20.357369513556755,
+   -23.299723863694275
+  ],
+  "MEDIUM|10-14|late|medium|False|False|NEUTRAL|OK": [
+   -9.473659341921204,
+   -30.3722368108428,
+   -25.911223707204666,
+   -27.90671248864029
+  ],
+  "SOFT|0-4|late|medium|True|False|NEUTRAL|OK": [
+   -8.22045353847406,
+   -7.716144869514144,
+   -7.60519833027587,
+   -9.438590859793086
+  ],
+  "SOFT|0-4|late|high|True|False|NEUTRAL|OK": [
+   -6.451649791537445,
+   -11.67933506669792,
+   -5.560610769732137,
+   -13.136169669587147
+  ],
+  "SOFT|5-9|late|high|True|False|NEUTRAL|OK": [
+   -2.6636484423934683,
+   -9.776704547906652,
+   -3.6046892268155495,
+   -3.5534999999999997
+  ],
+  "SOFT|15+|late|high|False|True|NEUTRAL|OK": [
+   -0.5744195415449843,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|high|False|True|OPPORTUNITY_AHEAD|OK": [
+   -0.2840309395399789,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|medium|False|True|NEUTRAL|OK": [
+   -1.883183021919039,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|medium|False|False|THREAT_BEHIND|OK": [
+   -3.9161612691978074,
+   -9.208721089404937,
+   -5.41677245875972,
+   -5.831459537804357
+  ],
+  "SOFT|15+|late|medium|False|False|NEUTRAL|OK": [
+   -5.761783567459855,
+   -8.74006955786816,
+   -6.31446954424386,
+   -10.99008283508074
+  ],
+  "MEDIUM|15+|late|medium|False|False|NEUTRAL|OK": [
+   -6.455285167315659,
+   -48.039658927491054,
+   -32.27335830756105,
+   -30.29017066167483
+  ],
+  "MEDIUM|15+|late|low|False|False|NEUTRAL|OK": [
+   -7.241457899664495,
+   -20.711301141258073,
+   -18.63644194235405,
+   -21.44103500794128
+  ],
+  "MEDIUM|0-4|late|high|False|False|NEUTRAL|OK": [
+   -6.935531193270457,
+   -15.056963922125124,
+   -20.6808735962423,
+   -16.80783248267278
+  ],
+  "MEDIUM|10-14|late|high|True|False|NEUTRAL|LOW": [
+   -2.4037926871304998,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|low|False|False|NEUTRAL|OK": [
+   -18.407994628899925,
+   -26.990085772274394,
+   -25.342405512036024,
+   -27.60712935382494
+  ],
+  "HARD|15+|mid|low|True|True|THREAT_BEHIND|OK": [
+   -1.7887193947677529,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|mid|high|True|False|NEUTRAL|OK": [
+   -8.298201088422086,
+   -13.201738849678119,
+   -11.764613272038574,
+   -16.51106832162087
+  ],
+  "SOFT|15+|early|high|False|False|NEUTRAL|OK": [
+   -13.725053615937673,
+   -37.013373723082424,
+   -33.03084096429802,
+   -29.404870860902278
+  ],
+  "SOFT|15+|mid|high|False|False|NEUTRAL|OK": [
+   -19.339823557759136,
+   -58.265471118862266,
+   -40.24875684430676,
+   -36.62830661526796
+  ],
+  "HARD|10-14|mid|low|False|False|NEUTRAL|OK": [
+   -0.2777805517406789,
+   -8.829662954615065,
+   -6.7981251414526875,
+   0.0
+  ],
+  "HARD|10-14|mid|medium|True|False|NEUTRAL|OK": [
+   -14.031174212725414,
+   -17.547534333567274,
+   -18.62190226368573,
+   -16.745775563728152
+  ],
+  "MEDIUM|10-14|early|medium|True|False|NEUTRAL|OK": [
+   -11.191434256120194,
+   -13.72446273749311,
+   -13.605231329342727,
+   -15.245387380284345
+  ],
+  "HARD|5-9|early|high|True|False|NEUTRAL|OK": [
+   -0.05683582905307039,
+   -5.674340541217845,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|early|high|True|False|NEUTRAL|OK": [
+   -0.058345317042365626,
+   -4.3479461037034115,
+   -5.299819179553814,
+   -5.344462618247102
+  ],
+  "MEDIUM|15+|late|medium|False|True|THREAT_BEHIND|OK": [
+   -2.7902103952268584,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|mid|medium|True|False|NEUTRAL|OK": [
+   0.0,
+   -4.881465833758859,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|medium|False|False|NEUTRAL|OK": [
+   -6.032995117109446,
+   -53.638033081536626,
+   -31.549479719707794,
+   -29.213935340487836
+  ],
+  "SOFT|10-14|mid|low|False|False|NEUTRAL|OK": [
+   -7.072159683663209,
+   -9.327389959002154,
+   -11.360067688069375,
+   -6.101446571214431
+  ],
+  "HARD|15+|early|low|False|False|NEUTRAL|OK": [
+   -17.041902525705208,
+   -21.411581470228402,
+   -19.857707996000048,
+   -18.756331371946775
+  ],
+  "MEDIUM|10-14|late|medium|True|False|NEUTRAL|OK": [
+   -3.4169040579972965,
+   -3.3220639461230834,
+   -3.257615203508697,
+   -11.163918355989566
+  ],
+  "SOFT|10-14|early|medium|False|False|NEUTRAL|OK": [
+   -3.0373744586127804,
+   -12.552659767720844,
+   -6.937429431418882,
+   -11.556412884642745
+  ],
+  "MEDIUM|15+|mid|high|False|False|NEUTRAL|OK": [
+   -14.158968984568503,
+   -29.28880732123335,
+   -38.60292128276878,
+   -32.759404197681505
+  ],
+  "MEDIUM|15+|early|medium|True|False|NEUTRAL|OK": [
+   -12.596132476064616,
+   -13.975584761763923,
+   -14.202580314235961,
+   -16.718619749902917
+  ],
+  "MEDIUM|10-14|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.12306661198968408,
+   -5.98611534476534,
+   -5.620653750146158,
+   0.0
+  ],
+  "MEDIUM|5-9|late|high|True|False|NEUTRAL|OK": [
+   -6.620903342339909,
+   -14.554931035863554,
+   -20.710698199021945,
+   -9.918247198170517
+  ],
+  "MEDIUM|15+|mid|medium|True|False|NEUTRAL|OK": [
+   -14.9813243795258,
+   -20.51040822680847,
+   -21.04583213776038,
+   -18.738746069725785
+  ],
+  "HARD|5-9|late|low|True|False|NEUTRAL|OK": [
+   -4.916520540822087,
+   -4.289348919258868,
+   -8.286294907174884,
+   -5.182657192117545
+  ],
+  "HARD|5-9|late|medium|True|False|NEUTRAL|OK": [
+   -8.367535408960862,
+   -10.513861959964382,
+   -12.65941435678996,
+   -11.673519637708793
+  ],
+  "SOFT|10-14|early|high|False|False|THREAT_BEHIND|OK": [
+   -0.06776506415962075,
+   -6.5693932041426235,
+   -5.883870748967539,
+   -6.338494567936481
+  ],
+  "MEDIUM|15+|mid|low|False|False|NEUTRAL|OK": [
+   -14.753623001008254,
+   -28.251516697608565,
+   -19.194445814999575,
+   -20.384319283374108
+  ],
+  "HARD|5-9|early|high|False|False|NEUTRAL|OK": [
+   -14.846564976515365,
+   -15.860085914844557,
+   -15.414886824063032,
+   -15.441512464831746
+  ],
+  "HARD|15+|mid|low|True|False|NEUTRAL|OK": [
+   -6.476694628862999,
+   -8.422749193079099,
+   -14.379194240761587,
+   -9.985951190841543
+  ],
+  "HARD|15+|mid|medium|True|False|NEUTRAL|OK": [
+   -13.621454925631559,
+   -23.114105406949882,
+   -19.195068552783418,
+   -22.027198330369725
+  ],
+  "SOFT|15+|early|low|False|False|THREAT_BEHIND|OK": [
+   -0.1386504838758937,
+   -6.697489615757943,
+   -6.37366833514761,
+   -6.141498556307109
+  ],
+  "HARD|15+|late|low|True|True|THREAT_BEHIND|OK": [
+   -6.32895821876482,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|low|True|True|NEUTRAL|OK": [
+   -0.028617747020664067,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|0-4|early|medium|True|True|NEUTRAL|OK": [
+   -0.07278984634657093,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|True|True|THREAT_BEHIND|OK": [
+   -4.75883038024541,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|mid|medium|True|False|NEUTRAL|OK": [
+   -0.2957376438345329,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|mid|medium|True|False|NEUTRAL|OK": [
+   -13.517493265400926,
+   -20.679658286108726,
+   -17.812630786021398,
+   -15.89366974565807
+  ],
+  "HARD|10-14|late|medium|True|False|NEUTRAL|OK": [
+   -6.329087824202009,
+   -7.515725761009167,
+   -9.856789951331557,
+   -8.603834251171289
+  ],
+  "HARD|10-14|early|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -4.272319292202597,
+   -9.415478629219617,
+   -6.087747773111367,
+   -6.151862427385051
+  ],
+  "HARD|15+|early|medium|True|False|NEUTRAL|OK": [
+   -6.529415980442649,
+   -9.953487570572406,
+   -10.800154751364213,
+   -12.660154260062031
+  ],
+  "MEDIUM|15+|late|high|False|False|NEUTRAL|OK": [
+   -8.123223346081133,
+   -24.577886011365536,
+   -20.871186649565388,
+   -19.131778459458143
+  ],
+  "HARD|10-14|mid|high|False|False|NEUTRAL|OK": [
+   -17.263443664356505,
+   -25.14367771488405,
+   -21.39234354139944,
+   -19.76508274879394
+  ],
+  "MEDIUM|15+|early|high|False|False|NEUTRAL|OK": [
+   -15.647760205061106,
+   -19.00340928937357,
+   -26.255674921317528,
+   -22.13255215697314
+  ],
+  "MEDIUM|15+|mid|high|False|False|THREAT_BEHIND|OK": [
+   -0.25529003767141556,
+   -10.051063284265977,
+   -5.7327636599108995,
+   0.0
+  ],
+  "HARD|15+|early|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -0.8056262983958541,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|high|True|False|NEUTRAL|OK": [
+   -3.757613443268716,
+   -5.716184165297534,
+   -5.506717289801684,
+   -10.478178999731425
+  ],
+  "SOFT|15+|mid|low|False|False|NEUTRAL|OK": [
+   -23.114836515452787,
+   -45.54767275307973,
+   -31.390246894921912,
+   -36.907872078993094
+  ],
+  "SOFT|15+|late|low|False|False|NEUTRAL|OK": [
+   -12.370795233789474,
+   -29.595016299575185,
+   -22.053627189422393,
+   -23.53961427457719
+  ],
+  "SOFT|10-14|late|low|False|False|NEUTRAL|OK": [
+   3.7170278495654285,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.6874847972030005,
+   -5.053975719438668,
+   -5.99368487363159,
+   -5.346582559664603
+  ],
+  "SOFT|5-9|mid|low|True|False|NEUTRAL|OK": [
+   1.6336491783667364,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|medium|True|False|NEUTRAL|OK": [
+   -5.86214787904505,
+   -6.722982060098879,
+   -7.795338262791545,
+   -12.354681384611368
+  ],
+  "HARD|15+|mid|high|False|False|NEUTRAL|OK": [
+   -15.964968529113523,
+   -29.703421798603493,
+   -24.850093358568447,
+   -25.453652588307747
+  ],
+  "MEDIUM|0-4|late|high|True|False|NEUTRAL|OK": [
+   -3.1359842283760164,
+   -4.211953110685822,
+   -3.3387060602958862,
+   -3.4692
+  ],
+  "SOFT|10-14|early|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -3.0357218655609985,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|low|False|False|THREAT_BEHIND|OK": [
+   -0.35703239105537565,
+   -5.822804079483676,
+   -5.624392682229686,
+   -6.951642462788676
+  ],
+  "MEDIUM|15+|late|medium|True|False|NEUTRAL|OK": [
+   -4.332376216129632,
+   -7.835544264251702,
+   -8.426555568288027,
+   -7.8228158473142635
+  ],
+  "SOFT|10-14|mid|high|True|False|NEUTRAL|OK": [
+   -5.480805801383451,
+   -6.152295329196439,
+   -10.378099407665356,
+   -10.132049011442689
+  ],
+  "SOFT|15+|mid|medium|True|False|NEUTRAL|OK": [
+   -4.294489591297633,
+   -6.86472599817496,
+   -5.9761936264563325,
+   -6.438463428304375
+  ],
+  "SOFT|5-9|early|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.13094898189083198,
+   -5.73052269245546,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.0042726475810751716,
+   -5.843525089197969,
+   -5.692440305511478,
+   -5.964158224407095
+  ],
+  "SOFT|10-14|late|medium|False|False|NEUTRAL|OK": [
+   -0.48156357278460016,
+   -4.885066542059328,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -4.103734989528267,
+   -9.932123826782064,
+   -5.627250726427818,
+   -6.217137192363837
+  ],
+  "MEDIUM|15+|mid|high|True|False|OPPORTUNITY_AHEAD|OK": [
+   -0.24307344977699127,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|medium|True|False|OPPORTUNITY_AHEAD|OK": [
+   -0.24340804813295397,
+   -6.561805470075298,
+   -5.049038935324414,
+   0.0
+  ],
+  "HARD|15+|early|medium|False|False|THREAT_BEHIND|OK": [
+   -3.6606943553394715,
+   -5.236052258509836,
+   -6.5297908972259915,
+   -6.040566341362954
+  ],
+  "HARD|10-14|late|high|True|False|NEUTRAL|OK": [
+   -0.2197185216873925,
+   -3.9164713812179035,
+   -5.1162157299323185,
+   0.0
+  ],
+  "SOFT|15+|late|high|False|False|NEUTRAL|OK": [
+   -5.387010270628632,
+   -11.608365957206829,
+   -9.850188337258228,
+   -8.279826788721858
+  ],
+  "MEDIUM|15+|mid|high|True|False|NEUTRAL|OK": [
+   -8.904262303334077,
+   -15.751634778519904,
+   -10.480239193101568,
+   -10.475140905310015
+  ],
+  "HARD|0-4|early|low|False|False|THREAT_BEHIND|OK": [
+   -0.08508295347594401,
+   -6.208810002848868,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|low|False|False|THREAT_BEHIND|OK": [
+   0.0,
+   -6.250231565105722,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|medium|False|False|THREAT_BEHIND|OK": [
+   -0.12953036510007973,
+   -6.504478067541131,
+   -5.796114124788309,
+   -6.139840211755762
+  ],
+  "SOFT|15+|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -1.0878451978121217,
+   -6.38025791453141,
+   -5.903166176686077,
+   -5.920824148135478
+  ],
+  "MEDIUM|15+|mid|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -4.5151302111664355,
+   -9.231207817524488,
+   -6.322110181278417,
+   -6.004897633570033
+  ],
+  "MEDIUM|10-14|early|high|False|False|THREAT_BEHIND|OK": [
+   -0.1034317805920827,
+   -5.712802189218657,
+   -6.230837534629303,
+   -5.911402587114802
+  ],
+  "MEDIUM|15+|mid|medium|False|False|THREAT_BEHIND|OK": [
+   -3.2265981200397285,
+   -17.263960492603488,
+   -12.038525170550988,
+   -5.884924085760908
+  ],
+  "HARD|15+|late|high|False|False|NEUTRAL|OK": [
+   -9.700537765211543,
+   -21.8690288206704,
+   -19.75304320426728,
+   -15.61239980986654
+  ],
+  "SOFT|5-9|early|low|False|False|THREAT_BEHIND|OK": [
+   -0.3420601498479285,
+   -9.51353746774953,
+   -6.350517165726507,
+   -6.38928822560877
+  ],
+  "HARD|15+|mid|medium|False|False|THREAT_BEHIND|OK": [
+   -6.507029940821723,
+   -18.437713853023578,
+   -11.955223690630062,
+   -6.4626523806389775
+  ],
+  "SOFT|5-9|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.6026931106831541,
+   -5.588011866528053,
+   -6.06385008507896,
+   -6.086471927948709
+  ],
+  "HARD|5-9|mid|high|False|False|NEUTRAL|OK": [
+   -1.9891505188123662,
+   -9.798453473139443,
+   -6.4670501559064055,
+   -6.421659539872764
+  ],
+  "MEDIUM|10-14|early|high|True|False|THREAT_BEHIND|OK": [
+   -0.10665042034581368,
+   -4.847745219948984,
+   -5.346142682229686,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|True|False|NEUTRAL|OK": [
+   -5.042132823204573,
+   -8.672038372826567,
+   -8.608057761179696,
+   -7.383629553745746
+  ],
+  "HARD|10-14|late|high|False|False|NEUTRAL|OK": [
+   -6.348632433110986,
+   -8.876802593484006,
+   -9.419342732551549,
+   -5.777536542636068
+  ],
+  "SOFT|10-14|early|low|True|False|NEUTRAL|OK": [
+   -3.2635873817019547,
+   -10.464535334078317,
+   -5.172298926981554,
+   -6.296732637905873
+  ],
+  "HARD|15+|mid|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -3.7742844985639414,
+   -18.16426859066199,
+   -5.87155530218573,
+   -5.183412690348839
+  ],
+  "HARD|15+|mid|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -3.8794032653782753,
+   -9.423153057509149,
+   -5.777315789165605,
+   -5.448296614055726
+  ],
+  "MEDIUM|10-14|late|high|True|False|NEUTRAL|OK": [
+   -1.2566087248744702,
+   -3.3498750000000004,
+   -6.475740578744368,
+   -3.838306761333171
+  ],
+  "SOFT|15+|early|low|True|False|NEUTRAL|OK": [
+   -5.0946108493189985,
+   -9.731339321819416,
+   -7.128297119319599,
+   -5.444265246043697
+  ],
+  "SOFT|10-14|early|medium|True|False|NEUTRAL|OK": [
+   -0.7752788868038604,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|medium|True|False|THREAT_BEHIND|OK": [
+   -0.06906591385087946,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|True|False|THREAT_BEHIND|OK": [
+   -0.36130169124982614,
+   -9.601181628820234,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -1.5451701677311391,
+   -8.362430561290656,
+   -5.7411103200125435,
+   0.0
+  ],
+  "SOFT|10-14|early|high|True|False|THREAT_BEHIND|OK": [
+   0.0,
+   -5.159433297282418,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|high|False|False|NEUTRAL|OK": [
+   -3.5073446666876107,
+   -5.399099439566616,
+   -6.39000176179918,
+   -5.975509831436808
+  ],
+  "SOFT|5-9|early|low|False|True|OPPORTUNITY_AHEAD|OK": [
+   -0.4611696504923953,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|high|False|False|THREAT_BEHIND|OK": [
+   -4.902587060202897,
+   -9.773585597226322,
+   -6.076960549657511,
+   -6.233510808388089
+  ],
+  "HARD|15+|mid|high|True|False|NEUTRAL|OK": [
+   -4.7032995234405695,
+   -8.380636539401266,
+   -5.564969728327603,
+   -5.62609228361984
+  ],
+  "HARD|15+|mid|high|True|False|THREAT_BEHIND|OK": [
+   -0.15035990089552234,
+   -7.515105222507624,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|False|False|THREAT_BEHIND|OK": [
+   -0.40893985584440173,
+   -9.361447222203108,
+   -6.204763871774303,
+   -6.013083844723335
+  ],
+  "HARD|10-14|early|medium|False|False|THREAT_BEHIND|OK": [
+   -7.344738074860703,
+   -11.048379232432453,
+   -5.963622917696283,
+   -5.95713803197561
+  ],
+  "SOFT|15+|early|high|False|False|THREAT_BEHIND|OK": [
+   -3.2502013785609662,
+   -5.134918414336857,
+   -6.010374767295883,
+   -6.125895541847236
+  ],
+  "MEDIUM|15+|mid|low|True|False|NEUTRAL|OK": [
+   -2.198521491211727,
+   -15.506686440953608,
+   -4.862382788729749,
+   -5.034433688661966
+  ],
+  "HARD|15+|early|medium|True|False|OPPORTUNITY_AHEAD|OK": [
+   -0.2717694895094808,
+   -5.52982968459691,
+   -5.219701568080496,
+   -5.731482444921445
+  ],
+  "SOFT|15+|early|medium|True|False|NEUTRAL|OK": [
+   -1.5494974368594199,
+   -6.419207156848906,
+   -5.7939161054190125,
+   -5.516329739832421
+  ],
+  "HARD|5-9|early|medium|False|True|OPPORTUNITY_AHEAD|OK": [
+   -2.2937638240526166,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -6.12222191152891,
+   -17.414852020444936,
+   -6.304977823924394,
+   -10.610433693765735
+  ],
+  "MEDIUM|15+|early|medium|False|False|THREAT_BEHIND|OK": [
+   -4.619766589477523,
+   -10.136003921265713,
+   -6.038495056909002,
+   -6.089870401964569
+  ],
+  "HARD|15+|late|low|True|False|NEUTRAL|OK": [
+   -3.4900822317947737,
+   -4.436580196672356,
+   -3.8771173196331983,
+   -5.375424161074242
+  ],
+  "MEDIUM|10-14|early|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.13735155496314652,
+   -4.772819057439114,
+   -6.094287671108698,
+   0.0
+  ],
+  "HARD|10-14|early|high|False|False|THREAT_BEHIND|OK": [
+   -0.1568393869344701,
+   -5.9331686717676035,
+   -6.266344676326373,
+   0.0
+  ],
+  "HARD|10-14|early|medium|True|True|OPPORTUNITY_AHEAD|OK": [
+   -1.035085198853112,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|medium|True|True|OPPORTUNITY_AHEAD|OK": [
+   -1.4242289916659963,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|low|True|False|NEUTRAL|OK": [
+   -1.6102959150175347,
+   -5.584235328825474,
+   -5.952578869915826,
+   0.0
+  ],
+  "MEDIUM|15+|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.7052964539986792,
+   -6.26190012150908,
+   -5.702339165415197,
+   -6.0172211158444835
+  ],
+  "SOFT|15+|mid|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.5610382509086682,
+   -9.511319375691924,
+   -6.096485028601188,
+   -5.91360452982914
+  ],
+  "SOFT|15+|mid|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.08138281129903155,
+   -9.340811357083194,
+   -6.600482877688665,
+   0.0
+  ],
+  "HARD|15+|mid|medium|True|False|OPPORTUNITY_AHEAD|OK": [
+   -0.12582623906163057,
+   -7.441886236728689,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -6.314791007710189,
+   -5.5747294075384355,
+   -6.286298576578542,
+   -6.110064652378508
+  ],
+  "MEDIUM|0-4|early|low|True|True|NEUTRAL|OK": [
+   -0.09499708429015861,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|early|medium|True|True|NEUTRAL|OK": [
+   -0.20192392358103045,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|0-4|early|high|True|True|NEUTRAL|OK": [
+   -0.5745509168076866,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|10-14|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.12081535466034904,
+   -6.123867814783791,
+   -11.439384689393695,
+   -6.1958537572353345
+  ],
+  "HARD|15+|late|high|True|True|OPPORTUNITY_AHEAD|OK": [
+   -0.1328489458730757,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|low|True|True|OPPORTUNITY_AHEAD|OK": [
+   -0.5681898264353583,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|medium|True|True|OPPORTUNITY_AHEAD|OK": [
+   -1.8562244895291329,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|True|False|OPPORTUNITY_AHEAD|OK": [
+   -0.2531546185809994,
+   -4.849586214709167,
+   0.0,
+   0.0
+  ],
+  "SOFT|5-9|early|high|False|False|THREAT_BEHIND|OK": [
+   -0.12521465082152006,
+   -6.451151463094854,
+   0.0,
+   -6.228943094840476
+  ],
+  "SOFT|15+|late|low|False|False|THREAT_BEHIND|OK": [
+   -5.304361479090602,
+   -8.147102335311853,
+   -10.291238316969794,
+   -7.519202410012859
+  ],
+  "HARD|0-4|early|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.33983037562066903,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|5-9|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.06747807422587843,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.07565497033100443,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|high|False|False|THREAT_BEHIND|OK": [
+   -0.2294542891908214,
+   -8.351475379437487,
+   -4.94121888577851,
+   -4.515829055095721
+  ],
+  "SOFT|15+|mid|low|True|False|NEUTRAL|OK": [
+   -5.447759237990349,
+   -13.935586524391955,
+   -11.578642314808189,
+   -5.9881183391134805
+  ],
+  "HARD|15+|late|high|True|False|NEUTRAL|OK": [
+   -0.25954068739085717,
+   -5.450785022230961,
+   -2.670525,
+   0.0
+  ],
+  "HARD|15+|mid|high|False|False|THREAT_BEHIND|OK": [
+   -1.845581533470936,
+   -8.168662664971706,
+   -7.133782322028001,
+   -5.850471032501296
+  ],
+  "MEDIUM|15+|late|low|False|False|THREAT_BEHIND|OK": [
+   -0.04672068978394746,
+   -8.36130966665049,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|high|False|False|THREAT_BEHIND|OK": [
+   -0.15074421358467663,
+   -5.599864555114636,
+   -6.1721565277854795,
+   0.0
+  ],
+  "HARD|5-9|mid|high|True|False|NEUTRAL|OK": [
+   -0.19006878304518385,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|10-14|mid|high|True|False|NEUTRAL|OK": [
+   -2.710091067294428,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.14948561174770647,
+   -9.43913337831455,
+   -6.227103952638168,
+   -5.661861977626078
+  ],
+  "MEDIUM|15+|late|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.15095949162360392,
+   -8.00621330094805,
+   -5.824902721648247,
+   0.0
+  ],
+  "MEDIUM|15+|late|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.12128591033680866,
+   -8.412303684164069,
+   -4.907332159189788,
+   0.0
+  ],
+  "SOFT|15+|mid|low|False|False|THREAT_BEHIND|OK": [
+   -5.615291332432326,
+   -9.826030138604143,
+   -6.656276778725208,
+   -5.771184477894406
+  ],
+  "MEDIUM|15+|mid|low|True|True|THREAT_BEHIND|OK": [
+   -0.544520880047728,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|medium|False|False|THREAT_BEHIND|OK": [
+   -0.3198036650920726,
+   -8.318828895655368,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|late|low|True|False|NEUTRAL|OK": [
+   -0.06753387593401258,
+   -5.918090086349427,
+   0.0,
+   -4.3863469686750856
+  ],
+  "SOFT|0-4|early|high|False|False|THREAT_BEHIND|OK": [
+   -2.8408928523871433,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|medium|False|False|THREAT_BEHIND|OK": [
+   -0.003196742517372883,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|early|high|True|False|THREAT_BEHIND|OK": [
+   -0.10149231011531698,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|late|high|False|False|THREAT_BEHIND|OK": [
+   -0.31608309385108935,
+   -8.21204308629722,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|mid|low|False|False|THREAT_BEHIND|OK": [
+   -0.31120554306295894,
+   -8.144318916958525,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|medium|True|False|THREAT_BEHIND|OK": [
+   -0.023581811971697418,
+   -8.22729872919734,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|medium|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.0936495553677918,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.09932870430412719,
+   -8.241918771298312,
+   -5.255298892715197,
+   -4.7392291425004585
+  ],
+  "SOFT|15+|early|medium|True|False|THREAT_BEHIND|OK": [
+   -0.22919005144874147,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|late|low|False|False|OPPORTUNITY_AHEAD|OK": [
+   -0.19165028270465656,
+   -7.948984589755598,
+   -4.9209667017169565,
+   0.0
+  ],
+  "SOFT|15+|late|low|True|False|NEUTRAL|OK": [
+   -0.14174496401832354,
+   -5.372914133746055,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|high|True|True|THREAT_BEHIND|OK": [
+   -2.0259201240155433,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|early|medium|False|True|THREAT_BEHIND|OK": [
+   -1.7881122340338582,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|10-14|early|medium|True|True|OPPORTUNITY_AHEAD|OK": [
+   -0.5644826305422675,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|early|medium|True|True|OPPORTUNITY_AHEAD|OK": [
+   -1.014960922137817,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|high|True|True|OPPORTUNITY_AHEAD|OK": [
+   -1.7792327825644134,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|15+|mid|low|False|False|THREAT_BEHIND|OK": [
+   -0.7830025979899153,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "SOFT|15+|mid|low|True|True|OPPORTUNITY_AHEAD|OK": [
+   -3.8015101492177936,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "HARD|15+|early|high|True|False|NEUTRAL|OK": [
+   0.0,
+   0.0,
+   -4.728239081014354,
+   0.0
+  ],
+  "MEDIUM|0-4|early|high|False|False|OPPORTUNITY_AHEAD|OK": [
+   -2.173387705947072,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "MEDIUM|5-9|early|high|True|False|OPPORTUNITY_AHEAD|OK": [
+   -0.07383111550379444,
+   -5.284733411159397,
+   0.0,
+   0.0
+  ]
+ },
+ "visit_counts": {
+  "HARD|0-4|early|low|False|False|NEUTRAL|OK": 14897,
+  "MEDIUM|0-4|early|low|False|False|NEUTRAL|OK": 9395,
+  "MEDIUM|0-4|early|medium|False|False|NEUTRAL|OK": 4848,
+  "MEDIUM|0-4|early|low|True|False|NEUTRAL|OK": 472,
+  "HARD|0-4|early|low|True|False|NEUTRAL|OK": 788,
+  "HARD|0-4|early|low|False|False|NEUTRAL|LOW": 1752,
+  "MEDIUM|0-4|early|low|False|False|NEUTRAL|LOW": 1297,
+  "MEDIUM|0-4|early|medium|False|False|NEUTRAL|LOW": 363,
+  "MEDIUM|5-9|early|high|False|False|NEUTRAL|LOW": 128,
+  "MEDIUM|10-14|mid|high|False|False|NEUTRAL|LOW": 54,
+  "MEDIUM|10-14|mid|medium|False|False|NEUTRAL|LOW": 1766,
+  "MEDIUM|15+|mid|medium|False|False|NEUTRAL|LOW": 2643,
+  "MEDIUM|15+|mid|high|False|False|NEUTRAL|LOW": 25,
+  "MEDIUM|15+|mid|low|False|False|NEUTRAL|LOW": 1562,
+  "MEDIUM|15+|late|medium|False|False|NEUTRAL|LOW": 2778,
+  "MEDIUM|15+|late|high|False|False|NEUTRAL|LOW": 330,
+  "MEDIUM|15+|late|low|False|False|NEUTRAL|LOW": 2017,
+  "SOFT|0-4|early|low|False|False|NEUTRAL|OK": 9414,
+  "SOFT|0-4|early|medium|False|False|NEUTRAL|OK": 2196,
+  "SOFT|0-4|early|low|True|False|NEUTRAL|OK": 399,
+  "SOFT|0-4|early|low|True|False|NEUTRAL|LOW": 74,
+  "MEDIUM|0-4|early|low|True|False|NEUTRAL|LOW": 63,
+  "MEDIUM|5-9|mid|high|False|False|NEUTRAL|LOW": 1204,
+  "MEDIUM|15+|mid|medium|True|False|NEUTRAL|LOW": 161,
+  "SOFT|0-4|early|low|False|False|NEUTRAL|LOW": 1147,
+  "HARD|5-9|early|low|False|False|NEUTRAL|LOW": 219,
+  "HARD|5-9|mid|low|False|False|NEUTRAL|LOW": 1267,
+  "HARD|5-9|mid|medium|False|False|NEUTRAL|LOW": 879,
+  "HARD|10-14|mid|medium|False|False|NEUTRAL|LOW": 1354,
+  "HARD|15+|mid|low|False|False|NEUTRAL|LOW": 2845,
+  "HARD|15+|mid|medium|False|False|NEUTRAL|LOW": 1266,
+  "HARD|15+|late|low|False|False|NEUTRAL|LOW": 2633,
+  "HARD|15+|late|medium|False|False|NEUTRAL|LOW": 2028,
+  "MEDIUM|5-9|early|medium|False|False|NEUTRAL|LOW": 164,
+  "MEDIUM|10-14|early|medium|False|False|NEUTRAL|LOW": 17,
+  "MEDIUM|10-14|mid|low|False|False|NEUTRAL|LOW": 245,
+  "MEDIUM|5-9|mid|medium|False|False|NEUTRAL|LOW": 996,
+  "HARD|10-14|mid|low|False|False|NEUTRAL|LOW": 598,
+  "HARD|0-4|mid|low|True|False|NEUTRAL|LOW": 175,
+  "HARD|0-4|mid|low|False|False|NEUTRAL|LOW": 3021,
+  "MEDIUM|0-4|mid|low|False|False|NEUTRAL|LOW": 1997,
+  "MEDIUM|0-4|mid|medium|False|False|NEUTRAL|LOW": 1208,
+  "MEDIUM|10-14|late|medium|False|False|NEUTRAL|LOW": 516,
+  "SOFT|0-4|early|high|True|False|NEUTRAL|LOW": 4,
+  "SOFT|5-9|mid|high|True|False|NEUTRAL|LOW": 104,
+  "SOFT|5-9|mid|high|False|False|NEUTRAL|LOW": 1460,
+  "SOFT|10-14|mid|high|False|False|NEUTRAL|LOW": 602,
+  "SOFT|10-14|mid|medium|False|False|NEUTRAL|LOW": 889,
+  "SOFT|15+|mid|medium|False|False|NEUTRAL|LOW": 2466,
+  "SOFT|15+|mid|high|False|False|NEUTRAL|LOW": 621,
+  "SOFT|15+|late|medium|False|False|NEUTRAL|LOW": 1747,
+  "SOFT|15+|late|high|False|False|NEUTRAL|LOW": 1084,
+  "SOFT|0-4|mid|low|False|False|NEUTRAL|LOW": 1512,
+  "SOFT|0-4|mid|medium|False|False|NEUTRAL|LOW": 333,
+  "SOFT|0-4|mid|high|False|False|NEUTRAL|LOW": 345,
+  "MEDIUM|0-4|early|high|False|False|NEUTRAL|OK": 1133,
+  "MEDIUM|5-9|early|high|False|False|NEUTRAL|OK": 2969,
+  "HARD|0-4|mid|low|False|False|NEUTRAL|OK": 6483,
+  "SOFT|0-4|early|medium|False|False|NEUTRAL|LOW": 134,
+  "SOFT|0-4|early|high|False|False|NEUTRAL|LOW": 108,
+  "SOFT|5-9|early|high|False|False|NEUTRAL|LOW": 257,
+  "SOFT|10-14|early|high|False|False|NEUTRAL|LOW": 30,
+  "SOFT|15+|mid|low|False|False|NEUTRAL|LOW": 308,
+  "SOFT|15+|late|low|False|False|NEUTRAL|LOW": 1223,
+  "MEDIUM|15+|late|medium|True|False|NEUTRAL|LOW": 169,
+  "MEDIUM|15+|late|low|True|False|NEUTRAL|LOW": 142,
+  "SOFT|0-4|early|low|False|True|NEUTRAL|OK": 173,
+  "SOFT|0-4|early|medium|False|True|NEUTRAL|OK": 66,
+  "SOFT|0-4|early|high|False|True|NEUTRAL|OK": 79,
+  "SOFT|5-9|early|high|False|True|NEUTRAL|OK": 184,
+  "SOFT|10-14|early|high|False|True|NEUTRAL|OK": 168,
+  "SOFT|15+|early|high|False|True|NEUTRAL|OK": 266,
+  "SOFT|15+|mid|high|False|True|NEUTRAL|OK": 334,
+  "SOFT|15+|mid|medium|False|True|NEUTRAL|OK": 88,
+  "SOFT|15+|mid|low|False|True|NEUTRAL|OK": 679,
+  "SOFT|15+|mid|low|True|True|NEUTRAL|OK": 57,
+  "SOFT|15+|mid|low|False|True|OPPORTUNITY_AHEAD|OK": 138,
+  "SOFT|15+|late|low|False|True|NEUTRAL|OK": 403,
+  "SOFT|0-4|early|medium|True|False|NEUTRAL|LOW": 6,
+  "HARD|0-4|early|low|True|False|NEUTRAL|LOW": 101,
+  "HARD|5-9|early|medium|False|False|NEUTRAL|LOW": 85,
+  "HARD|15+|late|high|False|False|NEUTRAL|LOW": 439,
+  "SOFT|15+|mid|high|True|False|NEUTRAL|LOW": 41,
+  "HARD|15+|mid|low|True|False|NEUTRAL|LOW": 189,
+  "HARD|15+|mid|medium|True|False|NEUTRAL|LOW": 66,
+  "HARD|15+|late|low|True|False|NEUTRAL|LOW": 162,
+  "MEDIUM|0-4|early|low|False|True|NEUTRAL|OK": 68,
+  "MEDIUM|0-4|early|medium|False|True|NEUTRAL|OK": 94,
+  "MEDIUM|0-4|early|high|False|True|NEUTRAL|OK": 58,
+  "MEDIUM|5-9|early|high|False|True|NEUTRAL|OK": 209,
+  "MEDIUM|10-14|early|high|False|True|NEUTRAL|OK": 93,
+  "MEDIUM|10-14|early|medium|False|True|NEUTRAL|OK": 105,
+  "MEDIUM|15+|early|medium|False|True|NEUTRAL|OK": 255,
+  "MEDIUM|15+|early|medium|False|True|OPPORTUNITY_AHEAD|OK": 19,
+  "MEDIUM|15+|mid|high|False|True|OPPORTUNITY_AHEAD|OK": 34,
+  "MEDIUM|15+|mid|medium|False|True|NEUTRAL|OK": 353,
+  "MEDIUM|15+|mid|high|False|True|NEUTRAL|OK": 233,
+  "MEDIUM|15+|mid|low|False|True|NEUTRAL|OK": 136,
+  "MEDIUM|15+|late|high|False|True|NEUTRAL|OK": 84,
+  "MEDIUM|15+|late|low|False|True|NEUTRAL|OK": 210,
+  "HARD|5-9|early|low|True|False|NEUTRAL|LOW": 14,
+  "HARD|5-9|early|medium|True|False|NEUTRAL|LOW": 3,
+  "HARD|5-9|mid|medium|True|False|NEUTRAL|LOW": 54,
+  "MEDIUM|5-9|mid|high|True|False|NEUTRAL|LOW": 49,
+  "MEDIUM|5-9|mid|medium|True|False|NEUTRAL|LOW": 42,
+  "MEDIUM|10-14|mid|medium|True|False|NEUTRAL|LOW": 81,
+  "SOFT|15+|mid|medium|True|False|NEUTRAL|LOW": 141,
+  "SOFT|15+|late|high|True|False|NEUTRAL|LOW": 73,
+  "SOFT|0-4|early|high|False|False|NEUTRAL|OK": 1882,
+  "HARD|5-9|mid|low|True|False|NEUTRAL|LOW": 84,
+  "HARD|10-14|mid|medium|True|False|NEUTRAL|LOW": 88,
+  "HARD|15+|mid|low|False|False|OPPORTUNITY_AHEAD|LOW": 2,
+  "HARD|15+|late|low|False|False|OPPORTUNITY_AHEAD|LOW": 6,
+  "HARD|15+|late|medium|False|False|OPPORTUNITY_AHEAD|LOW": 3,
+  "HARD|10-14|early|medium|False|False|NEUTRAL|LOW": 43,
+  "HARD|15+|late|high|True|False|NEUTRAL|LOW": 32,
+  "HARD|10-14|mid|low|True|False|NEUTRAL|LOW": 35,
+  "SOFT|10-14|mid|high|True|False|NEUTRAL|LOW": 36,
+  "SOFT|10-14|mid|medium|True|False|NEUTRAL|LOW": 45,
+  "HARD|10-14|early|low|False|False|NEUTRAL|LOW": 5,
+  "MEDIUM|15+|mid|low|True|False|NEUTRAL|LOW": 89,
+  "HARD|5-9|early|low|False|False|NEUTRAL|OK": 669,
+  "MEDIUM|10-14|mid|low|True|False|NEUTRAL|LOW": 18,
+  "SOFT|5-9|early|high|True|True|NEUTRAL|OK": 15,
+  "SOFT|5-9|early|high|True|True|THREAT_BEHIND|OK": 3,
+  "SOFT|10-14|early|high|True|True|THREAT_BEHIND|OK": 5,
+  "SOFT|10-14|early|high|False|True|THREAT_BEHIND|OK": 13,
+  "SOFT|15+|early|high|False|True|THREAT_BEHIND|OK": 58,
+  "SOFT|15+|mid|high|False|True|THREAT_BEHIND|OK": 55,
+  "SOFT|15+|mid|high|False|True|OPPORTUNITY_AHEAD|OK": 39,
+  "SOFT|15+|mid|medium|False|True|THREAT_BEHIND|OK": 15,
+  "SOFT|15+|mid|medium|False|True|OPPORTUNITY_AHEAD|OK": 7,
+  "SOFT|15+|mid|low|False|True|THREAT_BEHIND|OK": 148,
+  "SOFT|15+|late|low|False|True|OPPORTUNITY_AHEAD|OK": 110,
+  "SOFT|15+|late|low|True|True|OPPORTUNITY_AHEAD|OK": 21,
+  "SOFT|5-9|early|high|False|True|OPPORTUNITY_AHEAD|OK": 1,
+  "SOFT|10-14|early|high|False|True|OPPORTUNITY_AHEAD|OK": 9,
+  "SOFT|15+|early|high|False|True|OPPORTUNITY_AHEAD|OK": 23,
+  "SOFT|15+|early|medium|False|True|OPPORTUNITY_AHEAD|OK": 3,
+  "MEDIUM|0-4|mid|low|False|False|NEUTRAL|OK": 2832,
+  "SOFT|10-14|late|medium|False|False|NEUTRAL|LOW": 244,
+  "SOFT|5-9|early|low|False|False|NEUTRAL|LOW": 21,
+  "SOFT|5-9|mid|low|False|False|NEUTRAL|LOW": 82,
+  "SOFT|10-14|mid|low|False|False|NEUTRAL|LOW": 82,
+  "SOFT|10-14|early|medium|False|False|NEUTRAL|LOW": 6,
+  "SOFT|15+|late|low|True|False|NEUTRAL|LOW": 70,
+  "SOFT|0-4|mid|low|True|False|NEUTRAL|LOW": 105,
+  "SOFT|0-4|mid|medium|True|False|NEUTRAL|LOW": 23,
+  "HARD|15+|late|medium|True|False|NEUTRAL|LOW": 119,
+  "SOFT|10-14|early|low|False|False|NEUTRAL|LOW": 7,
+  "MEDIUM|0-4|mid|low|True|False|NEUTRAL|LOW": 128,
+  "MEDIUM|0-4|mid|medium|True|False|NEUTRAL|LOW": 68,
+  "MEDIUM|0-4|early|medium|True|False|NEUTRAL|LOW": 14,
+  "SOFT|0-4|mid|high|True|False|NEUTRAL|LOW": 20,
+  "SOFT|5-9|early|high|False|True|THREAT_BEHIND|OK": 7,
+  "SOFT|15+|late|low|True|True|NEUTRAL|OK": 38,
+  "SOFT|15+|late|medium|True|False|NEUTRAL|LOW": 135,
+  "SOFT|0-4|early|medium|True|False|NEUTRAL|OK": 109,
+  "SOFT|0-4|early|high|False|True|THREAT_BEHIND|OK": 1,
+  "SOFT|15+|late|low|False|True|THREAT_BEHIND|OK": 177,
+  "HARD|10-14|late|low|False|False|NEUTRAL|LOW": 179,
+  "SOFT|15+|mid|low|True|False|NEUTRAL|LOW": 11,
+  "SOFT|15+|late|low|False|False|THREAT_BEHIND|LOW": 14,
+  "MEDIUM|15+|late|low|False|False|THREAT_BEHIND|LOW": 7,
+  "MEDIUM|15+|late|medium|False|False|THREAT_BEHIND|LOW": 7,
+  "SOFT|10-14|early|high|True|False|NEUTRAL|LOW": 5,
+  "SOFT|10-14|early|medium|True|False|NEUTRAL|LOW": 2,
+  "SOFT|0-4|mid|low|False|False|NEUTRAL|OK": 1971,
+  "MEDIUM|0-4|early|medium|True|False|NEUTRAL|OK": 300,
+  "HARD|0-4|early|low|False|True|NEUTRAL|OK": 216,
+  "HARD|5-9|early|low|False|True|NEUTRAL|OK": 22,
+  "HARD|5-9|early|medium|False|True|NEUTRAL|OK": 167,
+  "HARD|10-14|early|medium|False|True|NEUTRAL|OK": 177,
+  "HARD|15+|early|medium|False|True|NEUTRAL|OK": 351,
+  "HARD|15+|early|low|False|True|NEUTRAL|OK": 12,
+  "HARD|15+|mid|medium|False|True|NEUTRAL|OK": 399,
+  "HARD|15+|mid|low|False|True|NEUTRAL|OK": 61,
+  "HARD|15+|mid|high|False|True|NEUTRAL|OK": 302,
+  "HARD|15+|late|high|False|True|NEUTRAL|OK": 86,
+  "HARD|15+|late|low|False|True|NEUTRAL|OK": 215,
+  "SOFT|5-9|early|low|False|True|NEUTRAL|OK": 100,
+  "SOFT|10-14|early|low|False|True|NEUTRAL|OK": 90,
+  "SOFT|15+|early|low|False|True|NEUTRAL|OK": 173,
+  "SOFT|15+|early|medium|False|True|NEUTRAL|OK": 25,
+  "SOFT|5-9|early|high|True|False|NEUTRAL|LOW": 8,
+  "HARD|15+|late|medium|False|True|NEUTRAL|OK": 10,
+  "HARD|15+|late|high|True|True|NEUTRAL|OK": 5,
+  "MEDIUM|10-14|early|high|False|False|NEUTRAL|LOW": 1,
+  "MEDIUM|15+|early|medium|True|True|NEUTRAL|OK": 12,
+  "MEDIUM|15+|late|medium|False|True|NEUTRAL|OK": 17,
+  "MEDIUM|15+|late|low|True|True|NEUTRAL|OK": 18,
+  "MEDIUM|15+|late|high|False|False|THREAT_BEHIND|LOW": 5,
+  "SOFT|0-4|early|high|True|False|NEUTRAL|OK": 107,
+  "MEDIUM|5-9|early|high|True|False|NEUTRAL|LOW": 4,
+  "MEDIUM|10-14|early|medium|True|False|NEUTRAL|LOW": 2,
+  "MEDIUM|15+|late|high|True|False|NEUTRAL|LOW": 21,
+  "HARD|0-4|early|medium|False|True|NEUTRAL|OK": 3,
+  "HARD|5-9|early|high|False|True|NEUTRAL|OK": 3,
+  "HARD|10-14|early|high|False|True|NEUTRAL|OK": 37,
+  "HARD|15+|early|high|False|True|NEUTRAL|OK": 4,
+  "HARD|15+|mid|high|False|False|NEUTRAL|LOW": 2,
+  "HARD|10-14|early|medium|False|True|THREAT_BEHIND|OK": 1,
+  "HARD|15+|early|medium|False|True|THREAT_BEHIND|OK": 19,
+  "HARD|15+|mid|medium|False|True|THREAT_BEHIND|OK": 54,
+  "HARD|15+|mid|high|False|True|THREAT_BEHIND|OK": 58,
+  "HARD|15+|mid|high|True|True|THREAT_BEHIND|OK": 1,
+  "HARD|15+|mid|high|True|True|NEUTRAL|OK": 7,
+  "HARD|15+|late|low|False|True|THREAT_BEHIND|OK": 67,
+  "SOFT|5-9|early|high|False|False|NEUTRAL|OK": 2074,
+  "MEDIUM|0-4|mid|medium|False|False|NEUTRAL|OK": 2283,
+  "MEDIUM|15+|mid|medium|False|False|OPPORTUNITY_AHEAD|LOW": 2,
+  "MEDIUM|15+|late|low|False|False|OPPORTUNITY_AHEAD|LOW": 6,
+  "MEDIUM|10-14|late|low|False|False|NEUTRAL|LOW": 79,
+  "MEDIUM|10-14|early|high|False|True|THREAT_BEHIND|OK": 3,
+  "MEDIUM|10-14|early|medium|False|True|OPPORTUNITY_AHEAD|OK": 5,
+  "MEDIUM|15+|early|medium|False|True|THREAT_BEHIND|OK": 30,
+  "MEDIUM|15+|mid|medium|False|True|OPPORTUNITY_AHEAD|OK": 55,
+  "MEDIUM|15+|mid|high|False|True|THREAT_BEHIND|OK": 61,
+  "MEDIUM|15+|mid|medium|False|True|THREAT_BEHIND|OK": 64,
+  "MEDIUM|15+|mid|low|False|True|THREAT_BEHIND|OK": 28,
+  "MEDIUM|15+|late|high|False|True|THREAT_BEHIND|OK": 16,
+  "MEDIUM|5-9|late|high|False|False|NEUTRAL|LOW": 329,
+  "SOFT|15+|mid|high|False|False|THREAT_BEHIND|LOW": 5,
+  "SOFT|15+|mid|medium|False|False|THREAT_BEHIND|LOW": 1,
+  "HARD|15+|late|low|False|True|OPPORTUNITY_AHEAD|OK": 84,
+  "MEDIUM|15+|early|high|False|True|NEUTRAL|OK": 58,
+  "MEDIUM|15+|late|low|False|True|THREAT_BEHIND|OK": 60,
+  "SOFT|5-9|mid|low|True|False|NEUTRAL|LOW": 4,
+  "MEDIUM|0-4|mid|low|True|False|NEUTRAL|OK": 184,
+  "HARD|0-4|mid|low|True|False|NEUTRAL|OK": 390,
+  "SOFT|0-4|mid|medium|False|False|NEUTRAL|OK": 408,
+  "MEDIUM|15+|mid|low|False|False|OPPORTUNITY_AHEAD|LOW": 9,
+  "MEDIUM|15+|late|medium|False|False|OPPORTUNITY_AHEAD|LOW": 5,
+  "MEDIUM|15+|late|high|False|False|OPPORTUNITY_AHEAD|LOW": 4,
+  "MEDIUM|15+|mid|low|True|True|NEUTRAL|OK": 9,
+  "MEDIUM|15+|mid|medium|True|True|NEUTRAL|OK": 23,
+  "SOFT|15+|mid|high|True|True|NEUTRAL|OK": 8,
+  "SOFT|15+|mid|high|True|True|OPPORTUNITY_AHEAD|OK": 7,
+  "SOFT|15+|mid|medium|True|True|OPPORTUNITY_AHEAD|OK": 3,
+  "HARD|10-14|late|medium|False|False|NEUTRAL|LOW": 387,
+  "HARD|5-9|early|medium|False|False|NEUTRAL|OK": 2184,
+  "MEDIUM|5-9|early|medium|True|False|NEUTRAL|LOW": 3,
+  "MEDIUM|5-9|mid|high|False|False|NEUTRAL|OK": 2432,
+  "HARD|5-9|late|low|False|False|NEUTRAL|LOW": 321,
+  "HARD|5-9|late|medium|False|False|NEUTRAL|LOW": 225,
+  "MEDIUM|15+|mid|low|False|True|OPPORTUNITY_AHEAD|OK": 23,
+  "HARD|15+|mid|medium|True|True|NEUTRAL|OK": 25,
+  "HARD|15+|mid|low|True|True|NEUTRAL|OK": 3,
+  "HARD|15+|late|low|True|True|NEUTRAL|OK": 4,
+  "HARD|15+|mid|high|False|True|OPPORTUNITY_AHEAD|OK": 59,
+  "HARD|15+|early|medium|True|True|NEUTRAL|OK": 20,
+  "HARD|5-9|mid|low|False|False|NEUTRAL|OK": 897,
+  "HARD|0-4|early|medium|False|False|NEUTRAL|OK": 35,
+  "MEDIUM|0-4|late|medium|False|False|NEUTRAL|LOW": 329,
+  "MEDIUM|10-14|late|high|False|False|NEUTRAL|LOW": 11,
+  "SOFT|15+|mid|high|True|True|THREAT_BEHIND|OK": 2,
+  "SOFT|15+|mid|medium|True|True|NEUTRAL|OK": 2,
+  "SOFT|0-4|mid|high|False|False|NEUTRAL|OK": 398,
+  "MEDIUM|5-9|mid|high|True|False|NEUTRAL|OK": 117,
+  "SOFT|5-9|late|high|False|False|NEUTRAL|LOW": 384,
+  "SOFT|10-14|late|high|False|False|NEUTRAL|LOW": 150,
+  "SOFT|5-9|early|low|False|False|NEUTRAL|OK": 622,
+  "SOFT|5-9|mid|high|False|False|NEUTRAL|OK": 541,
+  "SOFT|10-14|mid|low|True|False|NEUTRAL|LOW": 11,
+  "SOFT|0-4|mid|low|True|False|NEUTRAL|OK": 177,
+  "SOFT|15+|early|low|False|True|OPPORTUNITY_AHEAD|OK": 31,
+  "MEDIUM|0-4|early|high|True|False|NEUTRAL|OK": 59,
+  "MEDIUM|5-9|early|medium|False|False|NEUTRAL|OK": 4,
+  "SOFT|10-14|early|low|False|True|THREAT_BEHIND|OK": 4,
+  "SOFT|15+|early|low|False|True|THREAT_BEHIND|OK": 21,
+  "HARD|10-14|early|medium|False|False|NEUTRAL|OK": 1097,
+  "MEDIUM|0-4|late|low|False|False|NEUTRAL|LOW": 439,
+  "MEDIUM|5-9|late|medium|False|False|NEUTRAL|LOW": 273,
+  "MEDIUM|5-9|early|high|True|True|NEUTRAL|OK": 10,
+  "MEDIUM|10-14|early|high|True|True|NEUTRAL|OK": 4,
+  "MEDIUM|10-14|early|medium|True|True|NEUTRAL|OK": 1,
+  "HARD|10-14|late|low|True|False|NEUTRAL|LOW": 16,
+  "MEDIUM|15+|mid|high|True|False|NEUTRAL|LOW": 1,
+  "MEDIUM|10-14|late|low|True|False|NEUTRAL|LOW": 3,
+  "MEDIUM|15+|mid|medium|True|True|THREAT_BEHIND|OK": 4,
+  "MEDIUM|15+|mid|high|True|True|THREAT_BEHIND|OK": 1,
+  "MEDIUM|0-4|mid|medium|True|False|NEUTRAL|OK": 188,
+  "HARD|0-4|late|low|False|False|NEUTRAL|LOW": 750,
+  "SOFT|10-14|early|high|True|True|NEUTRAL|OK": 15,
+  "MEDIUM|15+|late|high|True|True|NEUTRAL|OK": 4,
+  "HARD|5-9|mid|low|True|False|NEUTRAL|OK": 54,
+  "HARD|0-4|late|low|True|False|NEUTRAL|LOW": 48,
+  "HARD|5-9|late|medium|True|False|NEUTRAL|LOW": 19,
+  "HARD|10-14|late|medium|True|False|NEUTRAL|LOW": 19,
+  "MEDIUM|15+|early|high|False|True|THREAT_BEHIND|OK": 5,
+  "MEDIUM|15+|late|low|False|True|OPPORTUNITY_AHEAD|OK": 64,
+  "HARD|5-9|mid|medium|False|False|NEUTRAL|OK": 2131,
+  "SOFT|5-9|late|high|True|False|NEUTRAL|LOW": 15,
+  "SOFT|10-14|late|high|True|False|NEUTRAL|LOW": 9,
+  "SOFT|10-14|late|medium|True|False|NEUTRAL|LOW": 24,
+  "HARD|5-9|early|low|True|False|NEUTRAL|OK": 35,
+  "SOFT|0-4|mid|medium|True|False|NEUTRAL|OK": 48,
+  "SOFT|0-4|mid|high|True|False|NEUTRAL|OK": 28,
+  "MEDIUM|5-9|early|high|False|True|OPPORTUNITY_AHEAD|OK": 1,
+  "MEDIUM|10-14|early|high|False|True|OPPORTUNITY_AHEAD|OK": 2,
+  "MEDIUM|15+|late|medium|False|True|OPPORTUNITY_AHEAD|OK": 4,
+  "MEDIUM|15+|late|high|False|True|OPPORTUNITY_AHEAD|OK": 13,
+  "SOFT|0-4|late|medium|False|False|NEUTRAL|LOW": 79,
+  "SOFT|0-4|late|high|False|False|NEUTRAL|LOW": 76,
+  "MEDIUM|5-9|mid|medium|False|False|NEUTRAL|OK": 22,
+  "HARD|5-9|late|low|True|False|NEUTRAL|LOW": 31,
+  "MEDIUM|5-9|early|medium|True|False|NEUTRAL|OK": 1,
+  "SOFT|10-14|early|high|False|False|NEUTRAL|OK": 916,
+  "MEDIUM|5-9|early|high|True|False|NEUTRAL|OK": 179,
+  "SOFT|0-4|late|low|False|False|NEUTRAL|LOW": 346,
+  "SOFT|15+|early|medium|True|True|NEUTRAL|OK": 4,
+  "HARD|0-4|late|low|False|False|NEUTRAL|OK": 1670,
+  "HARD|15+|early|medium|False|True|OPPORTUNITY_AHEAD|OK": 33,
+  "HARD|15+|mid|medium|False|True|OPPORTUNITY_AHEAD|OK": 100,
+  "HARD|15+|mid|low|False|True|OPPORTUNITY_AHEAD|OK": 13,
+  "SOFT|10-14|mid|high|False|False|NEUTRAL|OK": 274,
+  "HARD|15+|mid|high|True|True|OPPORTUNITY_AHEAD|OK": 7,
+  "HARD|15+|late|medium|False|True|OPPORTUNITY_AHEAD|OK": 5,
+  "HARD|15+|late|high|False|True|THREAT_BEHIND|OK": 20,
+  "SOFT|5-9|early|high|True|False|NEUTRAL|OK": 134,
+  "MEDIUM|0-4|late|low|True|False|NEUTRAL|LOW": 36,
+  "MEDIUM|0-4|mid|high|False|False|NEUTRAL|OK": 387,
+  "MEDIUM|0-4|late|low|False|False|NEUTRAL|OK": 662,
+  "MEDIUM|0-4|late|medium|True|False|NEUTRAL|LOW": 16,
+  "SOFT|0-4|late|medium|True|False|NEUTRAL|LOW": 7,
+  "SOFT|0-4|late|high|True|False|NEUTRAL|LOW": 8,
+  "MEDIUM|15+|early|high|False|True|OPPORTUNITY_AHEAD|OK": 4,
+  "HARD|10-14|mid|medium|False|False|NEUTRAL|OK": 1613,
+  "SOFT|5-9|early|low|True|True|NEUTRAL|OK": 14,
+  "SOFT|10-14|early|low|True|True|NEUTRAL|OK": 11,
+  "SOFT|15+|early|low|True|True|NEUTRAL|OK": 11,
+  "HARD|15+|late|high|False|True|OPPORTUNITY_AHEAD|OK": 36,
+  "HARD|5-9|early|medium|True|False|NEUTRAL|OK": 78,
+  "MEDIUM|5-9|late|medium|True|False|NEUTRAL|LOW": 20,
+  "HARD|5-9|early|medium|True|True|NEUTRAL|OK": 30,
+  "HARD|10-14|early|high|True|True|NEUTRAL|OK": 5,
+  "HARD|15+|mid|medium|True|True|THREAT_BEHIND|OK": 5,
+  "SOFT|0-4|late|low|False|False|NEUTRAL|OK": 462,
+  "SOFT|0-4|late|medium|False|False|NEUTRAL|OK": 85,
+  "SOFT|5-9|mid|high|True|False|NEUTRAL|OK": 20,
+  "MEDIUM|10-14|mid|high|False|False|NEUTRAL|OK": 437,
+  "MEDIUM|10-14|mid|medium|False|False|NEUTRAL|OK": 858,
+  "HARD|10-14|early|high|False|False|NEUTRAL|OK": 159,
+  "SOFT|15+|early|high|True|True|NEUTRAL|OK": 16,
+  "MEDIUM|5-9|early|high|False|False|OPPORTUNITY_AHEAD|OK": 8,
+  "MEDIUM|10-14|early|high|False|False|NEUTRAL|OK": 644,
+  "MEDIUM|10-14|early|medium|False|False|NEUTRAL|OK": 646,
+  "HARD|15+|mid|low|False|True|THREAT_BEHIND|OK": 15,
+  "HARD|5-9|mid|medium|True|False|NEUTRAL|OK": 88,
+  "HARD|5-9|late|medium|False|False|NEUTRAL|OK": 784,
+  "HARD|10-14|late|medium|False|False|NEUTRAL|OK": 748,
+  "SOFT|15+|late|low|True|True|THREAT_BEHIND|OK": 13,
+  "HARD|10-14|early|medium|False|True|OPPORTUNITY_AHEAD|OK": 5,
+  "SOFT|5-9|early|low|True|False|NEUTRAL|OK": 40,
+  "MEDIUM|10-14|late|medium|True|False|NEUTRAL|LOW": 19,
+  "MEDIUM|0-4|late|medium|False|False|NEUTRAL|OK": 721,
+  "MEDIUM|10-14|mid|high|True|False|NEUTRAL|LOW": 2,
+  "SOFT|0-4|early|low|False|False|THREAT_BEHIND|OK": 1,
+  "MEDIUM|5-9|late|high|False|False|NEUTRAL|OK": 906,
+  "HARD|0-4|late|low|True|False|NEUTRAL|OK": 130,
+  "SOFT|0-4|late|low|True|False|NEUTRAL|OK": 74,
+  "MEDIUM|10-14|early|high|True|False|NEUTRAL|OK": 44,
+  "MEDIUM|5-9|late|high|True|False|NEUTRAL|LOW": 12,
+  "HARD|10-14|early|medium|True|True|NEUTRAL|OK": 1,
+  "MEDIUM|0-4|early|high|False|False|THREAT_BEHIND|OK": 1,
+  "MEDIUM|5-9|early|high|False|False|THREAT_BEHIND|OK": 13,
+  "MEDIUM|0-4|late|low|True|False|NEUTRAL|OK": 52,
+  "SOFT|0-4|late|low|True|False|NEUTRAL|LOW": 31,
+  "HARD|15+|mid|medium|False|False|NEUTRAL|OK": 2375,
+  "HARD|0-4|early|low|True|True|NEUTRAL|OK": 11,
+  "HARD|5-9|early|low|True|True|NEUTRAL|OK": 3,
+  "MEDIUM|5-9|late|medium|False|False|NEUTRAL|OK": 8,
+  "SOFT|0-4|early|high|True|True|NEUTRAL|OK": 4,
+  "HARD|5-9|late|low|False|False|NEUTRAL|OK": 334,
+  "SOFT|5-9|mid|low|False|False|NEUTRAL|OK": 44,
+  "SOFT|5-9|late|low|False|False|NEUTRAL|OK": 19,
+  "SOFT|0-4|late|high|False|False|NEUTRAL|OK": 109,
+  "SOFT|10-14|late|high|False|False|NEUTRAL|OK": 17,
+  "HARD|15+|early|medium|False|False|NEUTRAL|OK": 916,
+  "SOFT|5-9|late|high|False|False|NEUTRAL|OK": 151,
+  "HARD|0-4|early|low|False|False|OPPORTUNITY_AHEAD|OK": 9,
+  "SOFT|10-14|early|low|False|False|NEUTRAL|OK": 397,
+  "HARD|10-14|early|medium|True|False|NEUTRAL|OK": 62,
+  "HARD|5-9|early|low|False|False|OPPORTUNITY_AHEAD|OK": 2,
+  "HARD|5-9|early|medium|False|False|OPPORTUNITY_AHEAD|OK": 13,
+  "HARD|15+|mid|low|False|False|NEUTRAL|OK": 295,
+  "SOFT|5-9|late|low|False|False|NEUTRAL|LOW": 11,
+  "SOFT|10-14|late|low|False|False|NEUTRAL|LOW": 13,
+  "SOFT|15+|early|medium|False|False|NEUTRAL|OK": 67,
+  "MEDIUM|5-9|early|high|False|True|THREAT_BEHIND|OK": 5,
+  "MEDIUM|10-14|early|medium|False|True|THREAT_BEHIND|OK": 9,
+  "MEDIUM|15+|mid|high|True|True|NEUTRAL|OK": 10,
+  "MEDIUM|15+|late|high|True|True|THREAT_BEHIND|OK": 1,
+  "MEDIUM|15+|late|low|True|True|THREAT_BEHIND|OK": 1,
+  "MEDIUM|15+|early|medium|False|False|NEUTRAL|OK": 841,
+  "HARD|10-14|early|high|False|False|OPPORTUNITY_AHEAD|OK": 8,
+  "SOFT|15+|mid|medium|False|False|NEUTRAL|OK": 288,
+  "SOFT|15+|mid|high|True|False|NEUTRAL|OK": 32,
+  "MEDIUM|0-4|mid|high|True|False|NEUTRAL|OK": 21,
+  "SOFT|10-14|mid|medium|False|False|NEUTRAL|OK": 18,
+  "HARD|10-14|late|low|False|False|NEUTRAL|OK": 9,
+  "HARD|15+|late|low|False|False|NEUTRAL|OK": 252,
+  "SOFT|10-14|early|high|True|False|NEUTRAL|OK": 70,
+  "MEDIUM|15+|mid|medium|False|False|NEUTRAL|OK": 2058,
+  "MEDIUM|0-4|late|medium|True|False|NEUTRAL|OK": 39,
+  "HARD|15+|early|medium|False|False|OPPORTUNITY_AHEAD|OK": 26,
+  "HARD|15+|early|low|False|False|OPPORTUNITY_AHEAD|OK": 2,
+  "MEDIUM|10-14|late|high|False|False|NEUTRAL|OK": 167,
+  "MEDIUM|10-14|late|medium|False|False|NEUTRAL|OK": 420,
+  "SOFT|0-4|late|medium|True|False|NEUTRAL|OK": 19,
+  "SOFT|0-4|late|high|True|False|NEUTRAL|OK": 16,
+  "SOFT|5-9|late|high|True|False|NEUTRAL|OK": 8,
+  "SOFT|15+|late|high|False|True|NEUTRAL|OK": 3,
+  "SOFT|15+|late|high|False|True|OPPORTUNITY_AHEAD|OK": 1,
+  "SOFT|15+|late|medium|False|True|NEUTRAL|OK": 2,
+  "HARD|5-9|early|medium|False|False|THREAT_BEHIND|OK": 19,
+  "SOFT|15+|late|medium|False|False|NEUTRAL|OK": 20,
+  "MEDIUM|15+|late|medium|False|False|NEUTRAL|OK": 1010,
+  "MEDIUM|15+|late|low|False|False|NEUTRAL|OK": 236,
+  "MEDIUM|0-4|late|high|False|False|NEUTRAL|OK": 97,
+  "MEDIUM|10-14|late|high|True|False|NEUTRAL|LOW": 1,
+  "SOFT|15+|early|low|False|False|NEUTRAL|OK": 398,
+  "HARD|15+|mid|low|True|True|THREAT_BEHIND|OK": 4,
+  "MEDIUM|10-14|mid|high|True|False|NEUTRAL|OK": 21,
+  "SOFT|15+|early|high|False|False|NEUTRAL|OK": 658,
+  "SOFT|15+|mid|high|False|False|NEUTRAL|OK": 1101,
+  "HARD|10-14|mid|low|False|False|NEUTRAL|OK": 4,
+  "HARD|10-14|mid|medium|True|False|NEUTRAL|OK": 61,
+  "MEDIUM|10-14|early|medium|True|False|NEUTRAL|OK": 55,
+  "HARD|5-9|early|high|True|False|NEUTRAL|OK": 2,
+  "HARD|10-14|early|high|True|False|NEUTRAL|OK": 4,
+  "MEDIUM|15+|late|medium|False|True|THREAT_BEHIND|OK": 9,
+  "SOFT|10-14|mid|medium|True|False|NEUTRAL|OK": 1,
+  "HARD|15+|late|medium|False|False|NEUTRAL|OK": 1533,
+  "SOFT|10-14|mid|low|False|False|NEUTRAL|OK": 53,
+  "HARD|15+|early|low|False|False|NEUTRAL|OK": 48,
+  "MEDIUM|10-14|late|medium|True|False|NEUTRAL|OK": 23,
+  "SOFT|10-14|early|medium|False|False|NEUTRAL|OK": 8,
+  "MEDIUM|15+|mid|high|False|False|NEUTRAL|OK": 692,
+  "MEDIUM|15+|early|medium|True|False|NEUTRAL|OK": 40,
+  "MEDIUM|10-14|early|high|False|False|OPPORTUNITY_AHEAD|OK": 3,
+  "MEDIUM|5-9|late|high|True|False|NEUTRAL|OK": 40,
+  "MEDIUM|15+|mid|medium|True|False|NEUTRAL|OK": 120,
+  "HARD|5-9|late|low|True|False|NEUTRAL|OK": 10,
+  "HARD|5-9|late|medium|True|False|NEUTRAL|OK": 52,
+  "SOFT|10-14|early|high|False|False|THREAT_BEHIND|OK": 4,
+  "MEDIUM|15+|mid|low|False|False|NEUTRAL|OK": 215,
+  "HARD|5-9|early|high|False|False|NEUTRAL|OK": 21,
+  "HARD|15+|mid|low|True|False|NEUTRAL|OK": 11,
+  "HARD|15+|mid|medium|True|False|NEUTRAL|OK": 135,
+  "SOFT|15+|early|low|False|False|THREAT_BEHIND|OK": 4,
+  "HARD|15+|late|low|True|True|THREAT_BEHIND|OK": 8,
+  "SOFT|0-4|early|low|True|True|NEUTRAL|OK": 1,
+  "SOFT|0-4|early|medium|True|True|NEUTRAL|OK": 1,
+  "SOFT|15+|mid|low|True|True|THREAT_BEHIND|OK": 9,
+  "MEDIUM|5-9|mid|medium|True|False|NEUTRAL|OK": 2,
+  "MEDIUM|10-14|mid|medium|True|False|NEUTRAL|OK": 43,
+  "HARD|10-14|late|medium|True|False|NEUTRAL|OK": 27,
+  "HARD|10-14|early|medium|False|False|OPPORTUNITY_AHEAD|OK": 13,
+  "HARD|15+|early|medium|True|False|NEUTRAL|OK": 34,
+  "MEDIUM|15+|late|high|False|False|NEUTRAL|OK": 324,
+  "HARD|10-14|mid|high|False|False|NEUTRAL|OK": 64,
+  "MEDIUM|15+|early|high|False|False|NEUTRAL|OK": 124,
+  "MEDIUM|15+|mid|high|False|False|THREAT_BEHIND|OK": 3,
+  "HARD|15+|early|low|False|True|OPPORTUNITY_AHEAD|OK": 1,
+  "SOFT|15+|early|high|True|False|NEUTRAL|OK": 17,
+  "SOFT|15+|mid|low|False|False|NEUTRAL|OK": 732,
+  "SOFT|15+|late|low|False|False|NEUTRAL|OK": 340,
+  "SOFT|10-14|late|low|False|False|NEUTRAL|OK": 11,
+  "MEDIUM|15+|early|medium|False|False|OPPORTUNITY_AHEAD|OK": 9,
+  "SOFT|5-9|mid|low|True|False|NEUTRAL|OK": 5,
+  "HARD|15+|late|medium|True|False|NEUTRAL|OK": 42,
+  "HARD|15+|mid|high|False|False|NEUTRAL|OK": 196,
+  "MEDIUM|0-4|late|high|True|False|NEUTRAL|OK": 7,
+  "SOFT|10-14|early|low|False|True|OPPORTUNITY_AHEAD|OK": 10,
+  "SOFT|10-14|early|low|False|False|THREAT_BEHIND|OK": 6,
+  "MEDIUM|15+|late|medium|True|False|NEUTRAL|OK": 28,
+  "SOFT|10-14|mid|high|True|False|NEUTRAL|OK": 15,
+  "SOFT|15+|mid|medium|True|False|NEUTRAL|OK": 13,
+  "SOFT|5-9|early|low|False|False|OPPORTUNITY_AHEAD|OK": 3,
+  "SOFT|10-14|early|low|False|False|OPPORTUNITY_AHEAD|OK": 5,
+  "SOFT|10-14|late|medium|False|False|NEUTRAL|OK": 2,
+  "MEDIUM|15+|mid|high|False|False|OPPORTUNITY_AHEAD|OK": 13,
+  "MEDIUM|15+|mid|high|True|False|OPPORTUNITY_AHEAD|OK": 1,
+  "MEDIUM|15+|mid|medium|True|False|OPPORTUNITY_AHEAD|OK": 3,
+  "HARD|15+|early|medium|False|False|THREAT_BEHIND|OK": 7,
+  "HARD|10-14|late|high|True|False|NEUTRAL|OK": 3,
+  "SOFT|15+|late|high|False|False|NEUTRAL|OK": 53,
+  "MEDIUM|15+|mid|high|True|False|NEUTRAL|OK": 27,
+  "HARD|0-4|early|low|False|False|THREAT_BEHIND|OK": 2,
+  "HARD|5-9|early|low|False|False|THREAT_BEHIND|OK": 1,
+  "MEDIUM|10-14|early|medium|False|False|THREAT_BEHIND|OK": 4,
+  "SOFT|15+|early|high|False|False|OPPORTUNITY_AHEAD|OK": 4,
+  "MEDIUM|15+|mid|medium|False|False|OPPORTUNITY_AHEAD|OK": 23,
+  "MEDIUM|10-14|early|high|False|False|THREAT_BEHIND|OK": 4,
+  "MEDIUM|15+|mid|medium|False|False|THREAT_BEHIND|OK": 10,
+  "HARD|15+|late|high|False|False|NEUTRAL|OK": 149,
+  "SOFT|5-9|early|low|False|False|THREAT_BEHIND|OK": 7,
+  "HARD|15+|mid|medium|False|False|THREAT_BEHIND|OK": 32,
+  "SOFT|5-9|early|high|False|False|OPPORTUNITY_AHEAD|OK": 7,
+  "HARD|5-9|mid|high|False|False|NEUTRAL|OK": 4,
+  "MEDIUM|10-14|early|high|True|False|THREAT_BEHIND|OK": 3,
+  "MEDIUM|15+|late|high|True|False|NEUTRAL|OK": 10,
+  "HARD|10-14|late|high|False|False|NEUTRAL|OK": 9,
+  "SOFT|10-14|early|low|True|False|NEUTRAL|OK": 18,
+  "HARD|15+|mid|medium|False|False|OPPORTUNITY_AHEAD|OK": 25,
+  "HARD|15+|mid|high|False|False|OPPORTUNITY_AHEAD|OK": 10,
+  "MEDIUM|10-14|late|high|True|False|NEUTRAL|OK": 4,
+  "SOFT|15+|early|low|True|False|NEUTRAL|OK": 16,
+  "SOFT|10-14|early|medium|True|False|NEUTRAL|OK": 1,
+  "HARD|15+|early|medium|True|False|THREAT_BEHIND|OK": 1,
+  "SOFT|15+|mid|high|True|False|THREAT_BEHIND|OK": 2,
+  "SOFT|15+|late|low|False|False|OPPORTUNITY_AHEAD|OK": 3,
+  "SOFT|10-14|early|high|True|False|THREAT_BEHIND|OK": 1,
+  "HARD|15+|early|high|False|False|NEUTRAL|OK": 6,
+  "SOFT|5-9|early|low|False|True|OPPORTUNITY_AHEAD|OK": 1,
+  "SOFT|15+|mid|high|False|False|THREAT_BEHIND|OK": 24,
+  "HARD|15+|mid|high|True|False|NEUTRAL|OK": 9,
+  "HARD|15+|mid|high|True|False|THREAT_BEHIND|OK": 2,
+  "SOFT|15+|mid|medium|False|False|THREAT_BEHIND|OK": 6,
+  "HARD|10-14|early|medium|False|False|THREAT_BEHIND|OK": 12,
+  "SOFT|15+|early|high|False|False|THREAT_BEHIND|OK": 17,
+  "MEDIUM|15+|mid|low|True|False|NEUTRAL|OK": 9,
+  "HARD|15+|early|medium|True|False|OPPORTUNITY_AHEAD|OK": 5,
+  "SOFT|15+|early|medium|True|False|NEUTRAL|OK": 5,
+  "HARD|5-9|early|medium|False|True|OPPORTUNITY_AHEAD|OK": 5,
+  "SOFT|15+|mid|low|False|False|OPPORTUNITY_AHEAD|OK": 38,
+  "MEDIUM|15+|early|medium|False|False|THREAT_BEHIND|OK": 10,
+  "HARD|15+|late|low|True|False|NEUTRAL|OK": 7,
+  "MEDIUM|10-14|early|medium|False|False|OPPORTUNITY_AHEAD|OK": 3,
+  "HARD|10-14|early|high|False|False|THREAT_BEHIND|OK": 3,
+  "HARD|10-14|early|medium|True|True|OPPORTUNITY_AHEAD|OK": 4,
+  "HARD|15+|early|medium|True|True|OPPORTUNITY_AHEAD|OK": 1,
+  "HARD|15+|early|low|True|False|NEUTRAL|OK": 3,
+  "MEDIUM|15+|early|high|False|False|OPPORTUNITY_AHEAD|OK": 5,
+  "SOFT|15+|mid|high|False|False|OPPORTUNITY_AHEAD|OK": 9,
+  "SOFT|15+|mid|medium|False|False|OPPORTUNITY_AHEAD|OK": 3,
+  "HARD|15+|mid|medium|True|False|OPPORTUNITY_AHEAD|OK": 2,
+  "SOFT|15+|early|low|False|False|OPPORTUNITY_AHEAD|OK": 12,
+  "MEDIUM|0-4|early|low|True|True|NEUTRAL|OK": 1,
+  "MEDIUM|0-4|early|medium|True|True|NEUTRAL|OK": 2,
+  "MEDIUM|0-4|early|high|True|True|NEUTRAL|OK": 2,
+  "SOFT|10-14|early|high|False|False|OPPORTUNITY_AHEAD|OK": 5,
+  "HARD|15+|late|high|True|True|OPPORTUNITY_AHEAD|OK": 2,
+  "MEDIUM|15+|mid|low|True|True|OPPORTUNITY_AHEAD|OK": 3,
+  "MEDIUM|15+|mid|medium|True|True|OPPORTUNITY_AHEAD|OK": 3,
+  "SOFT|5-9|early|high|True|False|OPPORTUNITY_AHEAD|OK": 3,
+  "SOFT|5-9|early|high|False|False|THREAT_BEHIND|OK": 5,
+  "SOFT|15+|late|low|False|False|THREAT_BEHIND|OK": 20,
+  "HARD|0-4|early|medium|False|False|OPPORTUNITY_AHEAD|OK": 1,
+  "HARD|5-9|early|high|False|False|OPPORTUNITY_AHEAD|OK": 1,
+  "HARD|15+|early|high|False|False|OPPORTUNITY_AHEAD|OK": 1,
+  "HARD|15+|late|high|False|False|THREAT_BEHIND|OK": 5,
+  "SOFT|15+|mid|low|True|False|NEUTRAL|OK": 28,
+  "HARD|15+|late|high|True|False|NEUTRAL|OK": 3,
+  "HARD|15+|mid|high|False|False|THREAT_BEHIND|OK": 16,
+  "MEDIUM|15+|late|low|False|False|THREAT_BEHIND|OK": 5,
+  "MEDIUM|15+|early|high|False|False|THREAT_BEHIND|OK": 3,
+  "HARD|5-9|mid|high|True|False|NEUTRAL|OK": 1,
+  "HARD|10-14|mid|high|True|False|NEUTRAL|OK": 1,
+  "MEDIUM|15+|mid|low|False|False|OPPORTUNITY_AHEAD|OK": 4,
+  "MEDIUM|15+|late|low|False|False|OPPORTUNITY_AHEAD|OK": 3,
+  "MEDIUM|15+|late|high|False|False|OPPORTUNITY_AHEAD|OK": 3,
+  "SOFT|15+|mid|low|False|False|THREAT_BEHIND|OK": 21,
+  "MEDIUM|15+|mid|low|True|True|THREAT_BEHIND|OK": 2,
+  "MEDIUM|15+|late|medium|False|False|THREAT_BEHIND|OK": 2,
+  "MEDIUM|15+|late|low|True|False|NEUTRAL|OK": 4,
+  "SOFT|0-4|early|high|False|False|THREAT_BEHIND|OK": 1,
+  "SOFT|15+|early|medium|False|False|THREAT_BEHIND|OK": 1,
+  "MEDIUM|5-9|early|high|True|False|THREAT_BEHIND|OK": 1,
+  "SOFT|15+|late|high|False|False|THREAT_BEHIND|OK": 2,
+  "HARD|15+|mid|low|False|False|THREAT_BEHIND|OK": 2,
+  "SOFT|15+|mid|medium|True|False|THREAT_BEHIND|OK": 2,
+  "HARD|15+|late|medium|False|False|OPPORTUNITY_AHEAD|OK": 1,
+  "HARD|15+|late|high|False|False|OPPORTUNITY_AHEAD|OK": 4,
+  "SOFT|15+|early|medium|True|False|THREAT_BEHIND|OK": 1,
+  "HARD|15+|late|low|False|False|OPPORTUNITY_AHEAD|OK": 3,
+  "SOFT|15+|late|low|True|False|NEUTRAL|OK": 2,
+  "SOFT|15+|early|high|True|True|THREAT_BEHIND|OK": 3,
+  "SOFT|15+|early|medium|False|True|THREAT_BEHIND|OK": 2,
+  "MEDIUM|10-14|early|medium|True|True|OPPORTUNITY_AHEAD|OK": 3,
+  "MEDIUM|15+|early|medium|True|True|OPPORTUNITY_AHEAD|OK": 2,
+  "MEDIUM|15+|mid|high|True|True|OPPORTUNITY_AHEAD|OK": 2,
+  "MEDIUM|15+|mid|low|False|False|THREAT_BEHIND|OK": 2,
+  "SOFT|15+|mid|low|True|True|OPPORTUNITY_AHEAD|OK": 2,
+  "HARD|15+|early|high|True|False|NEUTRAL|OK": 1,
+  "MEDIUM|0-4|early|high|False|False|OPPORTUNITY_AHEAD|OK": 1,
+  "MEDIUM|5-9|early|high|True|False|OPPORTUNITY_AHEAD|OK": 2
+ },
+ "actions": [
+  "STAY_OUT",
+  "PIT_SOFT",
+  "PIT_MEDIUM",
+  "PIT_HARD"
+ ]
+}

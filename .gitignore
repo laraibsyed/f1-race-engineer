@@ -10,3 +10,9 @@ gcs_cache
 metrics_checkpoints
 checkpoints
 rolling_profile_checkpoints
+eval_out
+eval_out_clean
+folds
+eval_out_clean_crossera
+eval_out_strategic_window
+checkpoints

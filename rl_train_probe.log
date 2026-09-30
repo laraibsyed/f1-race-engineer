@@ -1,0 +1,17 @@
+[rl_train] config: QLearningConfig(n_episodes=3000, alpha=0.15, gamma=0.97, epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_fraction=0.8, seed=42)
+  episode    300/3000  epsilon=0.882  recent mean return=-473.30s  visited states=196
+  episode    600/3000  epsilon=0.763  recent mean return=-409.08s  visited states=251
+  episode    900/3000  epsilon=0.644  recent mean return=-399.90s  visited states=286
+  episode   1200/3000  epsilon=0.525  recent mean return=-375.25s  visited states=345
+  episode   1500/3000  epsilon=0.407  recent mean return=-378.40s  visited states=379
+  episode   1800/3000  epsilon=0.288  recent mean return=-358.37s  visited states=427
+  episode   2100/3000  epsilon=0.169  recent mean return=-326.16s  visited states=465
+  episode   2400/3000  epsilon=0.050  recent mean return=-166.99s  visited states=511
+  episode   2700/3000  epsilon=0.050  recent mean return=-129.55s  visited states=557
+  episode   3000/3000  epsilon=0.050  recent mean return=-118.59s  visited states=588
+[rl_train] training took 891.4s for 3000 episodes
+
+[rl_train] mean return, FIRST 150 episodes: -420.64s
+[rl_train] mean return, LAST  150 episodes: -118.59s
+[rl_train] visited states: 588  (table size: 588)
+[rl_train] saved: system\HERMES\trees\rl_artifacts\qtable.json, training_curve.csv, training_curve.png

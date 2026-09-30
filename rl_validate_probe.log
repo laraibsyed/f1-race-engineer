@@ -1,0 +1,134 @@
+[rl_validate] loaded C:\Users\larai\f1-race-engineer\f1-race-engineer\system\HERMES\trees\rl_artifacts\qtable.json: 588 visited states, config=QLearningConfig(n_episodes=3000, alpha=0.15, gamma=0.97, epsilon_start=1.0, epsilon_end=0.05, epsilon_decay_fraction=0.8, seed=42)
+
+==============================================================================
+POLICY COMPARISON - 200 matched simulated episodes per policy, same per-episode seeds (9000..9199)
+==============================================================================
+
+  random:
+    mean reward   =   -461.13s
+    median reward =   -401.20s
+    std dev       =    366.94s
+    action distribution: {'STAY_OUT': '79.0%', 'PIT_SOFT': '6.1%', 'PIT_MEDIUM': '7.5%', 'PIT_HARD': '7.4%'}
+
+  untrained (all-zero Q):
+    mean reward   =    -64.76s
+    median reward =    -55.86s
+    std dev       =     41.93s
+    action distribution: {'STAY_OUT': '100.0%', 'PIT_SOFT': '0.0%', 'PIT_MEDIUM': '0.0%', 'PIT_HARD': '0.0%'}
+
+  trained Q-learning:
+    mean reward   =    -81.23s
+    median reward =    -73.58s
+    std dev       =     43.23s
+    action distribution: {'STAY_OUT': '98.8%', 'PIT_SOFT': '0.2%', 'PIT_MEDIUM': '0.2%', 'PIT_HARD': '0.8%'}
+
+  trained - random mean reward difference: +379.90s (trained is better (less negative time cost))
+  trained - untrained mean reward difference: -16.47s
+
+  trained policy reproducible across two identical-seed eval runs: True
+
+==============================================================================
+EXAMPLE SIMULATED DECISION TRACE (trained policy, greedy, env seed=777)
+==============================================================================
+  world: circuit=Canadian_Grand_Prix  era=2018-2021  total_laps=71  start_compound=SUPERSOFT  temp=warm  rain=False
+  lap  1: state=('SOFT', '0-4', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-14.06, confidence=25.66)  reward=-0.74s
+  lap  2: state=('SOFT', '0-4', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-14.06, confidence=25.66)  reward=-0.74s
+  lap  3: state=('SOFT', '0-4', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-14.06, confidence=25.66)  reward=-0.75s
+  lap  4: state=('SOFT', '0-4', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-14.06, confidence=25.66)  reward=-0.75s
+  lap  5: state=('SOFT', '0-4', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-14.06, confidence=25.66)  reward=-0.76s
+  lap  6: state=('SOFT', '5-9', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-13.11, confidence=16.16)  reward=-0.76s
+  lap  7: state=('SOFT', '5-9', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-13.11, confidence=16.16)  reward=-0.76s
+  lap  8: state=('SOFT', '5-9', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-13.11, confidence=16.16)  reward=-0.77s
+  lap  9: state=('SOFT', '5-9', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-13.11, confidence=16.16)  reward=-0.77s
+  lap 10: state=('SOFT', '5-9', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-13.11, confidence=16.16)  reward=-0.77s
+  lap 11: state=('SOFT', '10-14', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-16.04, confidence=7.91)  reward=-0.78s
+  lap 12: state=('SOFT', '10-14', 'early', 'low', False, False, 'NEUTRAL', 'OK')
+          -> action=STAY_OUT     (Q=-16.04, confidence=7.91)  reward=-0.78s
+
+==============================================================================
+HERMES INTEGRATION DEMO: RL recommendation -> Gate Tree -> Execution Tree
+==============================================================================
+  Using REAL replayed data: 2023 Bahrain Grand Prix, drivers VER/PER, laps 1-20
+[hermes] No weather data available for this race - Rainfall will be False for every lap (Tier 1's weather gate stays silent, same as before this integration) and drying_crossover will never fire.
+
+  L 1 VER: compound=SOFT tyre_age=4 tier_reached=3 gate_decision=PIT_LATER
+     RL recommendation : PIT_SOFT (Q=+0.00, confidence=0.00)
+     HERMES final      : STAY_OUT (instruction=MANAGE)
+     agree             : False
+     override reason   : Gate/Execution Tree's own Tier-3 evaluation reached 'STAY_OUT', which differs from RL's advisory 'PIT_SOFT' - the Gate/Execution Tree result is what actually executes; RL is informational only.
+
+  L 1 PER: compound=SOFT tyre_age=4 tier_reached=3 gate_decision=PIT_LATER
+     RL recommendation : STAY_OUT (Q=+0.00, confidence=0.00)
+     HERMES final      : STAY_OUT (instruction=MANAGE)
+     agree             : True
+
+  L 2 VER: compound=SOFT tyre_age=5 tier_reached=3 gate_decision=PIT_LATER
+     RL recommendation : PIT_MEDIUM (Q=+0.00, confidence=0.13)
+     HERMES final      : STAY_OUT (instruction=MANAGE)
+     agree             : False
+     override reason   : Gate/Execution Tree's own Tier-3 evaluation reached 'STAY_OUT', which differs from RL's advisory 'PIT_MEDIUM' - the Gate/Execution Tree result is what actually executes; RL is informational only.
+
+  L 2 PER: compound=SOFT tyre_age=5 tier_reached=3 gate_decision=PIT_NOW
+     RL recommendation : STAY_OUT (Q=-0.60, confidence=4.99)
+     HERMES final      : PIT_SOFT (instruction=PIT_LAP)
+     agree             : False
+     override reason   : Gate/Execution Tree's own Tier-3 evaluation reached 'PIT_SOFT', which differs from RL's advisory 'STAY_OUT' - the Gate/Execution Tree result is what actually executes; RL is informational only.
+
+  L 3 VER: compound=SOFT tyre_age=6 tier_reached=3 gate_decision=PIT_LATER
+     RL recommendation : PIT_MEDIUM (Q=+0.00, confidence=0.13)
+     HERMES final      : STAY_OUT (instruction=MANAGE)
+     agree             : False
+     override reason   : Gate/Execution Tree's own Tier-3 evaluation reached 'STAY_OUT', which differs from RL's advisory 'PIT_MEDIUM' - the Gate/Execution Tree result is what actually executes; RL is informational only.
+
+  L 4 VER: compound=SOFT tyre_age=7 tier_reached=3 gate_decision=PIT_NOW
+     RL recommendation : PIT_MEDIUM (Q=+0.00, confidence=0.13)
+     HERMES final      : PIT_SOFT (instruction=PIT_LAP)
+     agree             : False
+     override reason   : Gate/Execution Tree's own Tier-3 evaluation reached 'PIT_SOFT', which differs from RL's advisory 'PIT_MEDIUM' - the Gate/Execution Tree result is what actually executes; RL is informational only.
+
+  L 4 PER: compound=SOFT tyre_age=7 tier_reached=3 gate_decision=PIT_NOW
+     RL recommendation : STAY_OUT (Q=-0.60, confidence=4.99)
+     HERMES final      : STAY_OUT (instruction=MANAGE)
+     agree             : True
+
+  L 5 VER: compound=SOFT tyre_age=8 tier_reached=3 gate_decision=PIT_NOW
+     RL recommendation : PIT_MEDIUM (Q=+0.00, confidence=0.13)
+     HERMES final      : PIT_SOFT (instruction=PIT_LAP)
+     agree             : False
+     override reason   : Gate/Execution Tree's own Tier-3 evaluation reached 'PIT_SOFT', which differs from RL's advisory 'PIT_MEDIUM' - the Gate/Execution Tree result is what actually executes; RL is informational only.
+
+==============================================================================
+VALIDATION / SANITY CHECKS (Step 14)
+==============================================================================
+  [PASS] Q-learning update matches Q(s,a) += alpha*(r + gamma*max Q(s',.) - Q(s,a))  expected 0.15000, got 0.15000
+  [PASS] deterministic inference: identical seed -> identical greedy action trace
+  [PASS] valid action selection: agent never selects outside valid_actions()  0/90 violations
+  [PASS] wet-weather masking: only STAY_OUT is legal while rain_now=True  got ['STAY_OUT']
+  [PASS] env hard-safety-net: an illegal PIT_SOFT request while raining executes as STAY_OUT, not a pit
+  [PASS] zero-sets masking: only STAY_OUT is legal once sets_left == 0  got ['STAY_OUT']
+  [PASS] Q-table persistence/reload: config and table survive a save/load round trip
+  [PASS] Gate Tree Tier 1 overrides an RL recommendation that disagrees with a safety PIT_NOW
+  [PASS] no-lookahead: discretize_hermes_result() reads none of the post-hoc/explanation fields
+  [PASS] existing HERMES selftest (master.py selftest) still passes
+  [PASS] rl_env.py imports master.py without modifying it (module identity)
+  [PASS] training produced non-identical Q-values from the initial all-zero table  588 states with a non-zero Q-value, 588 visited
+
+==============================================================================
+SENSITIVITY CHECK: learning rate alpha (n_episodes=800, gamma=0.97 fixed, seed=42)
+==============================================================================
+  alpha=0.05: mean return (last 40 episodes) = -141.28s, visited states = 427
+  alpha=0.15: mean return (last 40 episodes) = -141.85s, visited states = 415
+  alpha=0.30: mean return (last 40 episodes) = -125.87s, visited states = 415
+
+ALL CHECKS PASSED

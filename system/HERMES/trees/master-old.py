@@ -102,14 +102,6 @@ HORIZON_LAPS = 5                       # matches cliff_horizon_laps, SC prior HO
                                         # sc-gamble n_laps_horizon convention (BP §9)
 CLOSE_FOLLOWING_SECONDS = 1.0          # ADAPT (BP §8.3 in_dirty_air)
 UNDERCUT_MIN_TYRE_AGE_GAP = 3          # ADAPT (BP §8.3 live_undercut)
-SC_GAMBLE_MODE = os.environ.get("HERMES_SC_GAMBLE", "analytic")
-                                        # "analytic" = validated closed-form reference (DEFAULT).
-                                        # "mc" = Monte Carlo uncertainty propagation around that SAME
-                                        # cost model (sc-gamble.py: evaluate_sc_gamble_mc). Same inputs,
-                                        # same return keys (MC adds distribution fields), same
-                                        # WAIT / NO_ADVANTAGE_TO_WAITING / INSUFFICIENT_DATA vocabulary.
-                                        # Override with env HERMES_SC_GAMBLE or `replay --sc-gamble`.
-SC_GAMBLE_MODES = ("analytic", "mc")
 DEFAULT_PIT_LOSS_SECONDS = 22.0        # sc-gamble.py's own NORMAL_PIT_LOSS_SECONDS default
 DELAY_MARGIN_SECONDS = 2.0             # ASSUMPTION (BP §8.3 can_delay_one_lap)
 STRESS_LOOKBACK_LAPS = 3               # BP §8.3 stress_trigger default (sweep used 1/3/5/7)
@@ -172,30 +164,6 @@ exec_tree = load_module(TREES_DIR / "execution-tree.py", "execution_tree")
 tyre_proj = load_module(TREES_DIR / "tyre_life_projection.py", "tyre_life_projection")
 sc_gamble = load_module(SC_DIR / "sc-gamble.py", "sc_gamble")
 
-
-def set_sc_gamble_mode(mode: str) -> None:
-    """Validates and sets which SC-gamble evaluator run_sc_gamble() uses.
-    Fails loudly on a typo or a sc-gamble.py that predates the MC evaluator,
-    rather than silently falling back to the other one."""
-    global SC_GAMBLE_MODE
-    if mode not in SC_GAMBLE_MODES:
-        raise ValueError(f"SC gamble mode must be one of {SC_GAMBLE_MODES}, got {mode!r}")
-    if mode == "mc" and not hasattr(sc_gamble, "evaluate_sc_gamble_mc"):
-        raise RuntimeError("SC gamble mode 'mc' requested but sc-gamble.py has no evaluate_sc_gamble_mc")
-    SC_GAMBLE_MODE = mode
-
-
-def run_sc_gamble(inputs):
-    """The ONE call site for the SC gamble. Both evaluators take the same
-    SCGambleInputs and return a dict with the same core keys; the tree only
-    reads ["recommendation"] from it."""
-    if SC_GAMBLE_MODE == "mc":
-        return sc_gamble.evaluate_sc_gamble_mc(inputs)
-    return sc_gamble.evaluate_sc_gamble(inputs)
-
-
-set_sc_gamble_mode(SC_GAMBLE_MODE)   # validate the env/default value at import time
-
 # Weather + risk modules are soft constraints only - the system must still
 # run (with unsafe_weather always False, no risk-based priority) if they
 # aren't present, so these are optional loads.
@@ -254,48 +222,6 @@ assert gate3.CLIFF_PROBABILITY_THRESHOLD == exec_tree.CLIFF_PROBABILITY_THRESHOL
     f"!= execution-tree.py={exec_tree.CLIFF_PROBABILITY_THRESHOLD}. Fix the source files, "
     f"not this assert."
 )
-
-# ---------------------------------------------------------------------------
-# WALK-FORWARD FOLD OVERRIDE (added for hermes_evaluate.py --fold-mode)
-# ---------------------------------------------------------------------------
-# HERMES_FOLD_DIR points at a folder produced by fit_fold.py. When set:
-#   * the tyre pickle, cliff_detection_stints.csv, SC prior and pit-loss table
-#     are read from that folder FIRST (see _data_path below), and
-#   * the three calibrated Tier-3 thresholds come from its thresholds.json
-#     instead of the all-data constants baked into gate-tier-3.py.
-# When unset, behaviour is byte-for-byte what it was before. A missing or NaN
-# threshold in the fold json is an ERROR, never a silent fallback to the
-# all-data value (that would reintroduce the leak this exists to remove).
-FOLD_DIR = Path(os.environ["HERMES_FOLD_DIR"]).resolve() if os.environ.get("HERMES_FOLD_DIR") else None
-FOLD_THRESHOLDS = None
-if FOLD_DIR is not None:
-    _tj = FOLD_DIR / "thresholds.json"
-    if not _tj.exists():
-        raise SystemExit(f"HERMES_FOLD_DIR={FOLD_DIR} set but thresholds.json missing")
-    FOLD_THRESHOLDS = json.load(open(_tj))
-    for _k in ("CLIFF_PROBABILITY_THRESHOLD", "PACE_LOSS_THRESHOLD_SECONDS", "TYRE_AGE_TRIGGER_RATIO"):
-        _v = FOLD_THRESHOLDS.get(_k)
-        if _v is None or (isinstance(_v, float) and _v != _v):
-            raise SystemExit(f"fold threshold {_k} is missing/NaN in {_tj}; refusing to fall back "
-                             f"to the all-data value (that would leak). Fix fit_fold.py output.")
-        setattr(gate3, _k, float(_v))
-    exec_tree.CLIFF_PROBABILITY_THRESHOLD = gate3.CLIFF_PROBABILITY_THRESHOLD   # keep the two in sync
-    assert gate3.CLIFF_PROBABILITY_THRESHOLD == exec_tree.CLIFF_PROBABILITY_THRESHOLD
-    note(f"FOLD MODE ({FOLD_DIR.name}): thresholds overridden -> {FOLD_THRESHOLDS}")
-
-
-def _data_path(repo_root: Path, *parts) -> Path:
-    """Fold folder first (if set and the file exists there), else the real repo root."""
-    if FOLD_DIR is not None:
-        cand = FOLD_DIR.joinpath(*parts)
-        if cand.exists():
-            return cand
-        # In fold mode a MISSING fold file must not silently fall back to the all-data file
-        # for the leaky artefacts. Those four names are the ones fit_fold.py writes.
-        if parts[-1] in ("tyre_life_models.pkl", "cliff_detection_stints.csv",
-                         "sc_vsc_circuit_level_prior.csv"):
-            raise SystemExit(f"FOLD MODE: {cand} not found; refusing to use the all-data {parts[-1]}")
-    return repo_root.joinpath(*parts)
 # Note re: BP §4.1 quirk (a), the duplicate get_driving_instruction stub in
 # execution-tree.py - harmless at runtime (Python's later `def` simply
 # overwrites the stub when the file executes top-to-bottom), so no
@@ -370,124 +296,39 @@ def load_pit_loss_table(path: Path) -> Optional[pd.DataFrame]:
 DEGR_ORDINAL_MAP = {"low": 0, "medium": 1, "high": 2}
 
 
-# CIRCUIT_ID_TO_RACE_NAMES (2026-09-30 calibration fix): duplicated VERBATIM from
-# model-fit.py's own table of the same name - NOT re-derived, NOT a Bahrain-only
-# special case. Duplicated rather than imported because model-fit.py pulls in
-# google.cloud.storage/dotenv at module level (the same reason sc-vsc-probability-
-# model.py is read via its output CSV instead of imported - see load_sc_prior's
-# docstring above). This is the SAME "small constant table duplicated so a file
-# stays standalone-callable" convention already used throughout this project
-# (detect_cliff, CLIFF_PROBABILITY_THRESHOLD, CachedBucket, etc.) - it duplicates
-# a NAME-ALIAS table, not the taxonomy's actual degradation data, which still
-# comes from the real circuit_taxonomy.xlsx file at call time.
-CIRCUIT_ID_TO_RACE_NAMES = {
-    "MEL": ["Australian_Grand_Prix"], "BAH": ["Bahrain_Grand_Prix", "Sakhir_Grand_Prix"],
-    "CHN": ["Chinese_Grand_Prix"], "AZR": ["Azerbaijan_Grand_Prix"], "SPN": ["Spanish_Grand_Prix"],
-    "MON": ["Monaco_Grand_Prix"], "CAN": ["Canadian_Grand_Prix"], "FRA": ["French_Grand_Prix"],
-    "AUS": ["Austrian_Grand_Prix", "Styrian_Grand_Prix"],
-    "UK": ["British_Grand_Prix", "70th_Anniversary_Grand_Prix"],
-    "GER": ["German_Grand_Prix"], "HUN": ["Hungarian_Grand_Prix"], "BEL": ["Belgian_Grand_Prix"],
-    "ITA": ["Italian_Grand_Prix"], "SIN": ["Singapore_Grand_Prix"], "RUS": ["Russian_Grand_Prix"],
-    "JPN": ["Japanese_Grand_Prix"], "TEX": ["United_States_Grand_Prix"],
-    "MEX": ["Mexican_Grand_Prix", "Mexico_City_Grand_Prix"],
-    "BRA": ["Brazilian_Grand_Prix", "São_Paulo_Grand_Prix"],
-    "AUH": ["Abu_Dhabi_Grand_Prix"], "IMO": ["Emilia_Romagna_Grand_Prix"],
-    "IST": ["Turkish_Grand_Prix"], "DUT": ["Dutch_Grand_Prix"], "QTR": ["Qatar_Grand_Prix"],
-    "KSA": ["Saudi_Arabian_Grand_Prix"], "MIA": ["Miami_Grand_Prix"], "LAS": ["Las_Vegas_Grand_Prix"],
-}
-_RACE_NAME_TO_CIRCUIT_ID = {race: cid for cid, races in CIRCUIT_ID_TO_RACE_NAMES.items() for race in races}
-
-
-def _normalize_circuit_name(s: str) -> str:
-    """General normaliser reused by BOTH taxonomy and pit-loss lookups below
-    (2026-09-30 calibration fix): underscores<->spaces, collapsed whitespace,
-    lowercased. Not circuit-specific - fixes any "X_Y_Grand_Prix" vs "X Y Grand
-    Prix" mismatch, of which Bahrain was the one found, not the only possible one."""
-    return " ".join(str(s).replace("_", " ").split()).strip().lower()
-
-
 def circuit_degredation_ordinal_for(taxonomy: Optional[pd.DataFrame], race_folder_name: str) -> tuple:
-    """ADAPT: taxonomy.xlsx keys on circuit_name (the physical venue, e.g.
-    "Sakhir International Circuit"), not the Race folder name (e.g.
-    "Bahrain_Grand_Prix") (BP §2.2/§4.5).
-
-    2026-09-30 calibration fix: try the REAL circuit_id first (via
-    CIRCUIT_ID_TO_RACE_NAMES above, matched against taxonomy's own circuit_id
-    column) - this is what actually resolves Bahrain (BAH) correctly, since
-    "bahrain" never appears as a substring of "Sakhir International Circuit"
-    in either direction. Falls back to the ORIGINAL normalised circuit_name
-    substring match for backward compatibility with any circuit whose race
-    folder name already happens to match circuit_name directly (e.g. Monaco),
-    which this fix must not break. Only defaults to medium(1) if neither
-    resolves - same final fallback and note format as before."""
+    """ADAPT: taxonomy.xlsx keys on circuit_name, not the Race folder name
+    (BP §2.2/§4.5). The exact CIRCUIT_ID_TO_RACE_NAMES alias table lives in
+    model-fit.py, which isn't part of the code bundle handed to this
+    orchestrator - so this does a best-effort normalised text match instead
+    of guessing the alias table, and says so in the note it returns."""
     if taxonomy is None or "circuit_degredation" not in taxonomy.columns:
         return 1, "no taxonomy loaded - defaulted to medium (1)"
-
-    if "circuit_id" in taxonomy.columns:
-        circuit_id = _RACE_NAME_TO_CIRCUIT_ID.get(race_folder_name)
-        if circuit_id is not None:
-            id_match = taxonomy[taxonomy["circuit_id"] == circuit_id]
-            if not id_match.empty:
-                row = id_match.iloc[0]
-                band = str(row.get("circuit_degredation", "medium")).lower()
-                return (DEGR_ORDINAL_MAP.get(band, 1),
-                        f"matched taxonomy row '{row.get('circuit_name')}' via circuit_id={circuit_id!r}")
-
-    needle = _normalize_circuit_name(race_folder_name.replace("Grand_Prix", "").replace("Grand Prix", ""))
+    needle = race_folder_name.replace("_", " ").replace("Grand Prix", "").strip().lower()
     for _, row in taxonomy.iterrows():
-        hay = _normalize_circuit_name(row.get("circuit_name", ""))
+        hay = str(row.get("circuit_name", "")).lower()
         if needle and (needle in hay or hay in needle):
             band = str(row.get("circuit_degredation", "medium")).lower()
             return DEGR_ORDINAL_MAP.get(band, 1), f"matched taxonomy row '{row.get('circuit_name')}'"
     return 1, f"no taxonomy match for '{race_folder_name}' - defaulted to medium (1)"
 
 
-def pit_loss_for_circuit(pit_loss_table: Optional[pd.DataFrame], race_folder_name: str,
-                          season: Optional[int] = None) -> tuple:
+def pit_loss_for_circuit(pit_loss_table: Optional[pd.DataFrame], race_folder_name: str) -> tuple:
     """BP §11 Q8 / §4.5: use the real per-circuit empirical constant if the
     archive file is present and has a recognisable column; else the
     sc-gamble.py assumption. Column names for archive_per_race_analysis.csv
     aren't pinned down in the blueprint, so this tries a few plausible ones
-    defensively rather than assuming.
-
-    2026-09-30 calibration fix: the archive's circuit column uses space-
-    separated names ("Bahrain Grand Prix"); race_folder_name is underscore-
-    separated ("Bahrain_Grand_Prix") - exact equality can never match. Tries
-    exact equality FIRST (backward compatible with anything that already
-    matched), then a general normalised (underscore/space/case-insensitive)
-    match - not a Bahrain-specific exception, fixes the same class of mismatch
-    for any circuit. The archive has ONE ROW PER SEASON per circuit (a real
-    `year` column) - once the name match stops failing, a circuit run across
-    multiple seasons (Bahrain: 2019-2025) has several matching rows, not one;
-    `season` (optional, backward compatible - omitting it keeps the previous
-    first-match behaviour) narrows to the row for THIS race's actual year
-    when the archive has one, instead of silently returning a different
-    season's value."""
+    defensively rather than assuming."""
     if pit_loss_table is None:
         return DEFAULT_PIT_LOSS_SECONDS, "sc-gamble.py assumption (no archive_per_race_analysis.csv)"
     candidates = [c for c in pit_loss_table.columns if "pit_loss" in c.lower()]
     circuit_col = next((c for c in pit_loss_table.columns if c.lower() in ("circuit", "race")), None)
-    year_col = next((c for c in pit_loss_table.columns if c.lower() in ("year", "season")), None)
     if not candidates or circuit_col is None:
         return DEFAULT_PIT_LOSS_SECONDS, "archive file present but columns unrecognised - using assumption"
-
     row = pit_loss_table[pit_loss_table[circuit_col] == race_folder_name]
-    match_note = f"empirical, from {candidates[0]}"
-    if row.empty:
-        target = _normalize_circuit_name(race_folder_name)
-        normalized_col = pit_loss_table[circuit_col].map(_normalize_circuit_name)
-        row = pit_loss_table[normalized_col == target]
-        match_note = f"empirical, from {candidates[0]} (matched via underscore/space normalisation)"
     if row.empty:
         return DEFAULT_PIT_LOSS_SECONDS, f"no archive row for '{race_folder_name}' - using assumption"
-    if season is not None and year_col is not None and len(row) > 1:
-        season_row = row[row[year_col] == season]
-        if not season_row.empty:
-            row = season_row
-            match_note += f", season={season}"
-        else:
-            match_note += f" (WARNING: no {season} row among {len(row)} matches - using {row[year_col].iloc[0]})"
-    return float(row[candidates[0]].iloc[0]), match_note
+    return float(row[candidates[0]].iloc[0]), f"empirical, from {candidates[0]}"
 
 
 def load_radios_for_race(csv_path: Path, season: int, race_folder: str) -> Optional[pd.DataFrame]:
@@ -637,124 +478,24 @@ def unsafe_weather(rain_now: bool, on_slicks: bool, rain_probability_pct: Option
     return False
 
 
-# UNDERCUT FALSE-POSITIVE FIX (2026-09-30, Bahrain 2023 diagnostic): a tyre-age
-# gap >= UNDERCUT_MIN_TYRE_AGE_GAP can exist for a reason that has NOTHING to do
-# with strategy - genuine pre-existing starting-tyre-set usage (confirmed real,
-# not a bug, in the prior diagnostic: VER started on TyreLife=4, LEC on
-# TyreLife=1, a 3-lap gap present from race lap 1 that stays exactly constant
-# all race and produced a false rival_undercut_threat/undercut vote for 12+
-# consecutive laps). The fix: require the FRESHER neighbour to have actually
-# pitted RECENTLY - real, already-available is_pit_in data, looked up over a
-# short backward-only window - not just any age gap, however it arose.
-UNDERCUT_RECENCY_WINDOW_LAPS = HORIZON_LAPS   # reused, not invented - the project's own established
-                                                # "near-term window" convention (SC prior, cliff horizon,
-                                                # marginal-pace-loss horizon all use this same constant)
-
-
-def driver_pitted_within_window(laps: pd.DataFrame, driver_code: Optional[str], current_lap: int,
-                                  window_laps: int = UNDERCUT_RECENCY_WINDOW_LAPS) -> bool:
-    """True iff `driver_code` has a real is_pit_in on some lap in
-    (current_lap - window_laps, current_lap] - i.e. their tyre-age advantage
-    over a neighbour is the result of a stop that happened RECENTLY, not
-    something inherited from before the race even started. BACKWARD-ONLY:
-    only ever reads laps <= current_lap from the already-loaded `laps` table
-    (run_replay's own full-race DataFrame - no new data source) - never a lap
-    after the current one, so this introduces no lookahead. General - not
-    Bahrain-specific, not circuit-specific - applies to any driver/race."""
-    if driver_code is None:
-        return False
-    window = laps[(laps["Driver"] == driver_code) & (laps["LapNumber"] <= current_lap)
-                  & (laps["LapNumber"] > current_lap - window_laps)]
-    return bool(window["is_pit_in"].fillna(False).astype(bool).any())
-
-
-# CAUSAL-ATTRIBUTION FIX (2026-09-30, follow-up to the recency fix above): "the
-# neighbour pitted somewhere in the recency window" is still not sufficient on
-# its own - it does not distinguish a gap the pit CREATED from a pre-existing
-# gap that simply happens to coexist with an unrelated pit by the same driver
-# (confirmed real, in the Bahrain 2023 replay: PER L13 - LEC pits, but LEC was
-# already exactly UNDERCUT_MIN_TYRE_AGE_GAP laps fresher than PER before that
-# stop too, so the stop created nothing; contrast PER L15-17, where VER's L14
-# stop genuinely creates a gap that did not exist the lap before). The fix
-# compares the gap AT the neighbour's own pit-in lap (their real TyreLife on
-# that row is still the PRE-reset value - confirmed from real Bahrain data,
-# is_pit_in=True and TyreLife only resets on the FOLLOWING lap's is_pit_out
-# row) against the gap NOW, and requires the pit to have carried the gap
-# across the SAME UNDERCUT_MIN_TYRE_AGE_GAP threshold the trigger itself
-# already uses - no new magnitude constant invented.
-def neighbor_advantage_created_by_recent_pit(
-        laps: pd.DataFrame, own_code: Optional[str], neighbor_code: Optional[str], current_lap: int,
-        own_tyre_age_now: Optional[float], neighbor_tyre_age_now: Optional[float],
-        min_gap: float = UNDERCUT_MIN_TYRE_AGE_GAP, window_laps: int = UNDERCUT_RECENCY_WINDOW_LAPS) -> bool:
-    """True iff `neighbor_code` pitted within `window_laps` laps of
-    `current_lap` AND that specific stop is what carried
-    (own_tyre_age - neighbour_tyre_age) from BELOW min_gap to AT-OR-ABOVE
-    min_gap - i.e. the stop is causally responsible for the currently-active
-    gap, not merely coincident with it. BACKWARD-ONLY (laps <= current_lap
-    only, same bound as driver_pitted_within_window) - no lookahead. General:
-    reads only Driver/LapNumber/TyreLife/is_pit_in, already-available columns,
-    for whichever two driver codes are passed in - nothing circuit- or
-    driver-specific.
-
-    Returns False (never fabricates a value) if: no pit found in the window,
-    the neighbour's own row at their pit lap is missing, or `own_code`'s row
-    at that same lap is missing (e.g. that driver wasn't classified/on track
-    that lap)."""
-    if own_code is None or neighbor_code is None or own_tyre_age_now is None or neighbor_tyre_age_now is None:
-        return False
-    window = laps[(laps["Driver"] == neighbor_code) & (laps["LapNumber"] <= current_lap)
-                  & (laps["LapNumber"] > current_lap - window_laps)
-                  & (laps["is_pit_in"].fillna(False).astype(bool))]
-    if window.empty:
-        return False
-    pit_lap = window["LapNumber"].max()   # most recent stop in the window, if there was more than one
-
-    neighbor_row = laps[(laps["Driver"] == neighbor_code) & (laps["LapNumber"] == pit_lap)]
-    own_row = laps[(laps["Driver"] == own_code) & (laps["LapNumber"] == pit_lap)]
-    if neighbor_row.empty or own_row.empty:
-        return False
-    neighbor_tyre_age_before = _safe_float(neighbor_row.iloc[0].get("TyreLife"))
-    own_tyre_age_before = _safe_float(own_row.iloc[0].get("TyreLife"))
-    if neighbor_tyre_age_before is None or own_tyre_age_before is None:
-        return False
-
-    gap_before = own_tyre_age_before - neighbor_tyre_age_before
-    gap_after = own_tyre_age_now - neighbor_tyre_age_now
-    return gap_before < min_gap <= gap_after
-
-
 def live_undercut_opportunity(gap_ahead_s: Optional[float], own_tyre_age: Optional[float],
-                               ahead_tyre_age: Optional[float], pit_loss_s: float,
-                               ahead_pitted_recently: bool) -> bool:
+                               ahead_tyre_age: Optional[float], pit_loss_s: float) -> bool:
     """ADAPT (BP §5 Tier-3 wiring / §7-B4): the real flag_undercut_windows
     needs hindsight (future pit lap) and can't run live. This is the
     blueprint's own proposed live substitute: gap ahead is smaller than
-    the pit-loss cost AND our tyres are meaningfully older.
-
-    2026-09-30 fix: ALSO requires the car ahead to have pitted within
-    UNDERCUT_RECENCY_WINDOW_LAPS laps (driver_pitted_within_window) - a
-    static tyre-age gap that has existed since before the race started is not
-    a strategic undercut opportunity; only a gap CREATED by a recent pit stop
-    is. The original gap/age conditions are UNCHANGED."""
+    the pit-loss cost AND our tyres are meaningfully older."""
     if gap_ahead_s is None or own_tyre_age is None or ahead_tyre_age is None:
         return False
-    return (gap_ahead_s < pit_loss_s and (own_tyre_age - ahead_tyre_age) >= UNDERCUT_MIN_TYRE_AGE_GAP
-            and ahead_pitted_recently)
+    return gap_ahead_s < pit_loss_s and (own_tyre_age - ahead_tyre_age) >= UNDERCUT_MIN_TYRE_AGE_GAP
 
 
 def rival_undercut_threat(gap_behind_s: Optional[float], own_tyre_age: Optional[float],
-                           behind_tyre_age: Optional[float], pit_loss_s: float,
-                           behind_pitted_recently: bool) -> bool:
+                           behind_tyre_age: Optional[float], pit_loss_s: float) -> bool:
     """BUILD (BP §5): mirror of live_undercut_opportunity using the car
-    BEHIND - is it close enough and fresh enough to undercut US.
-
-    2026-09-30 fix: mirrors live_undercut_opportunity's fix exactly - ALSO
-    requires the car behind to have pitted within UNDERCUT_RECENCY_WINDOW_LAPS
-    laps. Original gap/age conditions UNCHANGED."""
+    BEHIND - is it close enough and fresh enough to undercut US."""
     if gap_behind_s is None or own_tyre_age is None or behind_tyre_age is None:
         return False
-    return (gap_behind_s < pit_loss_s and (own_tyre_age - behind_tyre_age) >= UNDERCUT_MIN_TYRE_AGE_GAP
-            and behind_pitted_recently)
+    return gap_behind_s < pit_loss_s and (own_tyre_age - behind_tyre_age) >= UNDERCUT_MIN_TYRE_AGE_GAP
 
 
 def overcut_opportunity(ahead_pitted_recently: bool, own_cliff_probability: Optional[float],
@@ -901,14 +642,6 @@ def build_projection_fn(tyre_models: Optional[dict], compound: str, circuit: str
     def _call(tyre_age):
         if tyre_models is None:
             return {"predicted_pace_loss": None, "cliff_probability_next_5_laps": None}
-        # WALK-FORWARD ERA GUARD (fold pickles only; the production pickle has no "train_eras" key,
-        # so this line is a no-op there). MDP para 125: a model fit on other regulation eras must not
-        # be used for this race's era. Set HERMES_ALLOW_CROSS_ERA=1 to run the cross-era TRANSFER
-        # variant instead (sensitivity analysis: how does HERMES do with last era's models?).
-        _train_eras = tyre_models.get("train_eras")
-        if (_train_eras is not None and regulation_era not in _train_eras
-                and not os.environ.get("HERMES_ALLOW_CROSS_ERA")):
-            return {"predicted_pace_loss": None, "cliff_probability_next_5_laps": None}
         try:
             return tyre_proj.build_tyre_life_projection(
                 reg_models=tyre_models["reg_models"], cph=tyre_models["cph"],
@@ -949,17 +682,7 @@ def find_adjacent_rows(lap_df: pd.DataFrame, own_position: Optional[float]) -> t
 
 def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df: pd.DataFrame,
                          resources: dict, radios_by_driver_lap: Optional[dict],
-                         data_quality_notes: list, laps: Optional[pd.DataFrame] = None) -> dict:
-    """`laps` (added 2026-09-30, default None for backward compatibility):
-    the FULL race's laps_features.csv (all laps, all drivers) - run_replay's
-    own already-loaded table, passed through so live_undercut_opportunity/
-    rival_undercut_threat can check whether a neighbour pitted RECENTLY
-    (driver_pitted_within_window), not just whether a tyre-age gap exists.
-    Only ever read for laps <= the current one - no lookahead. If None
-    (e.g. a caller that predates this fix), the recency check safely
-    defaults to False - undercut/rival_undercut_threat can never fire
-    without real evidence, never silently fall back to the old gap-only
-    behaviour."""
+                         data_quality_notes: list) -> dict:
     """Runs Tier 1 -> Tier 2 -> Tier 3 (+ SC gamble) for one driver on one
     lap. Returns a dict matching the DriverDecision shape in BP §6, minus
     the Execution Tree part (added afterwards once both drivers are known)."""
@@ -1057,26 +780,7 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
         tyre_age_history=state.stint_ages,
         laptime_seconds_history=state.stint_laptimes,
     )
-    try:
-        t1 = gate1.evaluate_tier1(t1_state)
-    except np.linalg.LinAlgError:
-        # ROBUSTNESS FIX (found while testing the walk-forward pipeline; reproduces the
-        # "SVD did not converge in Linear Least Squares" failure that killed 2022 Austrian GP).
-        # Cause: `tyre_age = _safe_float(row.get("TyreLife")) or 0.0` turns a MISSING TyreLife into
-        # 0.0, so a stint can hold >=6 clean laps whose ages are all 0.0; np.polyfit then divides by a
-        # zero-norm column and LAPACK fails. That crashed the WHOLE race replay.
-        # Convention (blueprint): unknown -> not a cliff, never a crash. Only this previously-fatal case
-        # changes behaviour; every race that already ran produces byte-identical decisions.
-        data_quality_notes.append(
-            "tier1 cliff scan could not run on this stint's history (degenerate tyre-age/lap-time "
-            "data, e.g. missing TyreLife) - treated as 'no cliff detected' this lap.")
-        t1_state = gate1.Tier1State(
-            red_flag_or_race_stopped=red_flag,
-            tyre_structurally_damaged=bool(row.get("tyre_structurally_damaged", False)),
-            unsafe_weather=unsafe_wx,
-            tyre_age_history=[], laptime_seconds_history=[],   # kept consistent for explanation_for()
-        )
-        t1 = gate1.evaluate_tier1(t1_state)
+    t1 = gate1.evaluate_tier1(t1_state)
     result = {"driver": state.code, "driver_id": state.driver_id, "lap": lap_number,
               "compound": compound, "tyre_age": tyre_age, "gate_decision": t1,
               "tier_reached": 1, "reason": None, "triggers": {}, "projection": projection,
@@ -1112,7 +816,7 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
     # --- SC gamble (only worth computing once we know we're in Tier 3) ---
     p_sc = ctx.p_sc_5lap
     m_pace_loss = marginal_pace_loss(proj_fn, tyre_age)
-    gamble = run_sc_gamble(sc_gamble.SCGambleInputs(
+    gamble = sc_gamble.evaluate_sc_gamble(sc_gamble.SCGambleInputs(
         p_sc_next_n_laps=p_sc, predicted_pace_loss_per_lap=m_pace_loss,
         cliff_probability_next_n_laps=projection["cliff_probability_next_5_laps"],
         n_laps_horizon=HORIZON_LAPS,
@@ -1126,26 +830,9 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
         data_quality_notes.append(f"expected_stint_length: {est_note}")
 
     safety_car_deployed = ("4" in track_status) or ("6" in track_status) or ("7" in track_status)  # ASSUMPTION: SC+VSC both count (BP §5 "decide VSC handling")
-    # 2026-09-30 fix (+ 2026-09-30 causal-attribution follow-up): undercut/rival-threat
-    # now require the NEIGHBOUR's tyre-age advantage to be CAUSED by a recent pit of
-    # theirs (neighbor_advantage_created_by_recent_pit), not merely coincide with one -
-    # a static tyre-age gap present since before the race started, or a gap that
-    # already existed before an unrelated nearby stop, is not evidence of a strategic
-    # undercut window.
-    ahead_code = ahead_row.get("Driver") if ahead_row is not None else None
-    behind_code = behind_row.get("Driver") if behind_row is not None else None
-    if laps is not None:
-        ahead_advantage_created_by_recent_pit = neighbor_advantage_created_by_recent_pit(
-            laps, state.code, ahead_code, lap_number, tyre_age, ahead_tyre_age)
-        behind_advantage_created_by_recent_pit = neighbor_advantage_created_by_recent_pit(
-            laps, state.code, behind_code, lap_number, tyre_age, behind_tyre_age)
-    else:
-        ahead_advantage_created_by_recent_pit = behind_advantage_created_by_recent_pit = False
-    undercut = live_undercut_opportunity(gap_ahead_s, tyre_age, ahead_tyre_age, ctx.pit_loss_s,
-                                          ahead_advantage_created_by_recent_pit)
+    undercut = live_undercut_opportunity(gap_ahead_s, tyre_age, ahead_tyre_age, ctx.pit_loss_s)
     overcut = overcut_opportunity(ahead_pitted_recently, projection["cliff_probability_next_5_laps"], gap_ahead_s)
-    rival_threat = rival_undercut_threat(gap_behind_s, tyre_age, behind_tyre_age, ctx.pit_loss_s,
-                                          behind_advantage_created_by_recent_pit)
+    rival_threat = rival_undercut_threat(gap_behind_s, tyre_age, behind_tyre_age, ctx.pit_loss_s)
     dirty_air = in_dirty_air(gap_ahead_s)
     stress = get_driver_stress_trigger(radios_by_driver_lap, state.code, lap_number)
 
@@ -1445,7 +1132,7 @@ def explanation_for(r: dict) -> dict:
     """
     active_triggers = [k for k, v in (r.get("triggers") or {}).items() if v]
     exe = r.get("execution") or {}
-    exp = {
+    return {
         "plain_text": plain_english_for(r),
         "gate_path": gate_path_for(r),
         "decision": r["gate_decision"],
@@ -1453,13 +1140,6 @@ def explanation_for(r: dict) -> dict:
         "top_signals": top_contributing_signals(r),
         "instruction": exe.get("driving_instruction"),
     }
-    # RL LAYER (additive - system/HERMES/trees/rl_bridge.py; ONLY present when
-    # `replay --rl` attached r["rl"] beforehand). Omitted entirely when RL is
-    # disabled, so explanation_for()'s output is byte-identical to before the
-    # RL layer existed whenever r.get("rl") is absent.
-    if r.get("rl"):
-        exp["rl"] = r["rl"]
-    return exp
 
 
 def explanation_text_for(r: dict) -> str:
@@ -1479,10 +1159,6 @@ def explanation_text_for(r: dict) -> str:
         bits.append(f"top_signals=[{top_str}]")
     if e["instruction"]:
         bits.append(f"instruction={e['instruction']}")
-    if e.get("rl"):   # additive RL layer - see explanation_for()
-        rl = e["rl"]
-        agree_str = "agrees" if rl["agrees_with_hermes"] else "OVERRIDDEN"
-        bits.append(f"rl_recommendation={rl['rl_recommendation']} (Q={rl['rl_q_value']:+.2f}, {agree_str})")
     return " | ".join(bits)
 
 
@@ -1599,14 +1275,7 @@ def _attach_weather_columns(laps: pd.DataFrame, weather_df: Optional[pd.DataFram
 
 def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
                 radios_by_driver_lap: Optional[dict] = None, explain: bool = False,
-                weather_df: Optional[pd.DataFrame] = None, rl_recommend_fn=None) -> list:
-    """`rl_recommend_fn` (additive, default None - see `replay --rl`):
-    optional callable(result_dict, ctx) -> dict, attached to each decision as
-    r["rl"] before explanation_for() runs. When None (the default), nothing
-    about this function's behaviour or output changes from before the RL
-    layer existed - see system/HERMES/trees/rl_bridge.py for what the
-    callable actually does (RL recommendation -> combined with the REAL,
-    unmodified Gate/Execution Tree result)."""
+                weather_df: Optional[pd.DataFrame] = None) -> list:
     laps_path = find_laps_features(ctx.season, ctx.circuit, ctx.session)
     if laps_path is None:
         raise FileNotFoundError(
@@ -1640,17 +1309,15 @@ def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
         lap_results, dq_notes = [], []
         if row_d1 is not None:
             lap_results.append(evaluate_driver_lap(ctx, states[ctx.d1_code], row_d1, lap_df,
-                                                     resources, radios_by_driver_lap, dq_notes, laps))
+                                                     resources, radios_by_driver_lap, dq_notes))
         if row_d2 is not None:
             lap_results.append(evaluate_driver_lap(ctx, states[ctx.d2_code], row_d2, lap_df,
-                                                     resources, radios_by_driver_lap, dq_notes, laps))
+                                                     resources, radios_by_driver_lap, dq_notes))
 
         merge_execution(ctx, lap_results, safety_car_active)
 
         for r in lap_results:
             r["data_quality_notes"] = list(dq_notes)
-            if rl_recommend_fn is not None:
-                r["rl"] = rl_recommend_fn(r, ctx)
             r["explanation"] = explanation_for(r)          # structured trace (dict)
             r["explanation_text"] = explanation_text_for(r)  # single-line rendering of the same trace
             actual_pit = None
@@ -1777,128 +1444,6 @@ def selftest() -> bool:
     except ImportError as e:
         print(f"[selftest] SKIP: B1 regression test needs sklearn/lifelines ({e})")
 
-    # 4. 2026-09-30 fix - undercut false-positive (Bahrain 2023 diagnostic).
-    #    A static gap present since lap 1 (no is_pit_in anywhere in the window)
-    #    must NOT trigger, even though the raw gap/age conditions are satisfied.
-    fake_laps_static = pd.DataFrame({
-        "Driver": ["LEC"] * 10, "LapNumber": list(range(1, 11)),
-        "is_pit_in": [False] * 10,
-    })
-    check("undercut fix: static starting-tyre gap (no recent pit) does NOT trigger",
-          live_undercut_opportunity(gap_ahead_s=2.0, own_tyre_age=10, ahead_tyre_age=7,
-                                     pit_loss_s=22.0, ahead_pitted_recently=False) is False)
-    check("undercut fix: driver_pitted_within_window finds no pit in an all-False window",
-          driver_pitted_within_window(fake_laps_static, "LEC", current_lap=10) is False)
-
-    # A genuinely recent pit (is_pit_in within the window) DOES satisfy the recency
-    # evidence, and - with the SAME unchanged gap/age conditions - the trigger fires.
-    fake_laps_recent = fake_laps_static.copy()
-    fake_laps_recent.loc[fake_laps_recent["LapNumber"] == 9, "is_pit_in"] = True
-    check("undercut fix: driver_pitted_within_window finds a real recent is_pit_in",
-          driver_pitted_within_window(fake_laps_recent, "LEC", current_lap=10) is True)
-    check("undercut fix: recent pit + unchanged gap/age conditions -> trigger fires",
-          live_undercut_opportunity(gap_ahead_s=2.0, own_tyre_age=10, ahead_tyre_age=7, pit_loss_s=22.0,
-                                     ahead_pitted_recently=driver_pitted_within_window(
-                                         fake_laps_recent, "LEC", current_lap=10)) is True)
-
-    # No lookahead: a pit recorded AFTER current_lap must be invisible.
-    fake_laps_future = pd.concat([fake_laps_static,
-                                   pd.DataFrame({"Driver": ["LEC"], "LapNumber": [11], "is_pit_in": [True]})],
-                                  ignore_index=True)
-    check("undercut fix: no lookahead - a pit on a lap AFTER current_lap is not seen",
-          driver_pitted_within_window(fake_laps_future, "LEC", current_lap=10) is False)
-    check("undercut fix: no lookahead - that same future pit IS seen once current_lap reaches it",
-          driver_pitted_within_window(fake_laps_future, "LEC", current_lap=11) is True)
-
-    # rival_undercut_threat mirrors the same fix.
-    check("undercut fix: rival_undercut_threat also requires recent-pit evidence",
-          rival_undercut_threat(gap_behind_s=2.0, own_tyre_age=10, behind_tyre_age=7,
-                                 pit_loss_s=22.0, behind_pitted_recently=False) is False)
-
-    # 4b. 2026-09-30 CAUSAL-ATTRIBUTION follow-up fix (Cases A-E) - distinguishes "neighbour
-    # pitted recently" from "neighbour's pit actually CREATED the currently-active gap".
-    # Fake two-driver field: OWN and NEIGHBOR, laps 1-17, real Bahrain-observed TyreLife shape.
-    def _causal_laps(neighbor_pit_lap, own_reset_lap=None):
-        """own_code="OWN" runs a flat tyre_age sequence (4,5,6,...) the whole time unless
-        own_reset_lap is given (own pits too, own tyre_age -> 1 on the FOLLOWING lap - same
-        is_pit_in-then-next-lap-reset convention confirmed from real Bahrain data). neighbor_code=
-        "NEI" starts EXACTLY UNDERCUT_MIN_TYRE_AGE_GAP(3) laps fresher than OWN (1,2,3,...) -
-        mirrors the real LEC-vs-VER/PER gap - and, if neighbor_pit_lap is given, NEI's own
-        is_pit_in fires there with TyreLife still at the OLD (pre-reset) value that lap, then
-        resets to 1 the FOLLOWING lap - exactly the real Bahrain is_pit_in/TyreLife convention."""
-        rows = []
-        for lap in range(1, 18):
-            own_age = lap + 3
-            if own_reset_lap is not None and lap > own_reset_lap:
-                own_age = lap - own_reset_lap
-            nei_age = lap
-            if neighbor_pit_lap is not None and lap > neighbor_pit_lap:
-                nei_age = lap - neighbor_pit_lap
-            rows.append({"Driver": "OWN", "LapNumber": lap, "TyreLife": own_age,
-                         "is_pit_in": (own_reset_lap == lap)})
-            rows.append({"Driver": "NEI", "LapNumber": lap, "TyreLife": nei_age,
-                         "is_pit_in": (neighbor_pit_lap == lap)})
-        return pd.DataFrame(rows)
-
-    # Case A - static starting gap, no pit anywhere: must stay False (unchanged from the
-    # recency-only fix - this is the original Bahrain VER-laps-1-12 shape).
-    laps_a = _causal_laps(neighbor_pit_lap=None)
-    row10 = laps_a[(laps_a.Driver == "NEI") & (laps_a.LapNumber == 10)].iloc[0]
-    check("Case A - static gap, no recent pit at all -> False",
-          neighbor_advantage_created_by_recent_pit(laps_a, "OWN", "NEI", current_lap=10,
-                                                     own_tyre_age_now=13, neighbor_tyre_age_now=10) is False)
-
-    # Case B - recent pit, but the gap already existed before it (exactly the real PER-L13-vs-LEC
-    # shape: NEI pits at lap 10, but was ALREADY exactly 3 laps fresher than OWN before that stop).
-    laps_b = _causal_laps(neighbor_pit_lap=10)
-    check("Case B - recent pit but gap pre-existed the pit (PER L13 shape) -> False",
-          neighbor_advantage_created_by_recent_pit(laps_b, "OWN", "NEI", current_lap=10,
-                                                     own_tyre_age_now=13, neighbor_tyre_age_now=10) is False)
-
-    # Case C - recent pit CREATES the gap (exactly the real PER-L15-17-vs-VER shape: NEI and OWN
-    # start at the SAME age - no gap - then NEI pits and genuinely opens up a fresh-tyre gap).
-    laps_c = pd.DataFrame(
-        [{"Driver": "OWN", "LapNumber": lap, "TyreLife": lap, "is_pit_in": False} for lap in range(1, 15)]
-        + [{"Driver": "NEI", "LapNumber": lap, "TyreLife": lap, "is_pit_in": (lap == 14)} for lap in range(1, 15)]
-        + [{"Driver": "OWN", "LapNumber": lap, "TyreLife": lap, "is_pit_in": False} for lap in range(15, 18)]
-        + [{"Driver": "NEI", "LapNumber": lap, "TyreLife": lap - 14, "is_pit_in": False} for lap in range(15, 18)]
-    )
-    check("Case C - recent pit genuinely creates the gap (PER L15-17 / VER-L14 shape) -> True",
-          neighbor_advantage_created_by_recent_pit(laps_c, "OWN", "NEI", current_lap=16,
-                                                     own_tyre_age_now=16, neighbor_tyre_age_now=2) is True)
-
-    # Case D - no lookahead: the SAME Case C pit, evaluated on the lap BEFORE it happens, must
-    # not be visible yet (current_lap=13, pit is at lap 14 - outside the backward-only window).
-    check("Case D - no lookahead: a pit that hasn't happened yet (by current_lap) is invisible",
-          neighbor_advantage_created_by_recent_pit(laps_c, "OWN", "NEI", current_lap=13,
-                                                     own_tyre_age_now=13, neighbor_tyre_age_now=13) is False)
-
-    # Case E - preserve the existing (pre-causal-fix) regression test: a real recent pit CAN
-    # activate the undercut signal end-to-end through live_undercut_opportunity, unchanged.
-    created = neighbor_advantage_created_by_recent_pit(laps_c, "OWN", "NEI", current_lap=16,
-                                                         own_tyre_age_now=16, neighbor_tyre_age_now=2)
-    check("Case E - existing legitimate-activation regression test still holds end-to-end",
-          live_undercut_opportunity(gap_ahead_s=2.0, own_tyre_age=16, ahead_tyre_age=2,
-                                     pit_loss_s=22.0, ahead_pitted_recently=created) is True)
-
-    # 5. 2026-09-30 fix - Bahrain circuit_degredation_ordinal and pit_loss_s calibration.
-    _taxonomy = load_circuit_taxonomy(REPO_ROOT / "src" / "taxanomy" / "circuit_taxonomy.xlsx")
-    if _taxonomy is not None:
-        degr, degr_note = circuit_degredation_ordinal_for(_taxonomy, "Bahrain_Grand_Prix")
-        check(f"Bahrain degradation: resolves to ordinal 2 (high), no fallback [{degr_note}]",
-              degr == 2 and "circuit_id" in degr_note and "defaulted" not in degr_note)
-    else:
-        print("[selftest] SKIP: Bahrain degradation check needs circuit_taxonomy.xlsx")
-
-    _pit_loss_table = load_pit_loss_table(
-        _data_path(REPO_ROOT, "checkpoints", "rival_knowledge", "archive_per_race_analysis.csv"))
-    if _pit_loss_table is not None:
-        pit_loss, pit_loss_note = pit_loss_for_circuit(_pit_loss_table, "Bahrain_Grand_Prix", season=2023)
-        check(f"Bahrain pit-loss: resolves to the real ~25.35s archive value, no 22.0s fallback [{pit_loss_note}]",
-              abs(pit_loss - 25.3505) < 0.01 and "assumption" not in pit_loss_note)
-    else:
-        print("[selftest] SKIP: Bahrain pit-loss check needs archive_per_race_analysis.csv")
-
     return ok
 
 
@@ -1925,39 +1470,24 @@ def main():
     sp.add_argument("--laps", default=None, help="e.g. 1-57; default is the whole race")
     sp.add_argument("--out", default=None, help="write per-driver-per-lap decisions as JSONL")
     sp.add_argument("--explain", action="store_true")
-    sp.add_argument("--sc-gamble", choices=SC_GAMBLE_MODES, default=None,
-                     help="SC-gamble evaluator: 'analytic' (default, validated reference) or 'mc' "
-                          "(Monte Carlo uncertainty propagation around the same cost model). "
-                          "Overrides env HERMES_SC_GAMBLE.")
-    sp.add_argument("--rl", action="store_true",
-                     help="Additive: attach an RL strategic recommendation (system/HERMES/trees/"
-                          "rl_bridge.py) to each decision, alongside the REAL Gate/Execution Tree "
-                          "result - never overrides it. Disabled (default) -> output is unchanged "
-                          "from before the RL layer existed.")
-    sp.add_argument("--rl-qtable", default=None,
-                     help="Path to a trained Q-table (default: system/HERMES/trees/rl_artifacts/"
-                          "qtable.json, produced by rl_train.py). Only used with --rl.")
 
     sub.add_parser("selftest", help="run the wiring/regression self-checks (BP §8.4)")
 
     args = parser.parse_args()
 
     if args.command == "replay":
-        if args.sc_gamble:
-            set_sc_gamble_mode(args.sc_gamble)
-        note(f"SC gamble evaluator: {SC_GAMBLE_MODE}")
         REPO_ROOT = Path(args.repo_root).resolve()
         CACHE_DIR = Path(os.environ.get("GCS_CACHE_DIR", REPO_ROOT / "gcs_cache"))
 
-        tyre_models = load_tyre_models(_data_path(REPO_ROOT, "tyre_life_models.pkl"))
-        sc_prior = load_sc_prior(_data_path(REPO_ROOT, "sc_vsc_circuit_level_prior.csv"))
-        cliff_stints = load_cliff_stints(_data_path(REPO_ROOT, "cliff_detection_stints.csv"))
+        tyre_models = load_tyre_models(REPO_ROOT / "tyre_life_models.pkl")
+        sc_prior = load_sc_prior(REPO_ROOT / "sc_vsc_circuit_level_prior.csv")
+        cliff_stints = load_cliff_stints(REPO_ROOT / "cliff_detection_stints.csv")
         taxonomy = load_circuit_taxonomy(REPO_ROOT / "src" / "taxanomy" / "circuit_taxonomy.xlsx")
         pit_loss_table = load_pit_loss_table(
-            _data_path(REPO_ROOT, "checkpoints", "rival_knowledge", "archive_per_race_analysis.csv"))
+            REPO_ROOT / "checkpoints" / "rival_knowledge" / "archive_per_race_analysis.csv")
 
         degr_ordinal, degr_note = circuit_degredation_ordinal_for(taxonomy, args.race)
-        pit_loss_s, pit_loss_note = pit_loss_for_circuit(pit_loss_table, args.race, season=args.season)
+        pit_loss_s, pit_loss_note = pit_loss_for_circuit(pit_loss_table, args.race)
         note(f"circuit_degredation_ordinal: {degr_ordinal} ({degr_note})")
         note(f"pit_loss_s: {pit_loss_s} ({pit_loss_note})")
 
@@ -1983,29 +1513,7 @@ def main():
         else:
             lap_range = range(1, total_laps + 1) if total_laps else range(1, 1)
 
-        rl_recommend_fn = None
-        if args.rl:
-            # LAZY, opt-in only import - master.py has no import-time or default-path dependency on
-            # rl_bridge.py (which itself imports master.py, so this stays a one-way, opt-in edge, not
-            # a circular one). See rl_bridge.py for what rl_recommend_for_hermes_result +
-            # combine_with_gate_tree actually do.
-            import importlib.util as _ilu
-            _rl_spec = _ilu.spec_from_file_location("rl_bridge", TREES_DIR / "rl_bridge.py")
-            rl_bridge = _ilu.module_from_spec(_rl_spec)
-            _rl_spec.loader.exec_module(rl_bridge)
-            qtable_path = Path(args.rl_qtable) if args.rl_qtable else TREES_DIR / "rl_artifacts" / "qtable.json"
-            if not qtable_path.exists():
-                raise SystemExit(f"--rl was given but no trained Q-table found at {qtable_path} - "
-                                  f"run system/HERMES/trees/rl_train.py first.")
-            rl_agent = rl_bridge.TabularQAgent.load(qtable_path)
-            note(f"RL layer enabled: {qtable_path} ({rl_agent.n_visited_states()} visited states)")
-
-            def rl_recommend_fn(result, race_ctx):
-                rl_out = rl_bridge.rl_recommend_for_hermes_result(rl_agent, result, race_ctx)
-                return rl_bridge.combine_with_gate_tree(rl_out, result)
-
-        decisions = run_replay(ctx, resources, lap_range, explain=args.explain, weather_df=weather_df,
-                                rl_recommend_fn=rl_recommend_fn)
+        decisions = run_replay(ctx, resources, lap_range, explain=args.explain, weather_df=weather_df)
 
         if args.out:
             with open(args.out, "w") as f:
