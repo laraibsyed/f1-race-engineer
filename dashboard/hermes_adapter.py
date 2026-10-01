@@ -44,8 +44,8 @@ if str(TREES_DIR) not in sys.path:
 # any HERMES source file, just tells master.py where itself already lives on disk.
 os.environ.setdefault("HERMES_REPO_ROOT", str(REPO_ROOT))
 
-import master  # noqa: E402 - the existing, unmodified HERMES orchestrator
-import evaluate as hermes_eval  # noqa: E402 - reused: list_races (race listing only)
+import system.HERMES.trees.master as master  # noqa: E402 - the existing, unmodified HERMES orchestrator
+import system.HERMES.trees.evaluate as hermes_eval  # noqa: E402 - reused: list_races (race listing only)
 
 # F1 TrackStatus codes used by laps_features.csv / master.py (see master.py line 1128:
 # safety_car_deployed = "4" in track_status or "6" in track_status or "7" in track_status).
@@ -81,6 +81,35 @@ class RaceBundle:
     pit_loss_s: float
     p_sc_5lap: Optional[float]
     fallback_notes: list          # data-quality / fallback notes surfaced to the UI
+    # --- UI speed-ups, built ONCE in load_race_bundle (no effect on HERMES inputs) ---
+    laps_by_lap: dict = field(default_factory=dict)       # {lap_number: that lap's rows, every driver}
+    weather_sorted: Optional[pd.DataFrame] = None          # weather table, time-parsed + sorted once
+    grid_cache: dict = field(default_factory=dict)        # {lap_number: ranked full grid}
+
+
+def _prepare_weather(weather_df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+    """Parse + sort the weather table ONCE (it used to be copied/parsed/sorted on every
+    single lap lookup, which is a big part of why the UI felt slow)."""
+    if weather_df is None:
+        return None
+    w = weather_df.copy()
+    time_col = "Time" if "Time" in w.columns else ("time_seconds" if "time_seconds" in w.columns else None)
+    if time_col is None:
+        return None
+    if pd.api.types.is_numeric_dtype(w[time_col]):
+        w["_t"] = pd.to_timedelta(w[time_col], unit="s")
+    else:
+        w["_t"] = pd.to_timedelta(w[time_col], errors="coerce")
+    return w.dropna(subset=["_t"]).sort_values("_t").reset_index(drop=True)
+
+
+def _lap_frame(bundle: "RaceBundle", lap_number: int) -> Optional[pd.DataFrame]:
+    """All rows for one lap (every driver) - dict lookup instead of re-scanning the
+    full laps dataframe with a boolean mask each time. Returns None if no rows."""
+    if bundle.laps_by_lap:
+        return bundle.laps_by_lap.get(int(lap_number))
+    f = bundle.laps[bundle.laps["LapNumber"] == lap_number]
+    return None if f.empty else f
 
 
 def list_seasons(repo_root: Path = REPO_ROOT) -> list[int]:
@@ -93,6 +122,18 @@ def list_seasons(repo_root: Path = REPO_ROOT) -> list[int]:
 def list_races(repo_root: Path, season: int) -> list[str]:
     """Reused verbatim from evaluate.py - do NOT hardcode a race list."""
     return hermes_eval.list_races(repo_root, season)
+
+
+def resolve_red_bull_pair(season: int, race: str) -> tuple[str, str]:
+    """D1/D2 are ALWAYS the two Red Bull Racing drivers for the selected
+    season/race - never user-selectable, never 'first two in the timing
+    data', never 'fastest two'. Reuses evaluate.py's `rbr_drivers_for`
+    verbatim (its own RBR_PAIRS lookup table, keyed by season, with the
+    2025-early-season VER/LAW exception already baked in) - this file does
+    not re-derive or duplicate that table. Raises KeyError (surfaced to the
+    UI, never silently guessed) if the season has no recorded Red Bull
+    pairing."""
+    return hermes_eval.rbr_drivers_for(season, race)
 
 
 def list_drivers(bundle: RaceBundle) -> list[dict]:
@@ -155,8 +196,10 @@ def load_race_bundle(season: int, race: str, session: str = "R", repo_root: Path
     total_laps = int(laps["LapNumber"].max())
 
     resources = {"tyre_models": tyre_models, "cliff_stints": cliff_stints}
+    laps_by_lap = {int(n): g for n, g in laps.groupby("LapNumber")}
     return RaceBundle(season, race, session, laps, weather_df, total_laps, resources,
-                       degr_ordinal, pit_loss_s, p_sc_5lap, notes)
+                       degr_ordinal, pit_loss_s, p_sc_5lap, notes,
+                       laps_by_lap=laps_by_lap, weather_sorted=_prepare_weather(weather_df))
 
 
 # ============================================================================
@@ -211,10 +254,10 @@ def evaluate_lap(bundle: RaceBundle, dpc: DriverPairContext, lap_number: int,
     explanation, explanation_text, ...).
     """
     laps = bundle.laps
-    lap_df = laps[laps["LapNumber"] == lap_number]
-    if lap_df.empty:
+    lap_df = _lap_frame(bundle, lap_number)
+    if lap_df is None or lap_df.empty:
         return {}
-    lap_df = master._rank_by_gap_to_leader(lap_df)
+    lap_df = master._rank_by_gap_to_leader(lap_df.copy())
 
     is_scenario = bool(lap_overrides)
     if is_scenario:
@@ -296,14 +339,17 @@ class ScenarioReplayCache:
         self.lap_overrides = lap_overrides
         self.end_lap = (injection_lap + duration_laps - 1) if duration_laps else None
         fork_from = injection_lap - 1
-        historical.get(max(fork_from, 0))  # ensure the fork point is computed
-        self.bundle = historical.bundle
-        self.dpc = copy.deepcopy(historical.dpc) if fork_from == 0 else None
         if fork_from > 0:
-            snap = historical._state_after[fork_from]
-            # build a fresh dpc sharing ctx, cloned states from the fork point
-            self.dpc = DriverPairContext(historical.dpc.ctx, copy.deepcopy(snap[0]),
-                                          copy.deepcopy(snap[1]), historical.dpc.radios_by_driver_lap)
+            historical.get(fork_from)  # ensure the fork point is computed (lap 0 has no decisions -
+                                        # it's the pre-race snapshot already seeded in __init__ below)
+        self.bundle = historical.bundle
+        # Always fork from historical's own recorded snapshot AT fork_from (never
+        # historical.dpc directly - that object keeps mutating forward as the
+        # historical cache is used elsewhere, so it is NOT safe to read "as of"
+        # any particular lap; _state_after[fork_from] is the frozen snapshot).
+        snap = historical._state_after[fork_from]
+        self.dpc = DriverPairContext(historical.dpc.ctx, copy.deepcopy(snap[0]),
+                                      copy.deepcopy(snap[1]), historical.dpc.radios_by_driver_lap)
         self._decisions: dict[int, dict] = {}
         self._state_after: dict[int, tuple] = {fork_from: (copy.deepcopy(self.dpc.state_d1),
                                                              copy.deepcopy(self.dpc.state_d2))}
@@ -337,20 +383,46 @@ class ScenarioReplayCache:
 def full_grid_for_lap(bundle: RaceBundle, lap_number: int) -> pd.DataFrame:
     """Rows for every driver at this lap, ranked exactly as HERMES's own
     adjacency logic ranks them (master._rank_by_gap_to_leader), with no
-    columns beyond lap_number ever consulted (NO LOOKAHEAD)."""
-    lap_df = bundle.laps[bundle.laps["LapNumber"] == lap_number]
-    if lap_df.empty:
-        return lap_df
-    return master._rank_by_gap_to_leader(lap_df)
+    columns beyond lap_number ever consulted (NO LOOKAHEAD). Memoised per lap -
+    treat the returned frame as READ-ONLY."""
+    hit = bundle.grid_cache.get(lap_number)
+    if hit is not None:
+        return hit
+    lap_df = _lap_frame(bundle, lap_number)
+    if lap_df is None or lap_df.empty:
+        return pd.DataFrame()
+    out = master._rank_by_gap_to_leader(lap_df.copy())
+    bundle.grid_cache[lap_number] = out
+    return out
 
 
 def weather_for_lap(bundle: RaceBundle, lap_number: int) -> dict:
-    lap_df = bundle.laps[bundle.laps["LapNumber"] == lap_number]
-    if lap_df.empty:
+    """UI-display-only weather lookup (AirTemp/TrackTemp/Humidity/WindSpeed are
+    NOT attached to bundle.laps by master._attach_weather_columns - that
+    function only attaches Rainfall/_seconds_since_rain_end, the two fields
+    HERMES's own weather gate actually consumes). Same no-lookahead as-of lookup
+    as before, but against the weather table prepared ONCE at load time. It does
+    not feed HERMES anything."""
+    lap_df = _lap_frame(bundle, lap_number)
+    if lap_df is None or lap_df.empty:
         return {}
     row = lap_df.iloc[0]
-    return dict(
-        air_temp=row.get("AirTemp"), track_temp=row.get("TrackTemp"),
-        rainfall=bool(row.get("Rainfall", False)), humidity=row.get("Humidity"),
-        wind_speed=row.get("WindSpeed"),
-    )
+    out = dict(rainfall=bool(row.get("Rainfall", False)), air_temp=None, track_temp=None,
+               humidity=None, wind_speed=None)
+    w = bundle.weather_sorted
+    if w is None and bundle.weather_df is not None:
+        w = bundle.weather_sorted = _prepare_weather(bundle.weather_df)
+    if w is None or w.empty or "Time" not in lap_df.columns:
+        return out
+    lap_time = row.get("Time")
+    if not isinstance(lap_time, pd.Timedelta):
+        lap_time = pd.to_timedelta(lap_time, errors="coerce")
+    if pd.isna(lap_time):
+        return out
+    idx = int(w["_t"].searchsorted(lap_time, side="right")) - 1
+    if idx < 0 or idx >= len(w):
+        return out
+    wrow = w.iloc[idx]
+    out.update(air_temp=wrow.get("AirTemp"), track_temp=wrow.get("TrackTemp"),
+               humidity=wrow.get("Humidity"), wind_speed=wrow.get("WindSpeed"))
+    return out

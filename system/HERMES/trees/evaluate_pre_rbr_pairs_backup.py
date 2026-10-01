@@ -71,29 +71,15 @@ FOLDS = {
 }
 HOLDOUT_YEAR = 2025
 
-# Red Bull driver pairs per season (D1, D2). Verified 2026-10-01 against the actual
-# Team column in each season's own laps_features.csv (every race checked individually
-# for 2018/2020/2026, every race checked for 2019's mid-season swap - not assumed from
-# memory). The script skips a race automatically if a driver code is absent from
-# laps_features.
+# Red Bull driver pairs per season (D1, D2). ASSUMPTION: verify against your data.
+# The script skips a race automatically if a driver code is absent from laps_features.
 RBR_PAIRS = {
-    2018: ("VER", "RIC"),
-    2019: ("VER", "GAS"),   # default; ALB from round 13 (Belgian GP) onward - see RBR_2019_ALB_RACES
-    2020: ("VER", "ALB"),
     2021: ("VER", "PER"),
     2022: ("VER", "PER"),
     2023: ("VER", "PER"),
     2024: ("VER", "PER"),
     # 2025: PER was replaced by LAW (rounds 1-2) then TSU. Handled per race below.
     2025: ("VER", "TSU"),
-    2026: ("VER", "HAD"),
-}
-# 2019 exceptions (verified against laps_features.csv Team column for every 2019 race):
-# Albon took over from Gasly starting the Belgian GP (round 13) through the end of the season.
-RBR_2019_ALB_RACES = {
-    "Abu_Dhabi_Grand_Prix", "Belgian_Grand_Prix", "Brazilian_Grand_Prix", "Italian_Grand_Prix",
-    "Japanese_Grand_Prix", "Mexican_Grand_Prix", "Russian_Grand_Prix", "Singapore_Grand_Prix",
-    "United_States_Grand_Prix",
 }
 # 2025 exceptions (ASSUMPTION, verify): LAW drove the first two rounds, TSU after.
 RBR_2025_EARLY_LAW_RACES = {"Australian_Grand_Prix", "Chinese_Grand_Prix"}
@@ -123,8 +109,6 @@ MAIN_BASELINE = "baseline_2of3"   # the one used for the headline full-vs-baseli
 # HELPERS
 # ----------------------------------------------------------------------------
 def rbr_drivers_for(season: int, race: str):
-    if season == 2019 and race in RBR_2019_ALB_RACES:
-        return ("VER", "ALB")
     if season == 2025 and race in RBR_2025_EARLY_LAW_RACES:
         return ("VER", "LAW")
     return RBR_PAIRS[season]

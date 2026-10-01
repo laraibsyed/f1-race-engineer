@@ -154,12 +154,62 @@ def test_no_lookahead_full_grid(bundle):
             assert set(grid["LapNumber"].unique()) == {lap}
 
 
-def test_track_map_renders_with_fallback_label(bundle):
+def test_track_map_genuine_telemetry_or_honest_unavailable(bundle):
+    """track_map must either return genuine FastF1 telemetry (real outline +
+    real per-driver recorded tracks, already cached on disk from earlier runs)
+    or None - never a fabricated/schematic shape. Schema as of the canvas-
+    renderer rewrite: {outline_x, outline_y, np_tracks: {code: (t[], x[], y[])},
+    lap_windows: {code: {lap: (start_s, end_s)}}, reference_lap}."""
     sys.path.insert(0, str(REPO_ROOT / "dashboard"))
     import track_map as tmap
-    grid = ha.full_grid_for_lap(bundle, 10)
-    fig, is_real = tmap.build_outline(bundle.season, bundle.race)[2], None
-    outline_x, outline_y, is_real = tmap.build_outline(bundle.season, bundle.race)
-    assert len(outline_x) >= 3
-    # Bahrain 2023 is not in the 2018-only corners dataset -> must honestly fall back
-    assert is_real is False
+    telemetry = tmap.load_telemetry(bundle.season, bundle.race, bundle.session)
+    if telemetry is None:
+        pytest.skip("No FastF1 telemetry available in this environment for this race - "
+                    "honest None return, not a failure of the fallback contract.")
+    assert len(telemetry["outline_x"]) >= 10
+    assert len(telemetry["outline_x"]) == len(telemetry["outline_y"])
+    assert "np_tracks" in telemetry and len(telemetry["np_tracks"]) > 0
+    assert D1 in telemetry["np_tracks"] and D2 in telemetry["np_tracks"]
+    for code, (t, x, y) in telemetry["np_tracks"].items():
+        assert len(t) == len(x) == len(y) > 0
+    window = tmap.lap_window_for(telemetry, 10, [D1, D2])
+    assert window is not None and window[1] > window[0]
+
+
+def test_scenario_injection_at_lap_1_does_not_crash(bundle, dpc):
+    """Regression: ScenarioReplayCache used to call historical.get(0), which
+    raised KeyError (lap 0 has no decision row, only the pre-race state
+    snapshot) - injecting a scenario at the very first lap must work."""
+    cache = ha.ReplayCache(bundle, dpc)
+    scen = ha.ScenarioReplayCache(cache, 1, dict(TrackStatus=ha.TRACK_STATUS_SC, is_sc_lap=True), 3)
+    result = scen.get(1)
+    assert D1 in result and D2 in result
+
+
+def test_scenario_duration_actually_ends(bundle, dpc):
+    """Regression: an injected SC/VSC must stop influencing the `safety_car`
+    trigger once its duration window has passed, UNLESS the real historical
+    data independently has SC/VSC active at that later lap (which must then
+    be visible as genuinely historical, not attributed to the scenario)."""
+    cache = ha.ReplayCache(bundle, dpc)
+    injection_lap, duration = 10, 2
+    scen = ha.ScenarioReplayCache(cache, injection_lap, dict(TrackStatus=ha.TRACK_STATUS_SC, is_sc_lap=True), duration)
+    end_lap = injection_lap + duration - 1
+    assert scen.end_lap == end_lap
+    after_lap = end_lap + 1
+    assert scen._overrides_for(after_lap) is None, "override must not still apply past its own duration"
+    # the decision at after_lap must match what plain historical replay produces (no
+    # injected override bleeding through), confirming the scenario genuinely ended
+    scen_dec = scen.get(after_lap)
+    hist_dec = cache.get(after_lap)
+    assert scen_dec[D1]["gate_decision"] == hist_dec[D1]["gate_decision"]
+    assert (scen_dec[D1].get("triggers") or {}).get("safety_car") == (hist_dec[D1].get("triggers") or {}).get("safety_car")
+
+
+def test_red_bull_pair_resolution(bundle):
+    """D1/D2 must be the recorded Red Bull Racing pair for this season, not an
+    arbitrary/first/fastest pair."""
+    d1, d2 = ha.resolve_red_bull_pair(SEASON, RACE)
+    assert (d1, d2) == (D1, D2)
+    teams = bundle.laps.loc[bundle.laps["Driver"].isin([d1, d2]), "Team"].unique()
+    assert all(t == "Red Bull Racing" for t in teams)
