@@ -83,7 +83,6 @@ producer yet):
 from __future__ import annotations
 
 import argparse
-import functools
 import importlib.util
 import json
 import os
@@ -961,16 +960,7 @@ def build_team_strategy_context(ctx: "RaceContext", resources: dict, taxonomy: O
 
     mc_cfg = team_strategy.MCStrategyConfig(n_sims=n_sims)
 
-    def _call(r_d1: dict, r_d2: dict, lap_df: pd.DataFrame, laps: pd.DataFrame, lap_number: int,
-              risk_mode_override: Optional[str] = None) -> dict:
-        """`risk_mode_override` (additive, default None - see dashboard/hermes_adapter.py):
-        when given, overrides the `risk_mode` this closure was built with for
-        THIS call only - lets a UI control (e.g. the dashboard's RISK MODE
-        selector) genuinely change candidate ranking without rebuilding the
-        whole context (taxonomy/championship/Monte-Carlo config stay fixed,
-        exactly as they should for a single race). `run_replay`'s own call
-        site never passes this kwarg, so CLI replay behaviour is unchanged."""
-        effective_risk_mode = risk_mode_override if risk_mode_override else risk_mode
+    def _call(r_d1: dict, r_d2: dict, lap_df: pd.DataFrame, laps: pd.DataFrame, lap_number: int) -> dict:
         total_laps = ctx.total_laps
         laps_remaining = max(0, total_laps - lap_number)
 
@@ -980,19 +970,10 @@ def build_team_strategy_context(ctx: "RaceContext", resources: dict, taxonomy: O
             # Rebuilds the SAME projection closure evaluate_driver_lap already built for this
             # exact lap, from the fuel/stint_number/temp_bucket it exposed on the result dict -
             # no recomputation of those three, no divergence from the decision this lap actually made.
-            proj_fn_raw = build_projection_fn(resources["tyre_models"], compound, ctx.circuit,
-                                               ctx.regulation_era, r.get("_fuel") or fuel_load_estimate(lap_number, total_laps),
-                                               int(r.get("_stint_number") or 1),
-                                               r.get("_temp_bucket") or "warm", ctx.circuit_degredation_ordinal)
-            # Memoised PER LAP (this closure is rebuilt fresh every _driver_sim_inputs call, so
-            # there is no cross-lap staleness risk): team-strategy.py's own candidate loop calls
-            # pace_loss_fn/cliff_probability_fn once per joint candidate (up to ~25/lap) with the
-            # SAME tyre_age for most of them (pace_loss_fn(d.tyre_age) is identical on every single
-            # call this lap) - proj_fn's own Cox-model projection is real work (lifelines
-            # predict_cumulative_hazard), so recomputing it ~25x/lap for an identical input is pure
-            # waste, not a change in what gets computed or returned. No existing test asserts call
-            # counts, only RESULTS - this changes nothing about any number team-strategy.py produces.
-            proj_fn = functools.lru_cache(maxsize=None)(proj_fn_raw)
+            proj_fn = build_projection_fn(resources["tyre_models"], compound, ctx.circuit,
+                                           ctx.regulation_era, r.get("_fuel") or fuel_load_estimate(lap_number, total_laps),
+                                           int(r.get("_stint_number") or 1),
+                                           r.get("_temp_bucket") or "warm", ctx.circuit_degredation_ordinal)
             stint_len, _ = expected_stint_length(resources["cliff_stints"], compound, ctx.circuit,
                                                   ctx.regulation_era)
             adjacency = r.get("adjacency") or {}
@@ -1066,7 +1047,7 @@ def build_team_strategy_context(ctx: "RaceContext", resources: dict, taxonomy: O
             d2_compromised=bool(r_d2.get("tier_reached") == 1),
             d1_champ_state=d1_champ_state, d2_champ_state=d2_champ_state, team_state=team_state,
             reward_mod=reward_mod, position_points_fn=reward_mod.position_points,
-            risk_mode=effective_risk_mode, mc_config=mc_cfg, rival_info=rival_info,
+            risk_mode=risk_mode, mc_config=mc_cfg, rival_info=rival_info,
         )
         return result
 
@@ -1081,63 +1062,6 @@ def resolve_team_strategy_priority(team_strategy_result: Optional[dict]) -> Opti
     if not team_strategy_result:
         return None
     return team_strategy_result.get("role", {}).get("priority_driver_id")
-
-
-def apply_team_strategy_to_lap(ctx: "RaceContext", lap_results: list, row_d1, row_d2,
-                                lap_df: pd.DataFrame, laps: pd.DataFrame, lap_number: int,
-                                team_strategy_fn, dq_notes: list,
-                                risk_mode_override: Optional[str] = None):
-    """STRATEGY -> EXECUTION WIRING (2026-10-02), factored out (2026-10-03) so
-    `run_replay` and the dashboard adapter (dashboard/hermes_adapter.py) share
-    the EXACT same wiring - never two copies of this logic. Mutates `r["gate_decision"]`/
-    `r["gate_tree_trigger_tier"]`/`r["reason"]`/`r["team_strategy_execution"]` in place on
-    the matching dicts inside `lap_results` exactly as the inline block used to, and
-    returns (team_strategy_result, priority_driver_id) for the caller to attach/pass on
-    (team_strategy_result -> r["team_strategy"]; priority_driver_id -> merge_execution's
-    `priority_driver_id` kwarg). `risk_mode_override` is forwarded to `team_strategy_fn`
-    as its own optional kwarg (see build_team_strategy_context._call) - None reproduces
-    whatever risk mode the context closure was built with, exactly as before this
-    function existed.
-
-    team_strategy_result never touches a Tier 1/2 result and never suppresses an
-    already-active Tier 3 trigger (see team_strategy.resolve_strategy_execution's own
-    docstring) - the only thing it can do is flip a driver who Tier 3 left at
-    DONT_PIT/PIT_LATER into PIT_NOW, by setting gate_tree_trigger_tier so
-    merge_execution's own `triggered` list picks them up - the REAL Execution Tree then
-    runs for them, exactly as it would for any other PIT_NOW. Every outcome (upgrade,
-    override, no-op) is recorded on r["team_strategy_execution"] for both drivers, never
-    applied silently."""
-    team_strategy_result = None
-    priority_driver_id = None
-    if team_strategy_fn is not None and row_d1 is not None and row_d2 is not None:
-        r_d1_pre = next(r for r in lap_results if r["driver"] == ctx.d1_code)
-        r_d2_pre = next(r for r in lap_results if r["driver"] == ctx.d2_code)
-        try:
-            team_strategy_result = team_strategy_fn(r_d1_pre, r_d2_pre, lap_df, laps, lap_number,
-                                                      risk_mode_override=risk_mode_override)
-            priority_driver_id = resolve_team_strategy_priority(team_strategy_result)
-
-            exec_map = team_strategy.resolve_strategy_execution(
-                team_strategy_result["selected_strategy"],
-                r_d1_pre["gate_decision"], r_d1_pre["gate_tree_trigger_tier"],
-                r_d2_pre["gate_decision"], r_d2_pre["gate_tree_trigger_tier"])
-            for r, role_key in ((r_d1_pre, "d1"), (r_d2_pre, "d2")):
-                info = exec_map[role_key]
-                r["team_strategy_execution"] = info
-                if info["should_upgrade_to_pit_now"]:
-                    r["gate_decision"] = "PIT_NOW"
-                    r["gate_tree_trigger_tier"] = 3
-                    if not r.get("reason"):
-                        r["reason"] = "TEAM_STRATEGY"
-
-            team_strategy_result["trade_off_explanation"] = team_strategy.build_decision_trade_off_explanation(
-                team_strategy_result["selected_strategy"], team_strategy_result["alternatives"],
-                team_strategy_result["role"], lap_number, team_strategy_result["risk_mode"],
-                execution_d1=exec_map["d1"], execution_d2=exec_map["d2"])
-        except Exception as e:  # noqa: BLE001 - an advisory layer must never crash the real decision
-            dq_notes.append(f"team-strategy evaluation failed this lap ({e!r}) - Gate/Execution "
-                             f"Tree proceeding unaffected, resolve_second_driver_priority_v1 default used.")
-    return team_strategy_result, priority_driver_id
 
 
 # ============================================================================
@@ -2001,8 +1925,40 @@ def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
             lap_results.append(evaluate_driver_lap(ctx, states[ctx.d2_code], row_d2, lap_df,
                                                      resources, radios_by_driver_lap, dq_notes, laps))
 
-        team_strategy_result, priority_driver_id = apply_team_strategy_to_lap(
-            ctx, lap_results, row_d1, row_d2, lap_df, laps, lap_number, team_strategy_fn, dq_notes)
+        team_strategy_result = None
+        priority_driver_id = None
+        if team_strategy_fn is not None and row_d1 is not None and row_d2 is not None:
+            r_d1_pre = next(r for r in lap_results if r["driver"] == ctx.d1_code)
+            r_d2_pre = next(r for r in lap_results if r["driver"] == ctx.d2_code)
+            try:
+                team_strategy_result = team_strategy_fn(r_d1_pre, r_d2_pre, lap_df, laps, lap_number)
+                priority_driver_id = resolve_team_strategy_priority(team_strategy_result)
+
+                # STRATEGY -> EXECUTION WIRING (2026-10-02): this is the one place the selected
+                # joint strategy can actually become OPERATIONAL, not merely attached as an
+                # explanation. resolve_strategy_execution never touches a Tier 1/2 result and
+                # never suppresses an already-active Tier 3 trigger (see its own docstring) -
+                # the only thing it can do is flip a driver who Tier 3 left at DONT_PIT/PIT_LATER
+                # into PIT_NOW, by setting gate_tree_trigger_tier so merge_execution's own
+                # `triggered` list picks them up - the REAL Execution Tree then runs for them,
+                # exactly as it would for any other PIT_NOW. Every outcome (upgrade, override,
+                # no-op) is recorded on r["team_strategy_execution"] for both drivers, never
+                # applied silently.
+                exec_map = team_strategy.resolve_strategy_execution(
+                    team_strategy_result["selected_strategy"],
+                    r_d1_pre["gate_decision"], r_d1_pre["gate_tree_trigger_tier"],
+                    r_d2_pre["gate_decision"], r_d2_pre["gate_tree_trigger_tier"])
+                for r, role_key in ((r_d1_pre, "d1"), (r_d2_pre, "d2")):
+                    info = exec_map[role_key]
+                    r["team_strategy_execution"] = info
+                    if info["should_upgrade_to_pit_now"]:
+                        r["gate_decision"] = "PIT_NOW"
+                        r["gate_tree_trigger_tier"] = 3
+                        if not r.get("reason"):
+                            r["reason"] = "TEAM_STRATEGY"
+            except Exception as e:  # noqa: BLE001 - an advisory layer must never crash the real decision
+                dq_notes.append(f"team-strategy evaluation failed this lap ({e!r}) - Gate/Execution "
+                                 f"Tree proceeding unaffected, resolve_second_driver_priority_v1 default used.")
 
         merge_execution(ctx, lap_results, safety_car_active, priority_driver_id=priority_driver_id)
 

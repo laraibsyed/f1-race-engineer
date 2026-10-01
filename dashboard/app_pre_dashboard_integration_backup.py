@@ -166,7 +166,6 @@ def _init_state():
         scenario_active=False, scenario_kind=None, scenario_lap=None,
         scenario_duration=None, scenario_cache=None, weather_scenario_active=False,
         weather_kind=None, weather_lap=None, weather_cache=None,
-        risk_mode=ha.DEFAULT_RISK_MODE,
     )
     for k, v in defaults.items():
         st.session_state.setdefault(k, v)
@@ -224,20 +223,6 @@ with st.sidebar:
 
     if st.session_state.race_loaded:
         st.select_slider("Playback: seconds per lap", options=[2, 3, 4, 6, 8], value=4, key="lap_secs")
-        st.markdown("---")
-        st.caption("TEAM STRATEGY")
-        if st.session_state.dpc and st.session_state.dpc.team_strategy_fn is None:
-            reason = st.session_state.dpc.team_strategy_unavailable_reason or "unavailable"
-            st.markdown(f"<div class='pw-dim' style='font-size:0.68rem'>RISK MODE unavailable this session: "
-                        f"{reason}</div>", unsafe_allow_html=True)
-        else:
-            risk_mode = st.radio("Risk mode", list(ha.RISK_MODES), horizontal=True,
-                                  index=list(ha.RISK_MODES).index(st.session_state.risk_mode),
-                                  key="risk_mode_radio", label_visibility="collapsed")
-            if risk_mode != st.session_state.risk_mode:
-                st.session_state.risk_mode = risk_mode
-                st.rerun()
-            st.markdown(ui.risk_mode_context_html(st.session_state.risk_mode), unsafe_allow_html=True)
         st.markdown("---")
         st.caption("DEMO SCENARIO CONTROLS")
         with st.expander("Safety Car / VSC"):
@@ -410,14 +395,6 @@ def pit_wall():
     else:
         active_cache = replay_cache
 
-    # Risk-mode propagation: dashboard control -> replay cache -> team_strategy_fn's own
-    # risk_mode_override -> candidate ranking/selection (see hermes_adapter.ReplayCache.
-    # set_risk_mode). Only clears the DECISION cache (driver state evolution is risk-mode-
-    # independent), so this stays cheap even mid-race.
-    replay_cache.set_risk_mode(ss.risk_mode)
-    if active_cache is not replay_cache:
-        active_cache.set_risk_mode(ss.risk_mode)
-
     decisions = active_cache.get(current_lap) or {}
     hist_decisions = replay_cache.get(current_lap) or {}
     grid_df = ha.full_grid_for_lap(bundle, current_lap)
@@ -516,9 +493,6 @@ def pit_wall():
     # ---- RIGHT: HERMES strategy + timeline ----
     with col_right:
         st.markdown("<div class='pw-title'>HERMES STRATEGY</div>", unsafe_allow_html=True)
-        team_strategy_result = next((d.get("team_strategy") for d in decisions.values() if d.get("team_strategy")), None)
-        st.markdown(ui.team_role_html(team_strategy_result, d1, d2), unsafe_allow_html=True)
-
         teams = {}
         if not grid_df.empty and "Team" in grid_df.columns:
             teams = dict(zip(grid_df["Driver"], grid_df["Team"]))
@@ -543,12 +517,6 @@ def pit_wall():
                             st.markdown("+ " + ", ".join(sorted(added)))
                         if removed:
                             st.markdown("- " + ", ".join(sorted(removed)))
-
-            ts = dec.get("team_strategy")
-            trade_off = ts.get("trade_off_explanation") if ts else None
-            if trade_off:
-                with st.expander(f"WHY THIS DECISION? — {label}", expanded=False):
-                    st.markdown(ui.trade_off_card_html(label, role, code, trade_off), unsafe_allow_html=True)
 
         st.markdown("<div class='pw-title' style='margin-top:6px'>STRATEGY TIMELINE</div>", unsafe_allow_html=True)
         tl = go.Figure()

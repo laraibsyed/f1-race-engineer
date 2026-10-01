@@ -205,93 +205,12 @@ def load_race_bundle(season: int, race: str, session: str = "R", repo_root: Path
 # ============================================================================
 # Per-driver-pair evaluation context + single-lap evaluation
 # ============================================================================
-RISK_MODES = ("CONSERVATIVE", "BALANCED", "AGGRESSIVE")
-DEFAULT_RISK_MODE = "BALANCED"
-TEAM_STRATEGY_N_SIMS = 200   # same default as master.py's own --team-strategy-n-sims
-
-
 @dataclass
 class DriverPairContext:
     ctx: "master.RaceContext"
     state_d1: "master.DriverRuntimeState"
     state_d2: "master.DriverRuntimeState"
     radios_by_driver_lap: Optional[dict]
-    team_strategy_fn: Optional[object] = None          # None if team-strategy is unavailable this session
-    team_strategy_unavailable_reason: Optional[str] = None
-
-
-_TEAM_STRATEGY_CACHE: dict = {}   # {(season, race, d1, d2): (team_strategy_fn | None, reason | None)}
-
-
-def _build_team_strategy_fn(bundle: RaceBundle, ctx: "master.RaceContext") -> tuple:
-    """Mirrors exactly what master.py's own `replay --team-strategy` CLI path does
-    (master.main(), the `if args.team_strategy:` block) - same functions, same
-    order - so the dashboard's team-strategy inputs are identical to the
-    validated CLI path. Never raises: any failure (missing module, no network
-    for championship standings, missing taxonomy csv) degrades to
-    (None, reason) - the dashboard then shows team-strategy as unavailable
-    rather than crashing the whole page, same convention as every other
-    optional HERMES input (tyre models, SC prior, etc.).
-
-    Cached per (season, race, d1, d2): `fetch_championship_context` makes real
-    network calls to the Jolpica standings API (3 requests, up to 30s timeout
-    + exponential backoff EACH per standings.py's own retry policy) - fine to
-    pay once per race load, not on every lap evaluation or every re-build of
-    the SAME driver pair context (e.g. RESET RACE rebuilds a fresh
-    DriverPairContext but it's still the same race/pair).
-
-    The championship-standings fetch is additionally run with a short
-    (TEAM_STRATEGY_CHAMP_CTX_TIMEOUT_S) wall-clock budget here - a dashboard
-    "LOAD RACE" click is an interactive action, not a batch CLI replay, so it
-    should not block the whole page for standings.py's own (correctly, for a
-    batch job) generous ~2 minutes of retry/backoff when the network is
-    unavailable. On timeout this degrades to the SAME empty/unavailable
-    championship context fetch_championship_context itself already returns
-    on a genuine failure (team-strategy.py's own role-assignment/rival
-    functions already treat that as 'fall through to the default' - never a
-    guess) - standings.py's retry policy itself is NOT modified, so the CLI
-    `replay --team-strategy` path keeps its existing (correct, for a batch
-    job) behaviour unchanged."""
-    key = (ctx.season, ctx.circuit, ctx.d1_code, ctx.d2_code)
-    if key in _TEAM_STRATEGY_CACHE:
-        return _TEAM_STRATEGY_CACHE[key]
-    if master.team_strategy is None or master.reward_mod is None:
-        result = (None, "trees/team-strategy.py or strategic-sacrifice/reward.py could not be loaded.")
-        _TEAM_STRATEGY_CACHE[key] = result
-        return result
-    try:
-        driver_taxonomy = master.load_driver_taxonomy(master._data_path(REPO_ROOT, "driver_taxonomy_master_final.csv"))
-        champ_ctx = _fetch_championship_context_with_timeout(ctx.season, ctx.circuit, ctx.d1_code, ctx.d2_code)
-        fn = master.build_team_strategy_context(
-            ctx, bundle.resources, driver_taxonomy, champ_ctx,
-            risk_mode=DEFAULT_RISK_MODE, n_sims=TEAM_STRATEGY_N_SIMS)
-        result = (fn, None)
-    except Exception as e:  # noqa: BLE001 - optional layer, never crash race load
-        result = (None, f"team-strategy context build failed ({e!r}).")
-    _TEAM_STRATEGY_CACHE[key] = result
-    return result
-
-
-TEAM_STRATEGY_CHAMP_CTX_TIMEOUT_S = 8.0
-
-
-def _fetch_championship_context_with_timeout(season, race_folder, d1_code, d2_code) -> dict:
-    import threading
-    empty = dict(available=False, d1_points=None, d2_points=None, round_num=None, races_remaining=None,
-                 nearest_rival_code=None, d1_signed_gap_to_rival=None, d2_signed_gap_to_rival=None)
-    # Deliberately NOT concurrent.futures.ThreadPoolExecutor: it registers an atexit hook
-    # (concurrent.futures.thread._python_exit) that JOINS every pool thread at interpreter
-    # shutdown regardless of shutdown(wait=False) - an orphaned standings-fetch thread would
-    # then silently block the whole process (pytest, Streamlit, python -c, ...) from exiting
-    # for its own ~2-minute retry budget even though this function itself returned on time.
-    # A plain daemon thread has no such hook - it is simply abandoned on interpreter exit.
-    result_box: list = []
-    t = threading.Thread(
-        target=lambda: result_box.append(master.fetch_championship_context(season, race_folder, d1_code, d2_code)),
-        daemon=True)
-    t.start()
-    t.join(timeout=TEAM_STRATEGY_CHAMP_CTX_TIMEOUT_S)
-    return result_box[0] if result_box else empty
 
 
 def build_driver_pair_context(bundle: RaceBundle, d1: str, d2: str,
@@ -303,11 +222,8 @@ def build_driver_pair_context(bundle: RaceBundle, d1: str, d2: str,
         p_sc_5lap=bundle.p_sc_5lap,
     )
     radios = master.build_radios_by_driver_lap(REPO_ROOT, bundle.laps, ctx)
-    team_strategy_fn, unavailable_reason = _build_team_strategy_fn(bundle, ctx)
     return DriverPairContext(ctx, master.DriverRuntimeState("D1", d1),
-                              master.DriverRuntimeState("D2", d2), radios,
-                              team_strategy_fn=team_strategy_fn,
-                              team_strategy_unavailable_reason=unavailable_reason)
+                              master.DriverRuntimeState("D2", d2), radios)
 
 
 def _snapshot_states(dpc: DriverPairContext):
@@ -319,7 +235,7 @@ def _restore_states(dpc: DriverPairContext, snapshot) -> None:
 
 
 def evaluate_lap(bundle: RaceBundle, dpc: DriverPairContext, lap_number: int,
-                  lap_overrides: Optional[dict] = None, risk_mode: Optional[str] = None) -> dict:
+                  lap_overrides: Optional[dict] = None) -> dict:
     """Evaluate ONE lap for the tracked D1/D2 pair, mutating dpc's
     DriverRuntimeState objects forward - the exact same functions, in the
     exact same order, that master.run_replay()'s own loop uses (evaluate_driver_lap
@@ -336,15 +252,6 @@ def evaluate_lap(bundle: RaceBundle, dpc: DriverPairContext, lap_number: int,
     {driver_code: decision_dict} using HERMES's own, unmodified decision-row
     schema (gate_decision, tier_reached, triggers, sc_gamble, execution,
     explanation, explanation_text, ...).
-
-    `risk_mode`: forwarded to `dpc.team_strategy_fn` as its own per-call
-    override (see master.build_team_strategy_context._call) - lets the
-    dashboard's RISK MODE control genuinely change candidate ranking/
-    selection without rebuilding the whole per-race team-strategy context.
-    None (default) uses whatever risk mode the context was built with
-    (DEFAULT_RISK_MODE). When `dpc.team_strategy_fn` is None (unavailable
-    this session), this is a no-op - identical to before team-strategy
-    existed in the dashboard.
     """
     laps = bundle.laps
     lap_df = _lap_frame(bundle, lap_number)
@@ -374,21 +281,11 @@ def evaluate_lap(bundle: RaceBundle, dpc: DriverPairContext, lap_number: int,
             dpc.ctx, dpc.state_d2, row_d2, lap_df, bundle.resources,
             dpc.radios_by_driver_lap, dq_notes, laps))
 
-    # Team-strategy wiring: the EXACT same call master.run_replay makes (via the
-    # shared master.apply_team_strategy_to_lap), so a selected joint strategy is
-    # just as operational here as it is in the CLI replay path - not a dashboard-only
-    # advisory display. No-op when dpc.team_strategy_fn is None.
-    team_strategy_result, priority_driver_id = master.apply_team_strategy_to_lap(
-        dpc.ctx, lap_results, row_d1, row_d2, lap_df, laps, lap_number,
-        dpc.team_strategy_fn, dq_notes, risk_mode_override=risk_mode)
-
-    master.merge_execution(dpc.ctx, lap_results, safety_car_active, priority_driver_id=priority_driver_id)
+    master.merge_execution(dpc.ctx, lap_results, safety_car_active)
 
     out = {}
     for r in lap_results:
         r["data_quality_notes"] = list(dq_notes)
-        if team_strategy_result is not None:
-            r["team_strategy"] = team_strategy_result
         r["explanation"] = master.explanation_for(r)
         r["explanation_text"] = master.explanation_text_for(r)
         actual_row = row_d1 if r["driver"] == dpc.ctx.d1_code else row_d2
@@ -407,23 +304,11 @@ def evaluate_lap(bundle: RaceBundle, dpc: DriverPairContext, lap_number: int,
 # touching the historical cache at all.
 # ============================================================================
 class ReplayCache:
-    def __init__(self, bundle: RaceBundle, dpc: DriverPairContext, risk_mode: str = DEFAULT_RISK_MODE):
+    def __init__(self, bundle: RaceBundle, dpc: DriverPairContext):
         self.bundle = bundle
         self.dpc = dpc
-        self.risk_mode = risk_mode
         self._decisions: dict[int, dict] = {}
         self._state_after: dict[int, tuple] = {0: _snapshot_states(dpc)}
-
-    def set_risk_mode(self, risk_mode: str) -> None:
-        """Changing risk mode never affects DriverRuntimeState evolution (tyre age/stops
-        are driven by the real historical Stint/is_pit_in columns, not by what HERMES
-        itself recommended - see run_replay's own note on this) - only the per-lap
-        DECISION (team-strategy ranking/selection) depends on it. So only the decision
-        cache needs clearing; `_state_after` snapshots stay valid and lap navigation
-        after a mode change stays cheap (no re-walk from lap 1)."""
-        if risk_mode != self.risk_mode:
-            self.risk_mode = risk_mode
-            self._decisions.clear()
 
     def get(self, lap_number: int) -> dict:
         if lap_number in self._decisions:
@@ -431,7 +316,7 @@ class ReplayCache:
         last_cached = max((l for l in self._state_after if l < lap_number), default=0)
         _restore_states(self.dpc, self._state_after[last_cached])
         for lap in range(last_cached + 1, lap_number + 1):
-            dec = evaluate_lap(self.bundle, self.dpc, lap, risk_mode=self.risk_mode)
+            dec = evaluate_lap(self.bundle, self.dpc, lap)
             self._decisions[lap] = dec
             self._state_after[lap] = _snapshot_states(self.dpc)
         return self._decisions[lap_number]
@@ -458,16 +343,13 @@ class ScenarioReplayCache:
             historical.get(fork_from)  # ensure the fork point is computed (lap 0 has no decisions -
                                         # it's the pre-race snapshot already seeded in __init__ below)
         self.bundle = historical.bundle
-        self.risk_mode = historical.risk_mode
         # Always fork from historical's own recorded snapshot AT fork_from (never
         # historical.dpc directly - that object keeps mutating forward as the
         # historical cache is used elsewhere, so it is NOT safe to read "as of"
         # any particular lap; _state_after[fork_from] is the frozen snapshot).
         snap = historical._state_after[fork_from]
-        self.dpc = DriverPairContext(historical.dpc.ctx, copy.deepcopy(snap[0]), copy.deepcopy(snap[1]),
-                                      historical.dpc.radios_by_driver_lap,
-                                      team_strategy_fn=historical.dpc.team_strategy_fn,
-                                      team_strategy_unavailable_reason=historical.dpc.team_strategy_unavailable_reason)
+        self.dpc = DriverPairContext(historical.dpc.ctx, copy.deepcopy(snap[0]),
+                                      copy.deepcopy(snap[1]), historical.dpc.radios_by_driver_lap)
         self._decisions: dict[int, dict] = {}
         self._state_after: dict[int, tuple] = {fork_from: (copy.deepcopy(self.dpc.state_d1),
                                                              copy.deepcopy(self.dpc.state_d2))}
@@ -480,11 +362,6 @@ class ScenarioReplayCache:
             return None
         return self.lap_overrides
 
-    def set_risk_mode(self, risk_mode: str) -> None:
-        if risk_mode != self.risk_mode:
-            self.risk_mode = risk_mode
-            self._decisions.clear()
-
     def get(self, lap_number: int) -> dict:
         if lap_number < self.injection_lap:
             return self.historical.get(lap_number)
@@ -494,8 +371,7 @@ class ScenarioReplayCache:
         self.dpc.state_d1, self.dpc.state_d2 = copy.deepcopy(self._state_after[last_cached][0]), \
             copy.deepcopy(self._state_after[last_cached][1])
         for lap in range(last_cached + 1, lap_number + 1):
-            dec = evaluate_lap(self.bundle, self.dpc, lap, lap_overrides=self._overrides_for(lap),
-                                risk_mode=self.risk_mode)
+            dec = evaluate_lap(self.bundle, self.dpc, lap, lap_overrides=self._overrides_for(lap))
             self._decisions[lap] = dec
             self._state_after[lap] = (copy.deepcopy(self.dpc.state_d1), copy.deepcopy(self.dpc.state_d2))
         return self._decisions[lap_number]

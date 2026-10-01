@@ -83,7 +83,6 @@ producer yet):
 from __future__ import annotations
 
 import argparse
-import functools
 import importlib.util
 import json
 import os
@@ -134,7 +133,6 @@ TREES_DIR = REPO_ROOT / "system" / "HERMES" / "trees"
 SC_DIR = REPO_ROOT / "system" / "HERMES" / "safety-car"
 WEATHER_DIR = REPO_ROOT / "system" / "HERMES" / "weather"
 RIVAL_DIR = REPO_ROOT / "system" / "HERMES" / "rival-awareness"
-SACRIFICE_DIR = REPO_ROOT / "system" / "HERMES" / "strategic-sacrifice"
 CACHE_DIR = Path(os.environ.get("GCS_CACHE_DIR", REPO_ROOT / "gcs_cache"))
 
 
@@ -210,17 +208,6 @@ if crossover is None:
          "consider 'raining now while on slicks', never the forecast state.")
 if risk_mod is None:
     note("rival-awareness/risk.py not found - Second-Driver risk appetite unavailable (v1 doesn't need it).")
-
-# Team-coupled strategic layer (2026-10-01, additive - see TEAM STRATEGY LAYER section
-# below). All three are optional loads: the system must still run its validated
-# reactive pipeline unchanged with --team-strategy simply unavailable if any is missing.
-team_strategy = load_module(TREES_DIR / "team-strategy.py", "team_strategy", required=False)
-reward_mod = load_module(SACRIFICE_DIR / "reward.py", "reward_mod", required=False)
-standings_mod = load_module(RIVAL_DIR / "standings.py", "standings_mod", required=False)
-if team_strategy is None:
-    note("trees/team-strategy.py not found - --team-strategy unavailable.")
-if reward_mod is None:
-    note("strategic-sacrifice/reward.py not found - --team-strategy unavailable (needs compute_team_reward).")
 
 
 # ============================================================================
@@ -835,309 +822,12 @@ def marginal_pace_loss(build_projection, tyre_age: float, horizon: int = HORIZON
 
 def resolve_second_driver_priority_v1(*_args, **_kwargs) -> Optional[str]:
     """BP §11 Q9 v1: always None -> Execution Tree's own default
-    resolution (lower gate-tree tier, then "Driver 1 Priority"). This stays
-    UNCHANGED (zero behaviour change for every caller that doesn't opt into
-    --team-strategy) - the real, v2 reward-based resolution now lives below
-    (`resolve_team_strategy_priority`), called ONLY from the team-strategy
-    code path, never from here."""
+    resolution (lower gate-tree tier, then "Driver 1 Priority"). The v2
+    reward-based comparison (compute_team_reward + standings.py +
+    risk.compute_risk_appetite) is real additional work, not a
+    ten-minute bolt-on - left as an explicit extension point rather than
+    a half-wired guess."""
     return None
-
-
-# ============================================================================
-# 6c. TEAM-COUPLED STRATEGIC LAYER (2026-10-01, additive - see team-strategy.py)
-# ============================================================================
-# Everything below gathers REAL inputs (driver taxonomy, live championship
-# standings, per-lap adjacency/projection data already computed elsewhere in
-# this file) and hands them to team-strategy.py's pure functions. This file
-# owns all I/O (CSV/network); team-strategy.py owns zero I/O and all the
-# actual Phase 1-12 logic - same split of responsibility gate-tier-3.py /
-# execution-tree.py already have with this orchestrator.
-DRIVER_TAXONOMY_PROFILE_COLS = ["aggression_level", "defensive_strength", "tyre_management",
-                                 "consistency_factor", "wet_weather_skill", "pressure_risk_tolerance"]
-
-
-def load_driver_taxonomy(path: Path) -> Optional[pd.DataFrame]:
-    if not path.exists():
-        note(f"driver_taxonomy_master_final.csv not found at {path} - team-strategy will use neutral "
-             f"(1.0) driver profiles for every driver, no fabricated values.")
-        return None
-    return pd.read_csv(path)
-
-
-def driver_profile_for(taxonomy: Optional[pd.DataFrame], driver_code: str) -> dict:
-    """Returns the 6-variable profile dict for a driver, or the EXACT neutral
-    (1.0 = average, matching this taxonomy's own 0.85-1.15 scale) profile if
-    the driver isn't in the table - never a fabricated non-neutral guess."""
-    if taxonomy is None or "driver" not in taxonomy.columns:
-        return dict(team_strategy.NEUTRAL_PROFILE)
-    row = taxonomy[taxonomy["driver"] == driver_code]
-    if row.empty:
-        return dict(team_strategy.NEUTRAL_PROFILE)
-    r = row.iloc[0]
-    return {col: _safe_float(r.get(col)) or 1.0 for col in DRIVER_TAXONOMY_PROFILE_COLS}
-
-
-def fetch_championship_context(season: int, race_folder: str, d1_code: str, d2_code: str) -> dict:
-    """Wraps standings.py (reused, not reimplemented) in a try/except that
-    NEVER crashes a replay - a network failure, missing credentials, or an
-    unmapped race name all degrade to an explicit all-None context, which
-    team-strategy.py's own functions already treat as 'fall through to the
-    existing Driver-1-priority default' (never a guess, never a crash).
-    Computed ONCE per race by the caller, not once per lap - points gaps are
-    fixed pre-race context, not something that changes lap to lap."""
-    empty = dict(available=False, d1_points=None, d2_points=None, round_num=None, races_remaining=None,
-                 nearest_rival_code=None, d1_signed_gap_to_rival=None, d2_signed_gap_to_rival=None)
-    if standings_mod is None:
-        return empty
-    try:
-        round_lookup = standings_mod.build_round_lookup(season)
-        round_num = round_lookup.get(race_folder)
-        if round_num is None:
-            return empty
-        points = standings_mod.get_standings_before_round(season, round_num)
-        code_map = standings_mod.build_driver_code_map(season)
-        id_d1, id_d2 = code_map.get(d1_code), code_map.get(d2_code)
-        d1_points = points.get(id_d1, 0.0) if id_d1 else None
-        d2_points = points.get(id_d2, 0.0) if id_d2 else None
-        races_remaining = max(1, len(round_lookup) - round_num + 1)
-
-        # Nearest title rival per driver (Phase 4's own championship-rival input) - the
-        # non-teammate driver with the smallest absolute points gap, reusing the SAME
-        # standings snapshot already fetched above (no extra network calls).
-        inv_code_map = {v: k for k, v in code_map.items()}
-
-        def _nearest_rival(own_code, own_points):
-            if own_points is None:
-                return None, None
-            best_code, best_gap = None, None
-            for driver_id, pts in points.items():
-                code = inv_code_map.get(driver_id)
-                if code is None or code in (d1_code, d2_code):
-                    continue
-                gap = abs(pts - own_points)
-                if best_gap is None or gap < best_gap:
-                    best_code, best_gap = code, gap
-            if best_code is None:
-                return None, None
-            return best_code, (own_points - points[code_map[best_code]])
-
-        d1_rival_code, d1_signed_gap = _nearest_rival(d1_code, d1_points)
-        d2_rival_code, d2_signed_gap = _nearest_rival(d2_code, d2_points)
-        # Report whichever rival is closer to EITHER car as the primary nearest_rival_code -
-        # identify_relevant_rivals (team-strategy.py) folds this with real on-track adjacency.
-        nearest_rival_code = d1_rival_code if (d1_signed_gap is not None and (
-            d2_signed_gap is None or abs(d1_signed_gap) <= abs(d2_signed_gap))) else d2_rival_code
-
-        return dict(available=True, d1_points=d1_points, d2_points=d2_points, round_num=round_num,
-                    races_remaining=races_remaining, nearest_rival_code=nearest_rival_code,
-                    d1_signed_gap_to_rival=d1_signed_gap, d2_signed_gap_to_rival=d2_signed_gap)
-    except Exception as e:  # noqa: BLE001 - same "never let an optional-input failure crash a lap" convention
-        note(f"championship context unavailable for {season} {race_folder} ({e!r}) - team-strategy "
-             f"falls back to its existing Driver-1-priority default this race.")
-        return empty
-
-
-def build_team_strategy_context(ctx: "RaceContext", resources: dict, taxonomy: Optional[pd.DataFrame],
-                                 champ_ctx: dict, risk_mode: str, n_sims: int):
-    """Builds the ONE closure `run_replay` calls once per lap (when both
-    tracked drivers have a row that lap). Captures everything that's fixed
-    for the whole race (taxonomy, championship context, resources) so the
-    per-lap call only needs what genuinely varies lap to lap."""
-    d1_profile = driver_profile_for(taxonomy, ctx.d1_code)
-    d2_profile = driver_profile_for(taxonomy, ctx.d2_code)
-
-    d1_champ_state = reward_mod.DriverChampionshipState(
-        name=ctx.d1_code, wdc_gap=abs(champ_ctx["d1_signed_gap_to_rival"] or 0.0),
-        role_weight=0.65, title_secured=False)
-    d2_champ_state = reward_mod.DriverChampionshipState(
-        name=ctx.d2_code, wdc_gap=abs(champ_ctx["d2_signed_gap_to_rival"] or 0.0),
-        role_weight=0.35, title_secured=False)
-    races_remaining = champ_ctx.get("races_remaining") or 1
-    team_state = reward_mod.TeamChampionshipState(wcc_gap=0.0, races_remaining=races_remaining, alpha=0.5)
-    d1_leverage = reward_mod.championship_leverage(d1_champ_state.wdc_gap, races_remaining) \
-        if champ_ctx.get("available") else None
-    d2_leverage = reward_mod.championship_leverage(d2_champ_state.wdc_gap, races_remaining) \
-        if champ_ctx.get("available") else None
-
-    mc_cfg = team_strategy.MCStrategyConfig(n_sims=n_sims)
-
-    def _call(r_d1: dict, r_d2: dict, lap_df: pd.DataFrame, laps: pd.DataFrame, lap_number: int,
-              risk_mode_override: Optional[str] = None) -> dict:
-        """`risk_mode_override` (additive, default None - see dashboard/hermes_adapter.py):
-        when given, overrides the `risk_mode` this closure was built with for
-        THIS call only - lets a UI control (e.g. the dashboard's RISK MODE
-        selector) genuinely change candidate ranking without rebuilding the
-        whole context (taxonomy/championship/Monte-Carlo config stay fixed,
-        exactly as they should for a single race). `run_replay`'s own call
-        site never passes this kwarg, so CLI replay behaviour is unchanged."""
-        effective_risk_mode = risk_mode_override if risk_mode_override else risk_mode
-        total_laps = ctx.total_laps
-        laps_remaining = max(0, total_laps - lap_number)
-
-        def _driver_sim_inputs(r, profile):
-            compound = r.get("compound")
-            tyre_age = r.get("tyre_age") or 0.0
-            # Rebuilds the SAME projection closure evaluate_driver_lap already built for this
-            # exact lap, from the fuel/stint_number/temp_bucket it exposed on the result dict -
-            # no recomputation of those three, no divergence from the decision this lap actually made.
-            proj_fn_raw = build_projection_fn(resources["tyre_models"], compound, ctx.circuit,
-                                               ctx.regulation_era, r.get("_fuel") or fuel_load_estimate(lap_number, total_laps),
-                                               int(r.get("_stint_number") or 1),
-                                               r.get("_temp_bucket") or "warm", ctx.circuit_degredation_ordinal)
-            # Memoised PER LAP (this closure is rebuilt fresh every _driver_sim_inputs call, so
-            # there is no cross-lap staleness risk): team-strategy.py's own candidate loop calls
-            # pace_loss_fn/cliff_probability_fn once per joint candidate (up to ~25/lap) with the
-            # SAME tyre_age for most of them (pace_loss_fn(d.tyre_age) is identical on every single
-            # call this lap) - proj_fn's own Cox-model projection is real work (lifelines
-            # predict_cumulative_hazard), so recomputing it ~25x/lap for an identical input is pure
-            # waste, not a change in what gets computed or returned. No existing test asserts call
-            # counts, only RESULTS - this changes nothing about any number team-strategy.py produces.
-            proj_fn = functools.lru_cache(maxsize=None)(proj_fn_raw)
-            stint_len, _ = expected_stint_length(resources["cliff_stints"], compound, ctx.circuit,
-                                                  ctx.regulation_era)
-            adjacency = r.get("adjacency") or {}
-            compound_history_dry = r.get("_compound_history_dry_snapshot") or set()
-            wet_exception = bool(r.get("_wet_race_exception_so_far", False))
-            # Reuses gate2.mandatory_compound_done verbatim (the SAME function Tier 2 itself calls) -
-            # not reimplemented. alt_compound_available: is there a dry compound this driver hasn't
-            # used yet this race (real, not guessed - from the same compound_history_dry set Tier 2 uses).
-            mandatory_done = gate2.mandatory_compound_done(compound_history_dry, wet_exception)
-            alt_available = len(DRY_COMPOUNDS - compound_history_dry) > 0
-            return team_strategy.DriverSimInputs(
-                code=r["driver"], current_lap=lap_number, tyre_age=tyre_age, compound=compound or "MEDIUM",
-                expected_stint_length=stint_len,
-                pace_loss_fn=lambda age: proj_fn(age)["predicted_pace_loss"],
-                cliff_probability_fn=lambda age: proj_fn(age)["cliff_probability_next_5_laps"],
-                pit_loss_s=ctx.pit_loss_s,
-                gap_ahead_s=_safe_float(adjacency.get("ahead_gap_s")),
-                gap_behind_s=_safe_float(adjacency.get("behind_gap_s")),
-                mandatory_compound_done=mandatory_done,
-                alt_compound_available=alt_available,
-                profile=profile,
-            )
-
-        d1_sim = _driver_sim_inputs(r_d1, d1_profile)
-        d2_sim = _driver_sim_inputs(r_d2, d2_profile)
-
-        # assign_team_roles is a pure, deterministic function of its inputs - calling it here (to
-        # get team_objective for rival selection) and again inside evaluate_team_strategy below is
-        # a cheap, idempotent duplicate CALL, not duplicate LOGIC; both calls see the same inputs
-        # and return the same answer.
-        role_preview = team_strategy.assign_team_roles(
-            ctx.d1_code, ctx.d2_code, r_d1.get("track_position"), r_d2.get("track_position"),
-            d1_leverage, d2_leverage,
-            d1_compromised=bool(r_d1.get("tier_reached") == 1), d2_compromised=bool(r_d2.get("tier_reached") == 1))
-
-        ahead_row = (r_d1.get("adjacency") or {}).get("ahead_driver")
-        behind_row = (r_d1.get("adjacency") or {}).get("behind_driver")
-        champ_rival_code = champ_ctx.get("nearest_rival_code")
-        rival_info = team_strategy.identify_relevant_rivals(
-            r_d1["driver"],
-            dict(Driver=ahead_row, gap_s=d1_sim.gap_ahead_s) if ahead_row else None,
-            dict(Driver=behind_row, gap_s=d1_sim.gap_behind_s) if behind_row else None,
-            champ_rival_code, dict(gap_s=None) if champ_rival_code else None,
-            role_preview["team_objective"],
-        )
-        pit_window = team_strategy.predict_rival_pit_window(
-            rival_tyre_age=None, rival_expected_stint_length=None,
-            current_lap=lap_number, total_laps=total_laps)  # populated below if adjacency has a usable rival
-        if ahead_row:
-            ahead_full = lap_df[lap_df["Driver"] == ahead_row]
-            if not ahead_full.empty:
-                ahead_compound = ahead_full.iloc[0].get("Compound")
-                ahead_age = _safe_float(ahead_full.iloc[0].get("TyreLife"))
-                ahead_stint_len, _ = expected_stint_length(resources["cliff_stints"], ahead_compound,
-                                                             ctx.circuit, ctx.regulation_era)
-                pit_window = team_strategy.predict_rival_pit_window(
-                    rival_tyre_age=ahead_age, rival_expected_stint_length=ahead_stint_len,
-                    current_lap=lap_number, total_laps=total_laps)
-        # NOTE: "rival_pit_prediction" (not "predicted_pit_window" - avoids a self-referential
-        # name collision, since pit_window ITSELF is a dict with its own "predicted_pit_window"
-        # key, see team_strategy.predict_rival_pit_window's return shape). team_strategy.
-        # evaluate_team_strategy reads rival_info["rival_pit_prediction"]["predicted_pit_window"]
-        # to make this a real scoring input (PHASE 5 wiring), not just an explanation field.
-        rival_info = {**rival_info, "rival_pit_prediction": pit_window}
-
-        result = team_strategy.evaluate_team_strategy(
-            d1_sim, d2_sim, total_laps, laps_remaining,
-            r_d1.get("track_position"), r_d2.get("track_position"),
-            d1_leverage, d2_leverage,
-            d1_compromised=bool(r_d1.get("tier_reached") == 1),
-            d2_compromised=bool(r_d2.get("tier_reached") == 1),
-            d1_champ_state=d1_champ_state, d2_champ_state=d2_champ_state, team_state=team_state,
-            reward_mod=reward_mod, position_points_fn=reward_mod.position_points,
-            risk_mode=effective_risk_mode, mc_config=mc_cfg, rival_info=rival_info,
-        )
-        return result
-
-    return _call
-
-
-def resolve_team_strategy_priority(team_strategy_result: Optional[dict]) -> Optional[str]:
-    """The REAL v2 priority resolution the v1 stub's docstring pointed to -
-    but only consulted when --team-strategy produced a result this lap; the
-    default replay path never calls this, so resolve_second_driver_priority_v1
-    (always None) remains byte-identical in behaviour for every existing caller."""
-    if not team_strategy_result:
-        return None
-    return team_strategy_result.get("role", {}).get("priority_driver_id")
-
-
-def apply_team_strategy_to_lap(ctx: "RaceContext", lap_results: list, row_d1, row_d2,
-                                lap_df: pd.DataFrame, laps: pd.DataFrame, lap_number: int,
-                                team_strategy_fn, dq_notes: list,
-                                risk_mode_override: Optional[str] = None):
-    """STRATEGY -> EXECUTION WIRING (2026-10-02), factored out (2026-10-03) so
-    `run_replay` and the dashboard adapter (dashboard/hermes_adapter.py) share
-    the EXACT same wiring - never two copies of this logic. Mutates `r["gate_decision"]`/
-    `r["gate_tree_trigger_tier"]`/`r["reason"]`/`r["team_strategy_execution"]` in place on
-    the matching dicts inside `lap_results` exactly as the inline block used to, and
-    returns (team_strategy_result, priority_driver_id) for the caller to attach/pass on
-    (team_strategy_result -> r["team_strategy"]; priority_driver_id -> merge_execution's
-    `priority_driver_id` kwarg). `risk_mode_override` is forwarded to `team_strategy_fn`
-    as its own optional kwarg (see build_team_strategy_context._call) - None reproduces
-    whatever risk mode the context closure was built with, exactly as before this
-    function existed.
-
-    team_strategy_result never touches a Tier 1/2 result and never suppresses an
-    already-active Tier 3 trigger (see team_strategy.resolve_strategy_execution's own
-    docstring) - the only thing it can do is flip a driver who Tier 3 left at
-    DONT_PIT/PIT_LATER into PIT_NOW, by setting gate_tree_trigger_tier so
-    merge_execution's own `triggered` list picks them up - the REAL Execution Tree then
-    runs for them, exactly as it would for any other PIT_NOW. Every outcome (upgrade,
-    override, no-op) is recorded on r["team_strategy_execution"] for both drivers, never
-    applied silently."""
-    team_strategy_result = None
-    priority_driver_id = None
-    if team_strategy_fn is not None and row_d1 is not None and row_d2 is not None:
-        r_d1_pre = next(r for r in lap_results if r["driver"] == ctx.d1_code)
-        r_d2_pre = next(r for r in lap_results if r["driver"] == ctx.d2_code)
-        try:
-            team_strategy_result = team_strategy_fn(r_d1_pre, r_d2_pre, lap_df, laps, lap_number,
-                                                      risk_mode_override=risk_mode_override)
-            priority_driver_id = resolve_team_strategy_priority(team_strategy_result)
-
-            exec_map = team_strategy.resolve_strategy_execution(
-                team_strategy_result["selected_strategy"],
-                r_d1_pre["gate_decision"], r_d1_pre["gate_tree_trigger_tier"],
-                r_d2_pre["gate_decision"], r_d2_pre["gate_tree_trigger_tier"])
-            for r, role_key in ((r_d1_pre, "d1"), (r_d2_pre, "d2")):
-                info = exec_map[role_key]
-                r["team_strategy_execution"] = info
-                if info["should_upgrade_to_pit_now"]:
-                    r["gate_decision"] = "PIT_NOW"
-                    r["gate_tree_trigger_tier"] = 3
-                    if not r.get("reason"):
-                        r["reason"] = "TEAM_STRATEGY"
-
-            team_strategy_result["trade_off_explanation"] = team_strategy.build_decision_trade_off_explanation(
-                team_strategy_result["selected_strategy"], team_strategy_result["alternatives"],
-                team_strategy_result["role"], lap_number, team_strategy_result["risk_mode"],
-                execution_d1=exec_map["d1"], execution_d2=exec_map["d2"])
-        except Exception as e:  # noqa: BLE001 - an advisory layer must never crash the real decision
-            dq_notes.append(f"team-strategy evaluation failed this lap ({e!r}) - Gate/Execution "
-                             f"Tree proceeding unaffected, resolve_second_driver_priority_v1 default used.")
-    return team_strategy_result, priority_driver_id
 
 
 # ============================================================================
@@ -1338,13 +1028,6 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
         "ahead_tyre_age": ahead_tyre_age,
         "behind_driver": behind_row.get("Driver") if behind_row is not None else None,
         "behind_tyre_age": behind_tyre_age,
-        # Additive (team-strategy layer, 2026-10-01): exposes the SAME gap_ahead_s/
-        # gap_behind_s this function already computed above for its own undercut/
-        # overcut/dirty-air triggers - no new computation, just no longer thrown away
-        # after this function returns. Purely additive keys; no existing consumer of
-        # `adjacency` reads anything but ahead_driver/ahead_tyre_age/behind_driver/
-        # behind_tyre_age, so this cannot change any existing behaviour.
-        "ahead_gap_s": gap_ahead_s, "behind_gap_s": gap_behind_s,
     }
     # A tyre-age gap this large before either car has pitted is implausible -
     # far more likely find_adjacent_rows landed on a lapped/pitted car via a
@@ -1398,22 +1081,7 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
               "compound": compound, "tyre_age": tyre_age, "gate_decision": t1,
               "tier_reached": 1, "reason": None, "triggers": {}, "projection": projection,
               "sc_gamble": None, "gate_tree_trigger_tier": None, "adjacency": adjacency,
-              "t1_state": t1_state,
-              # Additive (team-strategy layer): stint_number/temp_bucket/fuel already
-              # computed above for this lap's own tyre projection - exposed here so a
-              # downstream consumer (team-strategy.py, via build_team_strategy_context)
-              # can rebuild the SAME projection closure without recomputing or guessing
-              # these three values. compound_history_dry is a live, mutable set on
-              # `state` (not safe to hand out directly) - exposed as a snapshot copy,
-              # read-only, for the SAME reason.
-              "_stint_number": stint_number, "_temp_bucket": temp_bucket, "_fuel": fuel,
-              "_compound_history_dry_snapshot": set(state.compound_history_dry),
-              "_wet_race_exception_so_far": state.used_wet_or_inter,
-              # Additive: own_position already computed above - exposed here (not just on the
-              # tier>=3 branch further down, which already separately sets result["track_position"]
-              # for its own reasons) so every return path has it, not just Tier-3 ones.
-              "track_position": own_position}
-                                      # t1_state kept for explanation_for()'s _tier1_plain_reason() -
+              "t1_state": t1_state}  # kept for explanation_for()'s _tier1_plain_reason() -
                                       # explainability only, never re-evaluated or re-decided from.
     if t1 == "PIT_NOW":
         result["gate_tree_trigger_tier"] = 1
@@ -1549,20 +1217,12 @@ def evaluate_driver_lap(ctx: RaceContext, state: DriverRuntimeState, row, lap_df
     return result
 
 
-def merge_execution(ctx: RaceContext, results: list, safety_car_active: bool,
-                     priority_driver_id: Optional[str] = None) -> None:
+def merge_execution(ctx: RaceContext, results: list, safety_car_active: bool) -> None:
     """BP §8.2 tail + §4.1 quirk (b): fires the Execution Tree for whoever
     triggered PIT_NOW/PIT_FLEXIBLE, and separately calls
     get_driving_instruction for anyone who didn't trigger (PIT_LATER/
     DONT_PIT), since the Execution Tree itself only outputs for triggered
-    drivers.
-
-    `priority_driver_id` (additive, 2026-10-01, default None): when the
-    team-strategy layer is active, run_replay passes the REAL, dynamic
-    Phase-1 role-assignment result here instead of leaving it unset. When
-    None (every caller before this layer existed, and every caller that
-    still doesn't pass it), falls back to `resolve_second_driver_priority_v1()`
-    exactly as before - BYTE-IDENTICAL behaviour for the default path."""
+    drivers."""
     triggered = [r for r in results if r["gate_tree_trigger_tier"] is not None]
     if triggered:
         contexts = [exec_tree.DriverPitContext(
@@ -1574,9 +1234,7 @@ def merge_execution(ctx: RaceContext, results: list, safety_car_active: bool,
         ) for r in triggered]
         state = exec_tree.ExecutionTreeState(
             triggered_drivers=contexts, safety_car_active=safety_car_active,
-            circuit=ctx.circuit,
-            priority_driver_id=priority_driver_id if priority_driver_id is not None
-            else resolve_second_driver_priority_v1(),
+            circuit=ctx.circuit, priority_driver_id=resolve_second_driver_priority_v1(),
         )
         exec_out = exec_tree.evaluate_execution_tree(state)
         for r in triggered:
@@ -1941,28 +1599,14 @@ def _attach_weather_columns(laps: pd.DataFrame, weather_df: Optional[pd.DataFram
 
 def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
                 radios_by_driver_lap: Optional[dict] = None, explain: bool = False,
-                weather_df: Optional[pd.DataFrame] = None, rl_recommend_fn=None,
-                team_strategy_fn=None) -> list:
+                weather_df: Optional[pd.DataFrame] = None, rl_recommend_fn=None) -> list:
     """`rl_recommend_fn` (additive, default None - see `replay --rl`):
     optional callable(result_dict, ctx) -> dict, attached to each decision as
     r["rl"] before explanation_for() runs. When None (the default), nothing
     about this function's behaviour or output changes from before the RL
     layer existed - see system/HERMES/trees/rl_bridge.py for what the
     callable actually does (RL recommendation -> combined with the REAL,
-    unmodified Gate/Execution Tree result).
-
-    `team_strategy_fn` (additive, default None - see `replay --team-strategy`):
-    optional callable(r_d1, r_d2, lap_df, laps, lap_number) -> dict, built by
-    build_team_strategy_context(). Only called on laps where BOTH tracked
-    drivers have a row (team-coupled strategy is inherently a two-car
-    question). Its `role.priority_driver_id` is passed into merge_execution
-    for THIS SAME lap (so a dynamic role assignment can actually affect the
-    Execution Tree's double-stack/priority resolution, not just be computed
-    and discarded) and its full result is attached to both drivers' decision
-    dicts as r["team_strategy"] - advisory only, exactly like r["rl"]; never
-    replaces gate_decision or execution.decision. When None (the default),
-    nothing about this function's behaviour changes from before this layer
-    existed."""
+    unmodified Gate/Execution Tree result)."""
     laps_path = find_laps_features(ctx.season, ctx.circuit, ctx.session)
     if laps_path is None:
         raise FileNotFoundError(
@@ -2001,15 +1645,10 @@ def run_replay(ctx: RaceContext, resources: dict, lap_range: range,
             lap_results.append(evaluate_driver_lap(ctx, states[ctx.d2_code], row_d2, lap_df,
                                                      resources, radios_by_driver_lap, dq_notes, laps))
 
-        team_strategy_result, priority_driver_id = apply_team_strategy_to_lap(
-            ctx, lap_results, row_d1, row_d2, lap_df, laps, lap_number, team_strategy_fn, dq_notes)
-
-        merge_execution(ctx, lap_results, safety_car_active, priority_driver_id=priority_driver_id)
+        merge_execution(ctx, lap_results, safety_car_active)
 
         for r in lap_results:
             r["data_quality_notes"] = list(dq_notes)
-            if team_strategy_result is not None:
-                r["team_strategy"] = team_strategy_result
             if rl_recommend_fn is not None:
                 r["rl"] = rl_recommend_fn(r, ctx)
             r["explanation"] = explanation_for(r)          # structured trace (dict)
@@ -2298,21 +1937,6 @@ def main():
     sp.add_argument("--rl-qtable", default=None,
                      help="Path to a trained Q-table (default: system/HERMES/trees/rl_artifacts/"
                           "qtable.json, produced by rl_train.py). Only used with --rl.")
-    sp.add_argument("--team-strategy", action="store_true",
-                     help="Additive: attach a team-coupled strategic layer (dynamic D1/D2 role "
-                          "assignment, forward strategy simulation, rival prediction, team reward) "
-                          "to each decision as result['team_strategy'] - advisory only, never "
-                          "overrides the Gate/Execution Tree. Disabled (default) -> output is "
-                          "unchanged from before this layer existed. The dynamic role assignment "
-                          "DOES feed into the Execution Tree's priority_driver_id for this lap when "
-                          "enabled (see merge_execution) - that is the one place this flag can "
-                          "change the operational decision, by design (Phase 1).")
-    sp.add_argument("--team-strategy-risk-mode", choices=["CONSERVATIVE", "BALANCED", "AGGRESSIVE"],
-                     default="BALANCED", help="Only used with --team-strategy.")
-    sp.add_argument("--team-strategy-n-sims", type=int, default=200,
-                     help="Monte Carlo simulations per candidate strategy per lap. Only used with "
-                          "--team-strategy. Kept small by default - this runs per candidate per lap, "
-                          "not once per race.")
 
     sub.add_parser("selftest", help="run the wiring/regression self-checks (BP §8.4)")
 
@@ -2380,22 +2004,8 @@ def main():
                 rl_out = rl_bridge.rl_recommend_for_hermes_result(rl_agent, result, race_ctx)
                 return rl_bridge.combine_with_gate_tree(rl_out, result)
 
-        team_strategy_fn = None
-        if args.team_strategy:
-            if team_strategy is None or reward_mod is None:
-                raise SystemExit("--team-strategy was given but trees/team-strategy.py or "
-                                  "strategic-sacrifice/reward.py could not be loaded - see the "
-                                  "[hermes] notes printed above for which one.")
-            driver_taxonomy = load_driver_taxonomy(_data_path(REPO_ROOT, "driver_taxonomy_master_final.csv"))
-            champ_ctx = fetch_championship_context(args.season, args.race, args.d1, args.d2)
-            note(f"team-strategy championship context: {'live' if champ_ctx['available'] else 'UNAVAILABLE'}"
-                 f" (round={champ_ctx.get('round_num')}, nearest_rival={champ_ctx.get('nearest_rival_code')})")
-            team_strategy_fn = build_team_strategy_context(
-                ctx, resources, driver_taxonomy, champ_ctx,
-                risk_mode=args.team_strategy_risk_mode, n_sims=args.team_strategy_n_sims)
-
         decisions = run_replay(ctx, resources, lap_range, explain=args.explain, weather_df=weather_df,
-                                rl_recommend_fn=rl_recommend_fn, team_strategy_fn=team_strategy_fn)
+                                rl_recommend_fn=rl_recommend_fn)
 
         if args.out:
             with open(args.out, "w") as f:
@@ -2405,13 +2015,7 @@ def main():
                     # everything a reader needs from it is already surfaced in
                     # d["explanation"], so drop the raw object rather than
                     # json.dumps(default=str)-ing an unreadable repr into the file.
-                    # Also drops the internal "_"-prefixed fields added for the team-strategy layer
-                    # (_fuel, _stint_number, _temp_bucket, _compound_history_dry_snapshot,
-                    # _wet_race_exception_so_far) - everything a reader needs from them is already
-                    # surfaced in d["team_strategy"] when that layer is enabled, same convention as
-                    # t1_state/t3_state above.
-                    d_out = {k: v for k, v in d.items()
-                             if k not in ("t1_state", "t3_state") and not k.startswith("_")}
+                    d_out = {k: v for k, v in d.items() if k not in ("t1_state", "t3_state")}
                     f.write(json.dumps(d_out, default=str) + "\n")
             note(f"wrote {len(decisions)} decisions to {args.out}")
 

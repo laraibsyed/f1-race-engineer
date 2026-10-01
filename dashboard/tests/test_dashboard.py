@@ -206,6 +206,104 @@ def test_scenario_duration_actually_ends(bundle, dpc):
     assert (scen_dec[D1].get("triggers") or {}).get("safety_car") == (hist_dec[D1].get("triggers") or {}).get("safety_car")
 
 
+def _offline_champ_ctx(*_args, **_kwargs):
+    """Avoids standings.py's real network calls (slow/unreliable in a sandboxed
+    test environment, same convention test_team_strategy.py's own end-to-end
+    tests already use) - proves the WIRING, not standings.py's own network
+    reliability, which is exercised separately."""
+    return dict(available=True, d1_points=50.0, d2_points=45.0, round_num=1, races_remaining=20,
+                nearest_rival_code="HAM", d1_signed_gap_to_rival=10.0, d2_signed_gap_to_rival=5.0)
+
+
+@pytest.fixture()
+def dpc_with_team_strategy(bundle, monkeypatch):
+    """A driver-pair context with team-strategy wired (championship context
+    mocked offline - see _offline_champ_ctx). Skips if team-strategy.py or
+    reward.py aren't loadable in this environment, same as the backend's own
+    end-to-end tests."""
+    import system.HERMES.trees.master as master
+    if master.team_strategy is None or master.reward_mod is None:
+        pytest.skip("team-strategy.py or reward.py not loadable in this environment")
+    monkeypatch.setattr(master, "fetch_championship_context", _offline_champ_ctx)
+    ha._TEAM_STRATEGY_CACHE.clear()
+    dpc = ha.build_driver_pair_context(bundle, D1, D2)
+    assert dpc.team_strategy_fn is not None, f"team-strategy unavailable: {dpc.team_strategy_unavailable_reason}"
+    return dpc
+
+
+# ============================================================================
+# TEAM STRATEGY / RISK MODE / TRADE-OFF EXPLAINABILITY (dashboard integration)
+# ============================================================================
+def test_team_strategy_attached_to_decision_when_available(bundle, dpc_with_team_strategy):
+    cache = ha.ReplayCache(bundle, dpc_with_team_strategy)
+    dec = cache.get(10)
+    assert dec[D1].get("team_strategy") is not None
+    selected = dec[D1]["team_strategy"]["selected_strategy"]
+    assert "d1_action" in selected and "d2_action" in selected
+
+
+def test_team_strategy_execution_present_and_consistent_with_gate_decision(bundle, dpc_with_team_strategy):
+    cache = ha.ReplayCache(bundle, dpc_with_team_strategy)
+    dec = cache.get(10)
+    exec_info = dec[D1].get("team_strategy_execution")
+    assert exec_info is not None
+    assert exec_info["executed_action"] == dec[D1]["gate_decision"]
+
+
+def test_risk_mode_control_genuinely_changes_reported_risk_mode(bundle, dpc_with_team_strategy):
+    """Requirement: the dashboard's RISK MODE control must propagate into the
+    actual team-strategy evaluation, not just change a displayed label -
+    verified here the same way the backend's own test does: the SAME lap,
+    SAME cache, re-evaluated under different `risk_mode` values via
+    ReplayCache.set_risk_mode, must report back the overridden mode."""
+    cache = ha.ReplayCache(bundle, dpc_with_team_strategy)
+    cache.set_risk_mode("CONSERVATIVE")
+    dec_conservative = cache.get(10)
+    assert dec_conservative[D1]["team_strategy"]["risk_mode"] == "CONSERVATIVE"
+
+    cache.set_risk_mode("AGGRESSIVE")
+    dec_aggressive = cache.get(10)
+    assert dec_aggressive[D1]["team_strategy"]["risk_mode"] == "AGGRESSIVE"
+
+
+def test_risk_mode_change_only_clears_decision_cache_not_state(bundle, dpc_with_team_strategy):
+    """set_risk_mode must not force a full re-walk from lap 1 - DriverRuntimeState
+    evolution (tyre age/stops) is risk-mode independent, only the decision is
+    affected - so _state_after snapshots must survive a mode change."""
+    cache = ha.ReplayCache(bundle, dpc_with_team_strategy)
+    cache.get(10)
+    assert 10 in cache._state_after
+    cache.set_risk_mode("AGGRESSIVE")
+    assert 10 in cache._state_after        # state snapshot preserved
+    assert 10 not in cache._decisions      # decision cache cleared
+
+
+def test_trade_off_explanation_available_and_commensurate(bundle, dpc_with_team_strategy):
+    cache = ha.ReplayCache(bundle, dpc_with_team_strategy)
+    dec = cache.get(10)
+    trade_off = dec[D1]["team_strategy"].get("trade_off_explanation")
+    assert trade_off is not None
+    assert trade_off["selected_d1_action"] == dec[D1]["team_strategy"]["selected_strategy"]["d1_action"]
+    assert trade_off["d1"]["horizon_laps"] >= 0
+
+
+def test_team_strategy_disabled_when_module_unavailable_degrades_gracefully(bundle):
+    """When team-strategy is unavailable (module missing, championship context
+    unavailable, etc.) the dashboard must degrade gracefully - gate_decision/
+    execution must be completely unaffected, same as --team-strategy OFF on
+    the CLI path. Forces team_strategy_fn to None directly on a fresh
+    DriverPairContext (not via the module-level availability, which IS
+    loadable in this environment and therefore attached by default - see
+    test_team_strategy_attached_to_decision_when_available)."""
+    dpc_no_ts = ha.build_driver_pair_context(bundle, D1, D2)
+    dpc_no_ts.team_strategy_fn = None
+    cache = ha.ReplayCache(bundle, dpc_no_ts)
+    dec = cache.get(10)
+    assert dec[D1].get("team_strategy") is None
+    assert dec[D1].get("team_strategy_execution") is None
+    assert "gate_decision" in dec[D1]
+
+
 def test_red_bull_pair_resolution(bundle):
     """D1/D2 must be the recorded Red Bull Racing pair for this season, not an
     arbitrary/first/fastest pair."""
