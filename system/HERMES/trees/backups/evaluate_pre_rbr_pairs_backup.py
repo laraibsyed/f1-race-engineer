@@ -1,47 +1,4 @@
-#!/usr/bin/env python3
-"""
-HERMES full-system evaluation (Red Bull, VER + teammate)
-============================================================================
-Run from the repo root (same place you run master.py from):
 
-    python hermes_evaluate.py --repo-root . --stage all
-
-Stages (each is resumable, results are cached in eval_out/):
-    replay     run master.py replay for every Red Bull race 2021-2025 -> eval_out/replays/*.jsonl
-    baseline   tyre-life-only baseline (Tier 3 tyre triggers only) built from the same replays
-    evaluate   walk-forward folds + 2025 holdout + counterfactual + metrics -> eval_out/*.csv
-    report     markdown summary + figures -> eval_out/evaluation_report.md
-    all        everything above, in order
-
-DESIGN NOTES (read these, they matter for the write-up)
-----------------------------------------------------------------------------
-1. HERMES has no learned parameters per fold in the strict sense (the tyre
-   pickle was fit on 100% of data, see blueprint 4.1). So "walk-forward" here
-   is done honestly in two parts:
-     (a) FOLD-WISE PERFORMANCE: performance reported per test year so you can
-         see stability across time (2021, 2022, 2023, 2024) plus the 2025 holdout.
-     (b) LEAKAGE FLAG: because production models were fit on ALL data, the
-         script marks every fold as LEAKY unless you pass --fold-models with
-         a pickle refit on train years only. This is stated in the report, not
-         hidden. If you can refit per fold with model-fit.py, do it, it is the
-         single biggest thing an examiner will ask about.
-2. "Decision accuracy" needs a ground-truth definition. A team's real pit is
-   NOT automatically the right answer (bad strategies happen). So we report
-   THREE separate things:
-       - pit_lap_agreement     : HERMES PIT_NOW within +-K laps of a real pit
-       - false_alarm_rate      : HERMES PIT_NOW windows with no real pit nearby
-       - miss_rate             : real pits with no HERMES PIT_NOW within +-K
-   and the counterfactual (below) is what judges whether disagreement was good.
-3. COUNTERFACTUAL is a SIMPLIFIED, ASSUMPTION-HEAVY estimate (flagged). It uses
-   per-lap pace loss and the empirical pit-loss constant to estimate the time
-   delta of pitting on HERMES's lap instead of the real lap. It is NOT a full
-   race simulation and cannot model traffic or rival reactions. Say so.
-4. Position gain/loss is the REAL final-position change vs grid, reported as
-   context, plus an ESTIMATED time delta from the counterfactual. We do not
-   claim HERMES would have gained N positions.
-5. Nothing here fabricates a number: missing data -> NaN, and counts of
-   skipped races/drivers are reported.
-"""
 from __future__ import annotations
 
 import argparse
@@ -57,12 +14,6 @@ import pandas as pd
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-# ----------------------------------------------------------------------------
-# CONFIG
-# ----------------------------------------------------------------------------
-# Walk-forward design agreed in project chats:
-#   Train 2018-2020 -> test 2021 ; 2018-2021 -> 2022 ; 2018-2022 -> 2023 ; 2018-2023 -> 2024
-#   2025 = untouched final holdout ; 2026 = separate regulation stress test (excluded here)
 FOLDS = {
     "fold1_2021": {"train": (2018, 2020), "test": 2021},
     "fold2_2022": {"train": (2018, 2021), "test": 2022},
@@ -71,48 +22,36 @@ FOLDS = {
 }
 HOLDOUT_YEAR = 2025
 
-# Red Bull driver pairs per season (D1, D2). ASSUMPTION: verify against your data.
-# The script skips a race automatically if a driver code is absent from laps_features.
 RBR_PAIRS = {
     2021: ("VER", "PER"),
     2022: ("VER", "PER"),
     2023: ("VER", "PER"),
     2024: ("VER", "PER"),
-    # 2025: PER was replaced by LAW (rounds 1-2) then TSU. Handled per race below.
+
     2025: ("VER", "TSU"),
 }
-# 2025 exceptions (ASSUMPTION, verify): LAW drove the first two rounds, TSU after.
+
 RBR_2025_EARLY_LAW_RACES = {"Australian_Grand_Prix", "Chinese_Grand_Prix"}
 
-EMPTY_REPLAYS: list = []          # races that produced no usable decisions (reported, never hidden)
-# Which fold's artefacts (built by fit_fold.py) are used to replay each test season.
-# Only used in --fold-mode. A season with no entry is REFUSED, never run with all-data models.
+EMPTY_REPLAYS: list = []
+
 SEASON_TO_FOLD = {2021: "fold1_2021", 2022: "fold2_2022", 2023: "fold3_2023",
                   2024: "fold4_2024", 2025: "holdout_2025"}
-PIT_MATCH_TOLERANCE_LAPS = 2      # +-K laps for "agreement" (also swept below)
+PIT_MATCH_TOLERANCE_LAPS = 2
 TOLERANCE_SWEEP = [0, 1, 2, 3, 5]
-DEFAULT_PIT_LOSS_S = 22.0         # ASSUMPTION, used only if no empirical value found
+DEFAULT_PIT_LOSS_S = 22.0
 
-# Decision strings HERMES emits that count as "pit now"
 PIT_DECISIONS = {"PIT_NOW", "PIT_FLEXIBLE"}
-# Tyre-only Tier 3 triggers that make up the BASELINE ("tyre life only")
+
 BASELINE_TRIGGERS = ["cliff_proximity", "pace_lap_delta", "tyre_age"]
-# Baseline variants (all tyre-life-only, no rival/SC/radio/weather logic):
-#   baseline_strict : 3 of 3 tyre triggers  (very conservative, almost never fires - kept for transparency)
-#   baseline_2of3   : 2 of 3 tyre triggers  (FAIR main baseline)
-#   baseline_any    : 1 of 3 tyre triggers  (most permissive)
+
 BASELINE_VARIANTS = {"baseline_strict": 3, "baseline_2of3": 2, "baseline_any": 1}
-MAIN_BASELINE = "baseline_2of3"   # the one used for the headline full-vs-baseline comparison
+MAIN_BASELINE = "baseline_2of3"
 
-
-# ----------------------------------------------------------------------------
-# HELPERS
-# ----------------------------------------------------------------------------
 def rbr_drivers_for(season: int, race: str):
     if season == 2025 and race in RBR_2025_EARLY_LAW_RACES:
         return ("VER", "LAW")
     return RBR_PAIRS[season]
-
 
 def list_races(repo_root: Path, season: int) -> list[str]:
     base = repo_root / "gcs_cache" / "clean" / "features" / str(season)
@@ -120,13 +59,11 @@ def list_races(repo_root: Path, season: int) -> list[str]:
         return []
     return sorted(p.name for p in base.iterdir() if (p / "R" / "laps_features.csv").exists())
 
-
 def load_real_laps(repo_root: Path, season: int, race: str) -> pd.DataFrame | None:
     p = repo_root / "gcs_cache" / "clean" / "features" / str(season) / race / "R" / "laps_features.csv"
     if not p.exists():
         return None
     return pd.read_csv(p, dtype={"TrackStatus": str}, low_memory=False)
-
 
 def real_pit_laps(laps: pd.DataFrame, driver: str) -> list[int]:
     d = laps[laps["Driver"] == driver]
@@ -135,16 +72,13 @@ def real_pit_laps(laps: pd.DataFrame, driver: str) -> list[int]:
     m = d["is_pit_in"].fillna(False).astype(bool)
     return sorted(int(x) for x in d.loc[m, "LapNumber"].dropna().unique())
 
-
 def final_and_grid_position(laps: pd.DataFrame, driver: str):
-    """Last classified lap Position as final; first lap Position as grid proxy.
-    Returns (grid, final) or (nan, nan). Position can be null in some races (blueprint B14)."""
+    ""
     d = laps[laps["Driver"] == driver].sort_values("LapNumber")
     if d.empty or "Position" not in d.columns or d["Position"].notna().sum() < 2:
         return (np.nan, np.nan)
     pos = d["Position"].dropna()
     return (float(pos.iloc[0]), float(pos.iloc[-1]))
-
 
 def read_jsonl(path: Path) -> pd.DataFrame:
     rows = []
@@ -157,9 +91,8 @@ def read_jsonl(path: Path) -> pd.DataFrame:
                 rows.append(json.loads(line))
     return pd.DataFrame(rows)
 
-
 def _get(d, *keys, default=None):
-    """Safe nested get, since row schema was not visible to this script."""
+    ""
     cur = d
     for k in keys:
         if not isinstance(cur, dict) or k not in cur:
@@ -167,17 +100,12 @@ def _get(d, *keys, default=None):
         cur = cur[k]
     return cur
 
-
 def first_present(row: dict, candidates: list[str]):
     for c in candidates:
         if c in row and row[c] is not None:
             return row[c]
     return None
 
-
-# ----------------------------------------------------------------------------
-# STAGE 1: REPLAY (shells out to your own master.py, no internals guessed)
-# ----------------------------------------------------------------------------
 def stage_replay(repo_root: Path, out_dir: Path, master_path: Path, seasons: list[int], force: bool,
                  fold_mode: bool = False, folds_dir: Path | None = None,
                  allow_cross_era: bool = False):
@@ -197,7 +125,7 @@ def stage_replay(repo_root: Path, out_dir: Path, master_path: Path, seasons: lis
                 continue
             env = os.environ.copy()
             if allow_cross_era:
-                env["HERMES_ALLOW_CROSS_ERA"] = "1"       # master_fold_aware.py: cross-era TRANSFER variant
+                env["HERMES_ALLOW_CROSS_ERA"] = "1"
             else:
                 env.pop("HERMES_ALLOW_CROSS_ERA", None)
             if fold_mode:
@@ -208,9 +136,9 @@ def stage_replay(repo_root: Path, out_dir: Path, master_path: Path, seasons: lis
                                          err=f"missing {fold_path}. Run fit_fold.py first."))
                     print(f"   SKIP {season} {race}: no fold artefacts at {fold_path}")
                     continue
-                env["HERMES_FOLD_DIR"] = str(fold_path)      # master_patched.py reads this
+                env["HERMES_FOLD_DIR"] = str(fold_path)
             else:
-                env.pop("HERMES_FOLD_DIR", None)            # development run must NOT pick up a stale fold
+                env.pop("HERMES_FOLD_DIR", None)
             cmd = [sys.executable, str(master_path), "replay", "--repo-root", str(repo_root),
                    "--season", str(season), "--race", race, "--session", "R",
                    "--d1", d1, "--d2", d2, "--out", str(out_file)]
@@ -225,18 +153,8 @@ def stage_replay(repo_root: Path, out_dir: Path, master_path: Path, seasons: lis
     pd.DataFrame(log_rows).to_csv(out_dir / "replay_log.csv", index=False)
     print(f"[replay] log -> {out_dir / 'replay_log.csv'}")
 
-
-# ----------------------------------------------------------------------------
-# DECISION EXTRACTION
-# ----------------------------------------------------------------------------
 def hermes_pit_laps(dec: pd.DataFrame, driver: str, mode: str = "full") -> list[int]:
-    """
-    Laps where HERMES says pit for `driver`.
-      mode='full'     : full system. Uses execution decision if present, else gate decision.
-      mode='baseline' : tyre-life-only baseline = all three tyre triggers true.
-    Column names are resolved defensively because the row schema is spec'd in the blueprint
-    (section 6) but the exact JSON keys were not visible when this script was written.
-    """
+    ""
     if dec.empty:
         return []
     dcol = next((c for c in ("driver", "Driver") if c in dec.columns), None)
@@ -250,7 +168,7 @@ def hermes_pit_laps(dec: pd.DataFrame, driver: str, mode: str = "full") -> list[
         if mode == "full":
             exec_dec = _get(row, "execution", "decision") if isinstance(row.get("execution"), dict) else row.get("execution_decision")
             gate_dec = first_present(row, ["gate_decision", "decision"])
-            # Execution PIT_NOW is the final call; if execution absent fall back to gate.
+
             final = exec_dec if exec_dec is not None else gate_dec
             is_pit = final in PIT_DECISIONS
         else:
@@ -261,10 +179,8 @@ def hermes_pit_laps(dec: pd.DataFrame, driver: str, mode: str = "full") -> list[
             laps.append(int(row[lcol]))
     return sorted(set(laps))
 
-
 def collapse_to_events(laps: list[int], gap: int = 2) -> list[int]:
-    """A signal that stays 'on' for 8 straight laps is ONE recommendation, not 8.
-    (Blueprint/chat finding: VER weather window was open 8 laps.) Collapse runs to their FIRST lap."""
+    ""
     if not laps:
         return []
     events = [laps[0]]
@@ -273,13 +189,8 @@ def collapse_to_events(laps: list[int], gap: int = 2) -> list[int]:
             events.append(cur)
     return events
 
-
-# ----------------------------------------------------------------------------
-# METRICS
-# ----------------------------------------------------------------------------
 def match_events(pred: list[int], real: list[int], tol: int):
-    """Greedy one-to-one matching of predicted events to real pits within +-tol laps.
-    Returns (matched_pairs, unmatched_pred, unmatched_real)."""
+    ""
     real_left = list(real)
     matched, unmatched_pred = [], []
     for p in pred:
@@ -295,22 +206,11 @@ def match_events(pred: list[int], real: list[int], tol: int):
             real_left.remove(best)
     return matched, unmatched_pred, real_left
 
-
 def counterfactual_time_delta(laps_df: pd.DataFrame, driver: str, hermes_lap: int, real_lap: int,
                               pit_loss_s: float) -> float:
-    """
-    ESTIMATED seconds gained (+) / lost (-) by pitting on hermes_lap instead of real_lap.
-    ASSUMPTIONS (flagged, this is a first-order estimate, not a race simulation):
-      - Pit-loss is identical on either lap (so it cancels) -> only tyre pace difference matters.
-      - Pitting EARLY (hermes_lap < real_lap): we avoid the worn-tyre laps in between but start the
-        fresh stint earlier. Gain = sum of (worn lap time - fresh-tyre reference) over the gap laps.
-      - Pitting LATE (hermes_lap > real_lap): the reverse, we extend the worn stint. Loss = same sum.
-      - Traffic, undercut reactions and SC timing are NOT modelled.
-    Fresh-tyre reference = median of the driver's first 3 clean laps of the NEXT stint.
-    Returns NaN if it cannot be computed (never a guess).
-    """
+    ""
     if hermes_lap == real_lap:
-        return 0.0   # identical timing = zero estimated difference (a real result, not "unknown")
+        return 0.0
     d = laps_df[laps_df["Driver"] == driver].copy()
     if d.empty or "LapTime" not in d.columns:
         return np.nan
@@ -330,10 +230,6 @@ def counterfactual_time_delta(laps_df: pd.DataFrame, driver: str, hermes_lap: in
     delta = float((gap["lt"] - fresh_ref).clip(lower=0).sum())
     return delta if hermes_lap < real_lap else -delta
 
-
-# ----------------------------------------------------------------------------
-# STAGE 3: EVALUATE
-# ----------------------------------------------------------------------------
 def evaluate_one_race(repo_root: Path, out_dir: Path, season: int, race: str,
                       pit_loss_lookup: dict, tol: int):
     jf = out_dir / "replays" / f"{season}_{race}.jsonl"
@@ -375,9 +271,8 @@ def evaluate_one_race(repo_root: Path, out_dir: Path, season: int, race: str,
                                         est_time_delta_s=counterfactual_time_delta(laps, drv, p, r, pit_loss)))
     return pd.DataFrame(rows), cf_rows
 
-
 def load_pit_loss_lookup(repo_root: Path) -> dict:
-    """Empirical per-circuit pit-loss from archive_per_race_analysis.csv (blueprint 2.2). Best effort."""
+    ""
     p = repo_root / "checkpoints" / "rival_knowledge" / "archive_per_race_analysis.csv"
     if not p.exists():
         return {}
@@ -387,14 +282,10 @@ def load_pit_loss_lookup(repo_root: Path) -> dict:
     if not race_col or not loss_col:
         return {}
     g = df.groupby(race_col)[loss_col].median()
-    return {str(k): float(v) for k, v in g.items() if 8 <= v <= 35}   # plausible band per blueprint 4.5
-
-
+    return {str(k): float(v) for k, v in g.items() if 8 <= v <= 35}
 
 def compute_coverage(out_dir: Path) -> pd.DataFrame:
-    """How often was each mechanism actually AVAILABLE, per split? A low score in a fold is only
-    interpretable next to this: e.g. fold 2 (test 2022) has no 2022-2025 tyre models (para 125),
-    and fold 1 (test 2021) has an empty SC prior (<4 races per circuit in 2018-2020)."""
+    ""
     rows = []
     for f in sorted((out_dir / "replays").glob("*.jsonl")):
         season = int(f.name.split("_")[0])
@@ -409,9 +300,9 @@ def compute_coverage(out_dir: Path) -> pd.DataFrame:
             split=split, race=f.stem, n=len(dec),
             pace_loss_none=sum(get(p, "predicted_pace_loss") is None for p in proj),
             cliff_none=sum(get(p, "cliff_probability_next_5_laps") is None for p in proj),
-            # sc_gamble is None when Tier 1/2 decided first, so the gamble was never invoked
+
             sc_not_reached=sum(g is None for g in scg),
-            # invoked but returned INSUFFICIENT_DATA (no SC prior, or no pace-loss/cliff input)
+
             sc_insufficient=sum(get(g, "recommendation") == "INSUFFICIENT_DATA" for g in scg)))
     if not rows:
         return pd.DataFrame()
@@ -421,7 +312,6 @@ def compute_coverage(out_dir: Path) -> pd.DataFrame:
         g[f"pct_{c}"] = (100 * g[c] / g["n"]).round(1)
     return g[["split", "n", "pct_pace_loss_none", "pct_cliff_none", "pct_sc_not_reached", "pct_sc_insufficient"]]
 
-
 def bootstrap_ci(values, n=5000, seed=0):
     v = np.asarray([x for x in values if not pd.isna(x)], dtype=float)
     if len(v) < 2:
@@ -430,27 +320,9 @@ def bootstrap_ci(values, n=5000, seed=0):
     means = rng.choice(v, size=(n, len(v)), replace=True).mean(axis=1)
     return (float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5)))
 
-
-
-# ----------------------------------------------------------------------------
-# NO-SKILL CONTROLS
-# ----------------------------------------------------------------------------
-# Why: F1 at +-2 laps has a NON-ZERO floor. Pit stops cluster mid-race, so a system with no real
-# skill still "agrees" with some real stops by luck. Without a null, "F1 = 0.27" is uninterpretable.
-#   Null A  UNIFORM TIMING   HERMES's events (same COUNT) placed at random laps of the race; real pits as they were.
-#                            Weakest null (real stops cluster mid-race, uniform does not).
-#   Null B  SAME CIRCUIT,    HERMES's events for this race scored against the real pits of the SAME circuit in a
-#           OTHER SEASON     DIFFERENT season. Keeps circuit-typical timing (e.g. Monaco vs Bahrain), so beating it
-#                            means HERMES carries race-specific information beyond "stops at this track usually
-#                            happen around lap N". THIS is the demanding control.
-#   Ref     COPY OTHER YEAR  F1 of predicting this race's stops by copying another season's real stops at the same
-#                            circuit. A naive-strategist reference. Uses future seasons, so it is a REFERENCE, not a
-#                            legitimate forecasting competitor.
-# p = (1 + #null replicates with F1 >= actual) / (1 + replicates); one-sided.
 CONTROL_SYSTEMS = ["full", "baseline_2of3", "baseline_any"]
 CONTROL_REPS = 300
-CONTROL_REPS_RUNTIME = CONTROL_REPS   # overridden by --control-reps
-
+CONTROL_REPS_RUNTIME = CONTROL_REPS
 
 def _pooled_f1(preds: list, reals: list, tol: int) -> float:
     tp = n_pred = n_real = 0
@@ -461,7 +333,6 @@ def _pooled_f1(preds: list, reals: list, tol: int) -> float:
         n_real += len(r)
     d = 2 * tp + (n_pred - tp) + (n_real - tp)
     return 2 * tp / d if d else float("nan")
-
 
 def stage_controls(per_race: pd.DataFrame, out_dir: Path, tol: int = PIT_MATCH_TOLERANCE_LAPS,
                    reps: int = CONTROL_REPS, seed: int = 0):
@@ -490,14 +361,12 @@ def stage_controls(per_race: pd.DataFrame, out_dir: Path, tol: int = PIT_MATCH_T
             units = [(r.season, r.race, r.ev, r.real, int(r.total_laps)) for r in g.itertuples()]
             actual = _pooled_f1([u[2] for u in units], [u[3] for u in units], tol)
 
-            # ---- Null A: uniform random timing, same event count, real pits as they were
             null_a = []
             for _ in range(reps):
                 preds = [sorted(rng.choice(np.arange(1, L + 1), size=min(len(ev), L), replace=False).tolist())
                          if len(ev) else [] for (_, _, ev, _, L) in units]
                 null_a.append(_pooled_f1(preds, [u[3] for u in units], tol))
 
-            # ---- Null B + Ref: same circuit, different season (units with no other season are excluded from BOTH)
             usable, cands = [], []
             for u in units:
                 cs = [real for (s2, real) in by_race.get(u[1], []) if s2 != u[0]]
@@ -531,7 +400,6 @@ def stage_controls(per_race: pd.DataFrame, out_dir: Path, tol: int = PIT_MATCH_T
     print("\n=== NO-SKILL CONTROLS (tol=+-%d laps, %d replicates) ===" % (tol, reps))
     print(show.to_string(index=False))
     return df
-
 
 def stage_evaluate(repo_root: Path, out_dir: Path, fold_models_used: bool):
     pit_loss_lookup = load_pit_loss_lookup(repo_root)
@@ -579,7 +447,6 @@ def stage_evaluate(repo_root: Path, out_dir: Path, fold_models_used: bool):
     overall = main.groupby("system").apply(summarise).reset_index()
     overall.to_csv(out_dir / "metrics_overall.csv", index=False)
 
-    # Tolerance sweep (how strict is "agreement"?)
     sweep = per_race.groupby(["tol", "system"]).apply(summarise).reset_index()
     sweep.to_csv(out_dir / "tolerance_sweep.csv", index=False)
     cov = compute_coverage(out_dir)
@@ -588,7 +455,6 @@ def stage_evaluate(repo_root: Path, out_dir: Path, fold_models_used: bool):
         print("\n=== MECHANISM COVERAGE (% of decisions where the input was UNAVAILABLE) ===")
         print(cov.to_string(index=False))
 
-    # Paired full-vs-baseline bootstrap on per-driver-race F1 style recall (same races both systems)
     piv = main.pivot_table(index=["season", "race", "driver"], columns="system",
                            values=["n_matched", "n_false_alarm", "n_missed"], aggfunc="sum")
     paired = pd.DataFrame(index=piv.index)
@@ -603,7 +469,6 @@ def stage_evaluate(repo_root: Path, out_dir: Path, fold_models_used: bool):
                        mean=paired["f1_diff"].mean(), ci_lo=lo, ci_hi=hi,
                        n=paired["f1_diff"].notna().sum())]).to_csv(out_dir / "paired_bootstrap.csv", index=False)
 
-    # Counterfactual
     cf = pd.DataFrame(cf_all)
     cf.to_csv(out_dir / "counterfactual_events.csv", index=False)
     if not cf.empty:
@@ -616,7 +481,6 @@ def stage_evaluate(repo_root: Path, out_dir: Path, fold_models_used: bool):
                            frac_hermes_better=(cf_valid["est_time_delta_s"] > 0).mean())]
                      ).to_csv(out_dir / "counterfactual_summary.csv", index=False)
 
-    # Position context (real, NOT a claim about HERMES)
     pos = main[main["system"] == "full"].groupby("split")["pos_change"].agg(["mean", "count"]).reset_index()
     pos.to_csv(out_dir / "real_position_change_context.csv", index=False)
 
@@ -627,10 +491,6 @@ def stage_evaluate(repo_root: Path, out_dir: Path, fold_models_used: bool):
     stage_controls(per_race, out_dir, reps=CONTROL_REPS_RUNTIME)
     print(f"\n[evaluate] wrote CSVs to {out_dir}")
 
-
-# ----------------------------------------------------------------------------
-# STAGE 4: REPORT
-# ----------------------------------------------------------------------------
 def stage_report(out_dir: Path, fold_models_used: bool):
     import matplotlib
     matplotlib.use("Agg")
@@ -728,10 +588,6 @@ Positive = HERMES timing estimated faster than the real pit lap. Assumes equal p
     (out_dir / "evaluation_report.md").write_text(report, encoding="utf-8")
     print(f"[report] {out_dir / 'evaluation_report.md'}")
 
-
-# ----------------------------------------------------------------------------
-# CLI
-# ----------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser(description="HERMES full-system evaluation")
     ap.add_argument("--repo-root", default=".")
@@ -758,9 +614,9 @@ def main():
     if args.allow_cross_era and not args.fold_mode:
         ap.error("--allow-cross-era only makes sense together with --fold-mode")
     if args.fold_mode and args.out_dir == "eval_out":
-        args.out_dir = "eval_out_clean_crossera" if args.allow_cross_era else "eval_out_clean"  # never overwrite dev results
+        args.out_dir = "eval_out_clean_crossera" if args.allow_cross_era else "eval_out_clean"
     if args.fold_mode:
-        args.fold_models = True                # so the report stops saying "leaky"
+        args.fold_models = True
     out_dir = (repo_root / args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     master = repo_root / args.master
@@ -774,7 +630,6 @@ def main():
         stage_evaluate(repo_root, out_dir, args.fold_models)
     if args.stage in ("report", "all"):
         stage_report(out_dir, args.fold_models)
-
 
 if __name__ == "__main__":
     main()

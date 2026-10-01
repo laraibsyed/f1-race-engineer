@@ -1,19 +1,4 @@
-"""
-Survival Model V1 — Kaplan-Meier (no covariates)
-====================================================
-Descriptive per-compound survival curves: "what's the probability this tyre
-hasn't hit its cliff by tyre_age N?" No covariates yet - that's V2 (Cox
-proportional hazards with track_temp_bucket, fuel_load_estimate, stint_number,
-Driver - same covariate list flagged for the regression V2 work).
-
-Input: cliff_detection_stints.csv (produced by cliff_detection.py) - duration/event
-columns are already in the correct shape for survival analysis, so this reads the
-local CSV directly rather than going back to GCS.
-
-Produces:
-  - survival_v1_km_curves.png   (overlaid KM curves per compound)
-  - console: median survival (tyre_age) per compound + log-rank test across compounds
-"""
+""
 
 import numpy as np
 import pandas as pd
@@ -25,8 +10,7 @@ from lifelines.plotting import add_at_risk_counts
 from lifelines.statistics import multivariate_logrank_test
 
 STINTS_CSV = "cliff_detection_stints.csv"
-MIN_STINTS_PER_COMPOUND = 15  # skip compounds with too few stints for a trustworthy curve
-
+MIN_STINTS_PER_COMPOUND = 15
 
 if __name__ == "__main__":
     stints = pd.read_csv(STINTS_CSV)
@@ -55,9 +39,7 @@ if __name__ == "__main__":
         median_survival[compound] = kmf.median_survival_time_
         fitted_kmfs.append(kmf)
 
-    add_at_risk_counts(*fitted_kmfs, ax=ax)  # shows how thin the sample gets at high tyre_age -
-                                              # read anything past where these counts get small
-                                              # (especially MEDIUM/HARD's tail) with real caution
+    add_at_risk_counts(*fitted_kmfs, ax=ax)
 
     ax.set_xlabel("tyre_age (laps)")
     ax.set_ylabel("Probability tyre hasn't hit cliff yet")
@@ -71,7 +53,6 @@ if __name__ == "__main__":
         label = f"{median:.0f} laps" if np.isfinite(median) else "not reached (>50% still censored at max observed tyre age)"
         print(f"  {compound:>14}: {label}")
 
-    # Log-rank test: are the survival curves statistically different across compounds?
     tested = stints[stints["compound"].isin(compounds_to_plot)]
     result = multivariate_logrank_test(tested["duration"], tested["compound"], tested["event"])
     print(f"\n[log-rank test] p-value = {result.p_value:.4f} "

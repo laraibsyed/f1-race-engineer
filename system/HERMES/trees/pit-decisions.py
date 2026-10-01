@@ -1,42 +1,5 @@
-#!/usr/bin/env python3
-"""
-Pull the real pit-lap decision rows, side-by-side - British GP investigation,
-step 1 (evidence only, no fix, no hypothesis baked in).
 
-Standalone, READ-ONLY. Does not modify hermes_master.py, gate-tier-3.py,
-execution-tree.py, or sc-gamble.py - runs the real replay unmodified and
-cross-references laps_features.csv directly for the handful of fields the
-decision output doesn't currently surface (actual next compound, raw
-TrackStatus, raw Rainfall).
-
-Field coverage against the requested list:
-  driver, lap, compound, tyre_age              -> from the decision row directly
-  cliff probability / cliff_proximity          -> projection.cliff_probability_next_5_laps
-                                                   + triggers.cliff_proximity
-  all Tier-3 triggers                          -> the full triggers dict, printed whole
-  Tier-3 decision + instruction                -> gate_decision / execution.driving_instruction
-  Tier 1 / Tier 2 result if applicable         -> tier_reached tells you which tier produced
-                                                   gate_decision (1 or 2 means Tier 1/2 fired and
-                                                   Tier 3 was never reached that lap)
-  rival undercut / overcut signal              -> triggers.undercut / overcut / rival_undercut_threat
-  dirty-air signal                             -> triggers.dirty_air
-  SC/VSC state                                 -> triggers.safety_car (Tier-3's OWN reading) AND
-                                                   the raw TrackStatus string (ground truth) side by
-                                                   side, since these can legitimately differ (VSC
-                                                   codes, string concatenation across a lap - BP §2.3)
-  weather state                                -> raw Rainfall flag (rain_probability_pct isn't a
-                                                   documented real column - if it's absent, that's
-                                                   itself worth knowing, not silently guessed)
-  actual next tyre                             -> looked up directly: next lap's Compound for the
-                                                   same driver
-  competing reason to PIT_LATER/STAY OUT       -> the full triggers dict + reason already shows
-                                                   this; no separate field needed
-
-Run from the repo root (same place you run master.py from):
-    python pull_real_pit_decisions.py
-Edit SEASON/RACE/SESSION/D1/D2 below if you want to point this at a
-different race for the same kind of side-by-side pull later.
-"""
+""
 import importlib.util
 import os
 import sys
@@ -51,11 +14,9 @@ RACE = "British_Grand_Prix"
 SESSION = "R"
 D1, D2 = "VER", "PER"
 
-
 def die(msg):
     print(msg)
     sys.exit(1)
-
 
 if not HERMES_MASTER_PATH.exists():
     die(f"Could not find {HERMES_MASTER_PATH.resolve()} - set HERMES_MASTER_PATH.")
@@ -96,16 +57,13 @@ real_pit_rows = [d for d in decisions if d.get("actual_is_pit_in_lap")]
 print(f"\nFound {len(real_pit_rows)} real pit-in-lap decisions for {D1}/{D2} "
       f"in {SEASON} {RACE} {SESSION}.\n")
 
-
 def lookup_raw(driver, lap):
     match = raw_laps[(raw_laps["Driver"] == driver) & (raw_laps["LapNumber"] == lap)]
     return match.iloc[0] if not match.empty else None
 
-
 def next_compound(driver, lap):
     nxt = raw_laps[(raw_laps["Driver"] == driver) & (raw_laps["LapNumber"] == lap + 1)]
     return nxt.iloc[0]["Compound"] if not nxt.empty else None
-
 
 rows_out = []
 for d in real_pit_rows:
@@ -151,8 +109,6 @@ pd.set_option("display.max_columns", None)
 pd.set_option("display.width", 250)
 pd.set_option("display.max_colwidth", 60)
 
-# Print in two blocks (core decision fields, then context/raw fields) since
-# the full row is too wide for any terminal to show usefully in one table.
 core_cols = ["driver", "lap", "compound", "tyre_age", "cliff_probability", "predicted_pace_loss",
              "trig_cliff_proximity", "trig_pace_lap_delta", "trig_tyre_age", "trig_undercut",
              "trig_overcut", "trig_rival_undercut_threat", "trig_safety_car", "trig_dirty_air",

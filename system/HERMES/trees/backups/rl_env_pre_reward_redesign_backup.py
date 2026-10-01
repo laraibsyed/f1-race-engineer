@@ -1,130 +1,4 @@
-"""
-HERMES RL Environment - a lightweight, SIMULATED race-strategy MDP
-======================================================================
-NEW FILE. Does not modify master.py, gate-tier-*.py, execution-tree.py,
-sc-gamble.py or reward.py - it IMPORTS them (via master.py, unmodified) and
-reuses their already-fitted models, already-validated constants and
-already-written decision helpers, rather than re-deriving any of them.
-
-WHAT THIS IS: a single-car, per-lap strategy environment an agent can take
-actions in and receive a reward from. It is NOT a full physical race
-reconstruction (no other cars' actual telemetry, no true multi-car battle
-simulation) - it is a SIMULATED/SYNTHETIC training environment, clearly
-labelled as such throughout. It exists so a genuine Q-learning update has
-something to learn from; see the module docstring in rl_agent.py for the
-learning algorithm itself.
-
-WHY NOT REPLAY REAL RACES: replaying a real race only tells you what
-happened under the ONE strategy actually chosen that day - there is no
-"what if we'd pitted 5 laps later" branch in historical data. An RL agent
-needs to try many actions and see many consequences, which real historical
-laps cannot supply. This is also why training here never touches 2025 (the
-project's evaluation holdout, see evaluate.py) - training is 100% simulated,
-not fit to any specific historical race or season.
-
-WHAT IS GENUINELY REUSED FROM THE REST OF HERMES (not reinvented):
-  - the REAL fitted Regression V2 + Cox models (tyre_life_models.pkl), called
-    through master.py's own build_projection_fn - the exact function the real
-    per-lap engine uses (master.evaluate_driver_lap).
-  - the REAL calibrated Tier-3 thresholds (gate-tier-3.CLIFF_PROBABILITY_THRESHOLD,
-    execution-tree.INSTRUCTION_NEUTRAL_BAND_RATIO) for state discretisation.
-  - the REAL circuit-level SC/VSC prior (sc_vsc_circuit_level_prior.csv) and
-    HORIZON_LAPS convention, via master.get_sc_probability.
-  - the REAL, circuit-centred Monte Carlo pit-duration pools from sc-gamble.py
-    (load_pit_durations) for sampling how long a pit stop actually costs -
-    this IS "reusing the existing Monte Carlo simulation as the uncertainty
-    layer" (dissertation claim in the project notes), not a new duration
-    model.
-  - the REAL cliff-risk cost formula/constant (sc-gamble.CLIFF_PENALTY_SCALE)
-    already validated for the SC gamble.
-  - the REAL undercut/overcut/dirty-air decision thresholds from master.py
-    (live_undercut_opportunity, rival_undercut_threat, in_dirty_air,
-    CLOSE_FOLLOWING_SECONDS, UNDERCUT_MIN_TYRE_AGE_GAP) applied to a
-    synthetic gap process (see "SYNTHETIC PARTS" below).
-  - gate-tier-2's real STANDARD_WEEKEND_ALLOCATION constant for the tyre-set
-    budget.
-
-SYNTHETIC PARTS (deliberately simplified, documented here rather than
-silently invented):
-  - the RIVAL AHEAD/BEHIND does not exist as a simulated car; "gap ahead"/
-    "gap behind" are a bounded random walk around the real pit-loss scale
-    (NORMAL_PIT_LOSS_SECONDS), classified by the REAL thresholds above. This
-    gives the agent a plausible, varying undercut/overcut signal without
-    building a second full multi-car simulator (explicitly out of scope,
-    Step 16 "do not add ... a huge state space").
-  - track temperature bucket is drawn once per episode from the four real
-    buckets (cool/warm/hot/extreme), not evolved lap-to-lap.
-  - rain is a fixed small per-episode probability (RAIN_EPISODE_PROB); no
-    drying-crossover dynamics are simulated (that stays entirely inside
-    drying_line.py / Tier 3, outside RL's action space - see ACTIONS below).
-  - an SC/VSC period, once triggered, lasts a fixed HORIZON_LAPS laps (reusing
-    that existing constant rather than inventing a new "SC duration" number;
-    a real, data-derived duration exists in sc-gamble.compute_historical_sc_duration
-    but is not wired into the SC gamble itself either - same status here).
-  - the tyre-set budget is a single generic pool of STANDARD_WEEKEND_ALLOCATION
-    sets (13), not split by compound and not season/Q2-rule aware - Tier 2 in
-    the real Gate Tree remains the authority on the actual regulatory rule;
-    this budget exists only so "tyre-set availability" is a genuine state
-    variable the agent can learn to respect.
-
-STATE (discretised, 8 variables, ~2,592 reachable combinations - small
-enough for a Python dict-based Q-table to converge in seconds):
-    compound_family   SOFT | MEDIUM | HARD                              (3)
-    tyre_age_bucket   0-4 | 5-9 | 10-14 | 15+  laps on current tyre      (4)
-    race_phase        early | mid | late  (crossover.classify_stage's OWN
-                       real >60%/20-60%/<20% cutoffs, reused verbatim)     (3)
-    cliff_risk        low | medium | high  (bucketed against the REAL
-                       CLIFF_PROBABILITY_THRESHOLD=0.017 and the REAL 0.5x
-                       "approaching" band already used by
-                       execution-tree.get_driving_instruction)             (3)
-    sc_active         True | False                                        (2)
-    rain_now          True | False                                        (2)
-    gap_state         THREAT_BEHIND | NEUTRAL | OPPORTUNITY_AHEAD          (3)
-    sets_bucket       LOW (<=2 left) | OK                                  (2)
-If a required real projection is unavailable (no fitted model for this
-compound/circuit/era combination - a genuine, documented coverage gap, BP
-§7-B11), cliff_risk defaults to "low" - the SAME None-safe convention Tier 3
-itself uses ("unknown - don't fabricate a trigger"), not a special RL rule.
-
-ACTION SPACE (4 actions - deliberately small):
-    STAY_OUT | PIT_SOFT | PIT_MEDIUM | PIT_HARD
-Only DRY compound families. RL is never asked to choose a wet-weather tyre -
-while rain_now is True, STAY_OUT is the only legal action (mirrors the
-explicit requirement that RL must not be responsible for unsafe wet-weather
-tyre selection; that stays with the Gate Tree / weather modules). A PIT_x
-action is also illegal if the tyre-set budget is exhausted (sets_bucket
-tracked internally) or if this circuit/era has no fitted model for ANY
-compound in that family (nothing to pit onto).
-
-REWARD (time-cost based, in seconds; more negative = worse). Deliberately
-uses ONLY quantities that already exist elsewhere in HERMES - no new
-constant is invented for this file, only reused:
-    STAY_OUT this lap:  -(marginal pace loss this lap + cliff risk penalty)
-        pace loss <- REAL regression output, proj_fn(tyre_age)
-        cliff penalty <- sc-gamble.CLIFF_PENALTY_SCALE * cliff_probability
-                          (the SAME formula the validated SC gamble uses)
-    PIT_x this lap:      -(pit-stop duration)
-        duration <- ONE DRAW from sc-gamble.py's real, circuit-centred green
-                     pool (or the caution-window pool if an SC is active this
-                     lap) - i.e. genuinely sampled from the same Monte Carlo
-                     machinery already validated for the SC gamble, not a
-                     fresh distribution.
-`compute_team_reward` (reward.py) is NOT reused here: it operates at
-race-outcome / championship-points granularity (finishing position deltas,
-WDC/WCC leverage) for the two-car team-order decision, a different unit and
-a different decision than a single car's per-lap pit timing. Reusing it
-would require inventing a fake position-delta mapping, which is exactly the
-kind of invented complexity Step 6/16 rule out. The reward here instead
-reuses the SAME per-lap TIME-COST primitives (pit loss, degradation,
-cliff risk) that sc-gamble.py's own validated cost model is built from -
-the direct precedent for a time-cost reward in this codebase.
-
-NO FUTURE INFORMATION ever enters the state: every quantity in state comes
-from the environment's OWN current-step variables (tyre_age, sc_active,
-rain_now, the just-updated gap walk, sets_left) or from a projection called
-at the CURRENT tyre_age only - never a lookahead beyond what the real
-per-lap engine itself would have at that lap (see rl_validate.py test #7).
-"""
+""
 from __future__ import annotations
 
 import importlib.util
@@ -137,18 +11,13 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-# ---------------------------------------------------------------------------
-# Import master.py AS A MODULE, unmodified, to reuse its loaders and the
-# already-loaded tree/module handles (gate1/gate2/gate3/exec_tree/tyre_proj/
-# sc_gamble/crossover). This file does not duplicate ANY of master.py's logic.
-# ---------------------------------------------------------------------------
 _TREES_DIR = Path(__file__).resolve().parent
 if str(_TREES_DIR) not in sys.path:
     sys.path.insert(0, str(_TREES_DIR))
 
 _spec = importlib.util.spec_from_file_location("hermes_master", _TREES_DIR / "master.py")
 master = importlib.util.module_from_spec(_spec)
-sys.modules["hermes_master"] = master           # required by dataclasses on Python 3.14 (see sc-gamble-ab.py)
+sys.modules["hermes_master"] = master
 _spec.loader.exec_module(master)
 
 REPO_ROOT = master.REPO_ROOT
@@ -165,34 +34,28 @@ FAMILY_TO_COMPOUNDS = {"SOFT": {"HYPERSOFT", "SUPERSOFT", "ULTRASOFT", "SOFT"},
                         "MEDIUM": {"MEDIUM"}, "HARD": {"HARD"}}
 
 TEMP_BUCKETS = ("cool", "warm", "hot", "extreme")
-RAIN_EPISODE_PROB = 0.05          # ASSUMPTION: small, fixed per-episode rain chance - just enough to
-                                    # exercise the wet-weather action mask (see rl_validate.py test #4),
-                                    # not a weather model. Documented, not tuned.
-MIN_TOTAL_LAPS, MAX_TOTAL_LAPS = 40, 72   # clip range for the real mean_total_laps values sampled below
-GAP_WALK_SIGMA_FRACTION = 0.35    # ASSUMPTION: synthetic gap random-walk step size, as a fraction of
-                                    # NORMAL_PIT_LOSS_SECONDS (the one real scale available for "gap").
-SETS_BUDGET = master.gate2.STANDARD_WEEKEND_ALLOCATION   # REAL constant (13), reused as-is (BP §4.1)
-SETS_LOW_THRESHOLD = 2
+RAIN_EPISODE_PROB = 0.05
 
+MIN_TOTAL_LAPS, MAX_TOTAL_LAPS = 40, 72
+GAP_WALK_SIGMA_FRACTION = 0.35
+
+SETS_BUDGET = master.gate2.STANDARD_WEEKEND_ALLOCATION
+SETS_LOW_THRESHOLD = 2
 
 @dataclass
 class EpisodeWorld:
-    """Everything sampled ONCE at reset() to fix 'which race' this episode
-    is (a real fitted (compound, circuit, era) key + real circuit context) -
-    reused for every step of the episode."""
+    ""
     circuit: str
     era: str
     start_compound: str
     degr_ordinal: int
-    p_sc_window: float          # REAL circuit prior if available, else the pooled mean (documented)
+    p_sc_window: float
     total_laps: int
     temp_bucket: str
     rain_now: bool
 
-
 class HermesStrategyEnv:
-    """Lightweight, single-agent, single-car strategy environment. See
-    module docstring for exactly what is real vs synthetic."""
+    ""
 
     def __init__(self, repo_root: Optional[Path] = None, seed: int = 0):
         self.repo_root = Path(repo_root) if repo_root else REPO_ROOT
@@ -208,7 +71,7 @@ class HermesStrategyEnv:
                 "rl_env requires tyre_life_models.pkl with at least one fitted regression model - "
                 "run system/HERMES/trees/model-fit.py first (see HERMES_MASTER_BLUEPRINT.md)."
             )
-        self._reg_keys = list(self.tyre_models["reg_models"].keys())   # [(compound, circuit, era), ...]
+        self._reg_keys = list(self.tyre_models["reg_models"].keys())
 
         pools = master.sc_gamble.load_pit_durations()
         if pools is None:
@@ -225,7 +88,7 @@ class HermesStrategyEnv:
 
         self.world: Optional[EpisodeWorld] = None
         self.lap = 0
-        self.compound = None            # concrete compound string, e.g. "MEDIUM"
+        self.compound = None
         self.tyre_age = 0
         self.stint_number = 1
         self.sc_active = False
@@ -237,11 +100,8 @@ class HermesStrategyEnv:
         self.ahead_pitted_recently = False
         self.sets_left = SETS_BUDGET
         self._last_info: dict = {}
-        self._proj_cache: dict = {}   # see _get_projection() - pure speed optimisation, no behaviour change
+        self._proj_cache: dict = {}
 
-    # ------------------------------------------------------------------
-    # reset / step
-    # ------------------------------------------------------------------
     def reset(self):
         compound, circuit, era = self._reg_keys[self.rng.integers(len(self._reg_keys))]
         degr_ordinal, _ = master.circuit_degredation_ordinal_for(self.taxonomy, circuit)
@@ -258,17 +118,7 @@ class HermesStrategyEnv:
         self.world = EpisodeWorld(circuit=circuit, era=era, start_compound=compound,
                                    degr_ordinal=degr_ordinal, p_sc_window=float(p_sc),
                                    total_laps=total_laps, temp_bucket=temp_bucket, rain_now=rain_now)
-        # PERFORMANCE SIMPLIFICATION (flagged, not hidden): fuel_load_estimate is held FIXED for the
-        # whole episode at its real mid-race value (lap = total_laps/2), instead of being recomputed
-        # every lap. The real per-lap engine (master.evaluate_driver_lap) DOES vary it every lap - this
-        # is an RL-training-only approximation, made because the Cox survival-function call inside the
-        # REAL fitted model (reused, not reimplemented - see module docstring) costs ~10ms per distinct
-        # input, and RL's own state discretisation has no fuel dimension anyway (fuel's effect on the
-        # coarse strategic decision is second-order compared to tyre age/compound/cliff risk). Fixing it
-        # lets identical (compound, circuit, era, stint, temp, degr, tyre_age) calls - which the world
-        # sampler repeats often across episodes - hit the cache instead of missing on fuel alone. This
-        # does NOT change tyre_life_projection.py, the pickle, or any per-lap value the REAL replay
-        # engine (master.py, --rl or not) computes; it only affects the SIMULATED training environment.
+
         self._fixed_fuel = master.fuel_load_estimate(max(1, total_laps // 2), total_laps)
         self.lap = 1
         self.compound = compound
@@ -290,20 +140,11 @@ class HermesStrategyEnv:
                                            self.world.temp_bucket, self.world.degr_ordinal)
 
     def _get_projection(self, compound: str, tyre_age: float) -> dict:
-        """Memoised wrapper around the REAL proj_fn (master.build_projection_fn ->
-        tyre_proj.build_tyre_life_projection, unchanged). The Cox call inside it is
-        the dominant per-step cost (~10ms); this cache adds no new behaviour and
-        changes no returned value - it only avoids recomputing an IDENTICAL call
-        (same compound/circuit/era/stint/temp/degr/tyre_age/fixed-fuel - see the
-        fixed-fuel note in reset()) within or across episodes, which the world
-        sampler frequently repeats."""
+        ""
         key = (compound, self.world.circuit, self.world.era, self.stint_number,
                self.world.temp_bucket, self.world.degr_ordinal, round(self._fixed_fuel),
-               round(tyre_age, 1))   # fuel IS still part of the key (correctness: two episodes with
-                                     # different total_laps have different _fixed_fuel and must not
-                                     # collide) - only the PER-LAP fuel variation was removed, not fuel
-                                     # itself; rounding to the nearest 1 kg still gives good cross-episode
-                                     # reuse since _fixed_fuel only depends on total_laps (40-72 range).
+               round(tyre_age, 1))
+
         cached = self._proj_cache.get(key)
         if cached is None:
             cached = self._proj_fn(compound)(tyre_age)
@@ -314,10 +155,9 @@ class HermesStrategyEnv:
         return self._get_projection(self.compound, self.tyre_age)
 
     def valid_actions(self) -> list:
-        """Returns the list of ACTIONS legal in the CURRENT state - the mask
-        the agent/env both use so an invalid action can never be selected."""
+        ""
         if self.world.rain_now:
-            return ["STAY_OUT"]   # RL never proposes a dry pit in the rain (see module docstring)
+            return ["STAY_OUT"]
         valid = ["STAY_OUT"]
         if self.sets_left > 0:
             for action, family in ACTION_TO_FAMILY.items():
@@ -331,7 +171,7 @@ class HermesStrategyEnv:
                       if (c, self.world.circuit, self.world.era) in self.tyre_models["reg_models"]]
         if not candidates:
             return None
-        # Prefer the plain modern name (SOFT/MEDIUM/HARD) over the 2018 sub-tiers when both exist.
+
         return family if family in candidates else candidates[0]
 
     def _step_gap_walk(self):
@@ -347,7 +187,7 @@ class HermesStrategyEnv:
             self.sc_laps_left -= 1
             if self.sc_laps_left <= 0:
                 self.sc_active = False
-        elif self.rng.random() < (self.world.p_sc_window / master.HORIZON_LAPS):   # reused convention, see docstring
+        elif self.rng.random() < (self.world.p_sc_window / master.HORIZON_LAPS):
             self.sc_active = True
             self.sc_laps_left = master.HORIZON_LAPS
 
@@ -356,9 +196,7 @@ class HermesStrategyEnv:
             raise RuntimeError("call reset() before step()")
         valid = self.valid_actions()
         if action not in valid:
-            # Hard safety net (Step 14 test target): an out-of-mask action is never executed as
-            # requested - it is treated as STAY_OUT and penalised, so a bug upstream is visible in
-            # training rather than silently producing an unsafe/impossible pit.
+
             action = "STAY_OUT"
             invalid_attempted = True
         else:
@@ -369,7 +207,7 @@ class HermesStrategyEnv:
             proj = self._current_projection()
             pace_loss = proj["predicted_pace_loss"] or 0.0
             cliff_p = proj["cliff_probability_next_5_laps"] or 0.0
-            cliff_penalty = master.sc_gamble.CLIFF_PENALTY_SCALE * cliff_p   # exact reuse, see docstring
+            cliff_penalty = master.sc_gamble.CLIFF_PENALTY_SCALE * cliff_p
             time_cost = pace_loss + cliff_penalty
             pit_duration = None
         else:
@@ -400,9 +238,6 @@ class HermesStrategyEnv:
         self._last_info = info
         return self._discretize(), reward, done, info
 
-    # ------------------------------------------------------------------
-    # state discretisation (see module docstring for the exact bins/reuse)
-    # ------------------------------------------------------------------
     def _discretize(self) -> tuple:
         family = COMPOUND_FAMILY.get(self.compound, "MEDIUM")
 
@@ -424,8 +259,8 @@ class HermesStrategyEnv:
         cliff_p = proj["cliff_probability_next_5_laps"]
         threshold = master.gate3.CLIFF_PROBABILITY_THRESHOLD
         if cliff_p is None:
-            cliff_bucket = "low"        # None-safe: same "unknown -> don't trigger" convention as Tier 3
-        elif cliff_p < 0.5 * threshold:  # reuses execution-tree's own 0.5x "approaching" band
+            cliff_bucket = "low"
+        elif cliff_p < 0.5 * threshold:
             cliff_bucket = "low"
         elif cliff_p < threshold:
             cliff_bucket = "medium"
@@ -444,8 +279,7 @@ class HermesStrategyEnv:
                 gap_state, sets_bucket)
 
     def q_values_explained(self, agent) -> dict:
-        """For the explainability layer (rl_bridge.py) - the CURRENT
-        discretised state's Q-values plus which actions are legal here."""
+        ""
         state = self._discretize()
         return {"state": state, "valid_actions": self.valid_actions(),
                 "q_values": agent.q_values(state)}

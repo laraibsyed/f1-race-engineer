@@ -1,17 +1,3 @@
-"""
-investigate_french_gp_2022_vsc.py
-
-One-off diagnostic: 2022 French GP Race, lap 53 -- messages.csv says VSC
-was deployed on this lap, but is_vsc_lap (derived from TrackStatus in
-clean_laps.py) is False for every row on that lap. Since French GP 2022
-is a 53-lap race, lap 53 is the final lap -- checking whether this is a
-last-lap TrackStatus recording cutoff, an off-by-one in lap numbering
-between messages.csv and laps.csv, or something else.
-
-Requirements:
-    pip install google-cloud-storage pandas python-dotenv --break-system-packages
-"""
-
 import io
 import os
 
@@ -26,16 +12,14 @@ bucket = client.bucket(BUCKET_NAME)
 
 YEAR, RACE, SESSION = "2022", "French_Grand_Prix", "R"
 
-
 def read_csv_robust(data: bytes) -> pd.DataFrame | None:
     try:
         return pd.read_csv(io.BytesIO(data))
     except UnicodeDecodeError:
         return pd.read_csv(io.BytesIO(data), encoding="latin-1")
 
-
 if __name__ == "__main__":
-    # 1. Raw messages.csv -- what does it actually say around lap 53?
+
     msg_path = f"raw/fastf1/{YEAR}/{RACE}/{SESSION}/messages.csv"
     messages = read_csv_robust(bucket.blob(msg_path).download_as_bytes())
     print("=" * 70)
@@ -44,7 +28,6 @@ if __name__ == "__main__":
     nearby = messages[(messages["Lap"] >= 50) & (messages["Lap"] <= 53)]
     print(nearby[["Time", "Category", "Message", "Status", "Lap"]].to_string(index=False))
 
-    # 2. Cleaned laps -- TrackStatus and is_vsc_lap around lap 53
     laps_path = f"clean/fastf1/{YEAR}/{RACE}/{SESSION}/laps_flagged.csv"
     laps = read_csv_robust(bucket.blob(laps_path).download_as_bytes())
     print()

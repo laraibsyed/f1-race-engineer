@@ -1,21 +1,3 @@
-"""
-coverage_check.py
-
-Sanity check after clean_laps.py + align_telemetry.py: for every session
-that HAS a laps_flagged.csv, confirm the ones that SHOULD have telemetry
-(Race + Sprint only -- FP1/FP2/FP3/Q never have telemetry, see
-align_telemetry.py) actually got a telemetry_by_lap.csv written, and that
-the lap counts roughly line up between the two files.
-
-Does NOT re-run anything -- read-only report.
-
-Requirements:
-    pip install google-cloud-storage pandas python-dotenv --break-system-packages
-
-Usage:
-    python coverage_check.py
-    python coverage_check.py --year 2024   # just one year, faster
-"""
 
 import argparse
 import io
@@ -35,10 +17,8 @@ LAPS_PREFIX = "clean/fastf1/"
 TELEMETRY_PREFIX = "clean/tracinginsights/"
 TELEMETRY_AVAILABLE_SESSIONS = {"R", "S"}
 
-
 class CachedBucket:
-    """Read-only cache wrapper -- same pattern as clean_laps.py /
-    align_telemetry.py, so anything already downloaded there is reused."""
+    ""
 
     def __init__(self, bucket_name: str, cache_dir: Path = CACHE_DIR):
         print(f"[init] Connecting to GCS bucket '{bucket_name}' ...")
@@ -77,9 +57,7 @@ class CachedBucket:
             return True
         return self.bucket.blob(blob_path).exists(timeout=30)
 
-
 bucket = CachedBucket(BUCKET_NAME)
-
 
 def read_csv_robust(data: bytes) -> pd.DataFrame | None:
     try:
@@ -89,7 +67,6 @@ def read_csv_robust(data: bytes) -> pd.DataFrame | None:
             return pd.read_csv(io.BytesIO(data), encoding="latin-1")
         except Exception:
             return None
-
 
 def find_cleaned_sessions(year: str) -> list[tuple[str, str, str]]:
     prefix = f"{LAPS_PREFIX}{year}/" if year != "all" else LAPS_PREFIX
@@ -103,7 +80,6 @@ def find_cleaned_sessions(year: str) -> list[tuple[str, str, str]]:
                 sessions.add((parts[-4], parts[-3], parts[-2]))
     print(f"[scan] Found {len(sessions)} cleaned sessions.")
     return sorted(sessions)
-
 
 def check_session(year: str, race: str, session: str) -> dict:
     result = {
@@ -128,7 +104,6 @@ def check_session(year: str, race: str, session: str) -> dict:
         result["status"] = "MISSING"
         return result
 
-    # cross-check lap counts
     laps_path = f"{LAPS_PREFIX}{year}/{race}/{session}/laps_flagged.csv"
     try:
         laps_df = read_csv_robust(bucket.download_as_bytes(laps_path))
@@ -154,7 +129,6 @@ def check_session(year: str, race: str, session: str) -> dict:
         result["status"] = "ok"
 
     return result
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

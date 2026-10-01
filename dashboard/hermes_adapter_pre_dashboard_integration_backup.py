@@ -1,26 +1,4 @@
-"""
-HERMES Pit Wall - adapter layer.
-=================================
-READ-ONLY with respect to HERMES's own source. This file never edits, monkeypatches,
-or redesigns any tree/module file under system/HERMES/ - it only imports master.py
-(and evaluate.py, for its two small race/driver-listing helpers) exactly as they
-already exist, and calls their already-public functions:
-    master.evaluate_driver_lap, master.merge_execution, master.explanation_for,
-    master.explanation_text_for, master._rank_by_gap_to_leader, master._row_or_none,
-    master.load_tyre_models, master.load_sc_prior, master.load_cliff_stints,
-    master.load_circuit_taxonomy, master.load_pit_loss_table,
-    master.circuit_degredation_ordinal_for, master.pit_loss_for_circuit,
-    master.get_sc_probability, master.load_weather, master._attach_weather_columns,
-    master.find_laps_features, master.build_radios_by_driver_lap,
-    master.RaceContext, master.DriverRuntimeState.
-
-SCENARIO INJECTION (safety car / VSC / weather): implemented exactly the way the
-pre-build inventory of this codebase confirmed is already supported - by handing
-evaluate_driver_lap a COPY of the affected lap's row(s) with specific columns
-overridden (TrackStatus, is_sc_lap, is_vsc_lap, Rainfall, _seconds_since_rain_end).
-Nothing here ever mutates RaceBundle.laps (the historical dataframe loaded once per
-race) - every override happens on a `.copy()` taken fresh for that one evaluation.
-"""
+""
 from __future__ import annotations
 
 import copy
@@ -37,19 +15,11 @@ TREES_DIR = REPO_ROOT / "system" / "HERMES" / "trees"
 if str(TREES_DIR) not in sys.path:
     sys.path.insert(0, str(TREES_DIR))
 
-# master.py resolves its OWN repo root from HERMES_REPO_ROOT (env var, default ".") to find its
-# hyphenated sibling tree/module files (gate-tier-1.py etc, loaded via its own load_module()) - a
-# Streamlit process's working directory is not guaranteed to be this repo's root, so this must be
-# set BEFORE `import master` runs its module-level load_module() calls. Read-only: does not touch
-# any HERMES source file, just tells master.py where itself already lives on disk.
 os.environ.setdefault("HERMES_REPO_ROOT", str(REPO_ROOT))
 
-import system.HERMES.trees.master as master  # noqa: E402 - the existing, unmodified HERMES orchestrator
-import system.HERMES.trees.evaluate as hermes_eval  # noqa: E402 - reused: list_races (race listing only)
+import system.HERMES.trees.master as master
+import system.HERMES.trees.evaluate as hermes_eval
 
-# F1 TrackStatus codes used by laps_features.csv / master.py (see master.py line 1128:
-# safety_car_deployed = "4" in track_status or "6" in track_status or "7" in track_status).
-# 1=green, 2=yellow, 4=SC, 5=red, 6=VSC deployed, 7=VSC ending.
 TRACK_STATUS_GREEN = "1"
 TRACK_STATUS_SC = "4"
 TRACK_STATUS_VSC = "6"
@@ -62,34 +32,26 @@ WEATHER_PRESETS = {
     "DRYING_TRACK": dict(Rainfall=False, rain_probability_pct=10.0, _seconds_since_rain_end=300.0),
 }
 
-
-# ============================================================================
-# Race-level data bundle - built ONCE per "Load Race", cached by the caller
-# (data_loader.py wraps this in st.cache_resource so re-selecting the same
-# race/season does not reload laps_features.csv / weather / model pickles).
-# ============================================================================
 @dataclass
 class RaceBundle:
     season: int
     race: str
     session: str
-    laps: pd.DataFrame            # FULL grid (every driver), historical, weather columns attached
+    laps: pd.DataFrame
     weather_df: Optional[pd.DataFrame]
     total_laps: int
-    resources: dict               # {"tyre_models": ..., "cliff_stints": ...}
+    resources: dict
     degr_ordinal: int
     pit_loss_s: float
     p_sc_5lap: Optional[float]
-    fallback_notes: list          # data-quality / fallback notes surfaced to the UI
-    # --- UI speed-ups, built ONCE in load_race_bundle (no effect on HERMES inputs) ---
-    laps_by_lap: dict = field(default_factory=dict)       # {lap_number: that lap's rows, every driver}
-    weather_sorted: Optional[pd.DataFrame] = None          # weather table, time-parsed + sorted once
-    grid_cache: dict = field(default_factory=dict)        # {lap_number: ranked full grid}
+    fallback_notes: list
 
+    laps_by_lap: dict = field(default_factory=dict)
+    weather_sorted: Optional[pd.DataFrame] = None
+    grid_cache: dict = field(default_factory=dict)
 
 def _prepare_weather(weather_df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
-    """Parse + sort the weather table ONCE (it used to be copied/parsed/sorted on every
-    single lap lookup, which is a big part of why the UI felt slow)."""
+    ""
     if weather_df is None:
         return None
     w = weather_df.copy()
@@ -102,15 +64,12 @@ def _prepare_weather(weather_df: Optional[pd.DataFrame]) -> Optional[pd.DataFram
         w["_t"] = pd.to_timedelta(w[time_col], errors="coerce")
     return w.dropna(subset=["_t"]).sort_values("_t").reset_index(drop=True)
 
-
 def _lap_frame(bundle: "RaceBundle", lap_number: int) -> Optional[pd.DataFrame]:
-    """All rows for one lap (every driver) - dict lookup instead of re-scanning the
-    full laps dataframe with a boolean mask each time. Returns None if no rows."""
+    ""
     if bundle.laps_by_lap:
         return bundle.laps_by_lap.get(int(lap_number))
     f = bundle.laps[bundle.laps["LapNumber"] == lap_number]
     return None if f.empty else f
-
 
 def list_seasons(repo_root: Path = REPO_ROOT) -> list[int]:
     base = repo_root / "gcs_cache" / "clean" / "features"
@@ -118,29 +77,16 @@ def list_seasons(repo_root: Path = REPO_ROOT) -> list[int]:
         return []
     return sorted((int(p.name) for p in base.iterdir() if p.is_dir() and p.name.isdigit()), reverse=True)
 
-
 def list_races(repo_root: Path, season: int) -> list[str]:
-    """Reused verbatim from evaluate.py - do NOT hardcode a race list."""
+    ""
     return hermes_eval.list_races(repo_root, season)
 
-
 def resolve_red_bull_pair(season: int, race: str) -> tuple[str, str]:
-    """D1/D2 are ALWAYS the two Red Bull Racing drivers for the selected
-    season/race - never user-selectable, never 'first two in the timing
-    data', never 'fastest two'. Reuses evaluate.py's `rbr_drivers_for`
-    verbatim (its own RBR_PAIRS lookup table, keyed by season, with the
-    2025-early-season VER/LAW exception already baked in) - this file does
-    not re-derive or duplicate that table. Raises KeyError (surfaced to the
-    UI, never silently guessed) if the season has no recorded Red Bull
-    pairing."""
+    ""
     return hermes_eval.rbr_drivers_for(season, race)
 
-
 def list_drivers(bundle: RaceBundle) -> list[dict]:
-    """Every driver actually in this race (not just a hardcoded two-driver pair),
-    used to populate the D1/D2 dropdowns and the timing tower. Code + team,
-    sorted by median race position (best first) so the dropdown is meaningfully
-    ordered, falling back to alphabetical if Position is unusable."""
+    ""
     laps = bundle.laps
     if "Position" in laps.columns and laps["Position"].notna().any():
         order = laps.groupby("Driver")["Position"].median().sort_values()
@@ -153,14 +99,8 @@ def list_drivers(bundle: RaceBundle) -> list[dict]:
         out.append(dict(code=code, team=team.iloc[0] if len(team) else "?"))
     return out
 
-
 def load_race_bundle(season: int, race: str, session: str = "R", repo_root: Path = REPO_ROOT) -> RaceBundle:
-    """Mirrors exactly what master.py's own `replay` CLI does in main() before
-    calling run_replay() - same functions, same order (master.py lines
-    1952-1970) - so the dashboard's inputs to HERMES are identical to the
-    validated CLI/evaluation path. Called ONCE per race; the dashboard then
-    drives its own lap-by-lap loop via ReplayCache below instead of
-    master.py's batch `for lap_number in lap_range`."""
+    ""
     notes: list = []
 
     tyre_models = master.load_tyre_models(master._data_path(repo_root, "tyre_life_models.pkl"))
@@ -192,7 +132,7 @@ def load_race_bundle(season: int, race: str, session: str = "R", repo_root: Path
     laps = pd.read_csv(laps_path, dtype={"TrackStatus": str})
     if "LapTime_seconds" not in laps.columns and "LapTime" in laps.columns:
         laps["LapTime_seconds"] = pd.to_timedelta(laps["LapTime"], errors="coerce").dt.total_seconds()
-    laps = master._attach_weather_columns(laps, weather_df)   # HISTORICAL only; demo overrides never touch this frame
+    laps = master._attach_weather_columns(laps, weather_df)
     total_laps = int(laps["LapNumber"].max())
 
     resources = {"tyre_models": tyre_models, "cliff_stints": cliff_stints}
@@ -201,17 +141,12 @@ def load_race_bundle(season: int, race: str, session: str = "R", repo_root: Path
                        degr_ordinal, pit_loss_s, p_sc_5lap, notes,
                        laps_by_lap=laps_by_lap, weather_sorted=_prepare_weather(weather_df))
 
-
-# ============================================================================
-# Per-driver-pair evaluation context + single-lap evaluation
-# ============================================================================
 @dataclass
 class DriverPairContext:
     ctx: "master.RaceContext"
     state_d1: "master.DriverRuntimeState"
     state_d2: "master.DriverRuntimeState"
     radios_by_driver_lap: Optional[dict]
-
 
 def build_driver_pair_context(bundle: RaceBundle, d1: str, d2: str,
                                is_sprint_weekend: bool = False) -> DriverPairContext:
@@ -225,34 +160,15 @@ def build_driver_pair_context(bundle: RaceBundle, d1: str, d2: str,
     return DriverPairContext(ctx, master.DriverRuntimeState("D1", d1),
                               master.DriverRuntimeState("D2", d2), radios)
 
-
 def _snapshot_states(dpc: DriverPairContext):
     return copy.deepcopy(dpc.state_d1), copy.deepcopy(dpc.state_d2)
-
 
 def _restore_states(dpc: DriverPairContext, snapshot) -> None:
     dpc.state_d1, dpc.state_d2 = copy.deepcopy(snapshot[0]), copy.deepcopy(snapshot[1])
 
-
 def evaluate_lap(bundle: RaceBundle, dpc: DriverPairContext, lap_number: int,
                   lap_overrides: Optional[dict] = None) -> dict:
-    """Evaluate ONE lap for the tracked D1/D2 pair, mutating dpc's
-    DriverRuntimeState objects forward - the exact same functions, in the
-    exact same order, that master.run_replay()'s own loop uses (evaluate_driver_lap
-    for d1, then d2, then merge_execution). MUST be called in strictly
-    increasing lap order for a given `dpc` object, because DriverRuntimeState
-    is lap-to-lap accumulating state (same contract master.py already has) -
-    ReplayCache below is what makes arbitrary UI navigation (jump back, jump
-    forward, play/pause) safe on top of that constraint.
-
-    `lap_overrides`: the DEMO/SIMULATED SCENARIO injection point. A dict of
-    {column_name: value} applied to a **copy** of this lap's row(s) for BOTH
-    drivers before evaluation - e.g. {"TrackStatus": "4", "is_sc_lap": True}
-    for a Safety Car scenario. Never mutates `bundle.laps`. Returns
-    {driver_code: decision_dict} using HERMES's own, unmodified decision-row
-    schema (gate_decision, tier_reached, triggers, sc_gamble, execution,
-    explanation, explanation_text, ...).
-    """
+    ""
     laps = bundle.laps
     lap_df = _lap_frame(bundle, lap_number)
     if lap_df is None or lap_df.empty:
@@ -294,15 +210,6 @@ def evaluate_lap(bundle: RaceBundle, dpc: DriverPairContext, lap_number: int,
         out[r["driver"]] = r
     return out
 
-
-# ============================================================================
-# Replay cache - avoids re-walking the whole race from lap 1 on every UI
-# interaction (spec item 22: "cache replay decisions"). Historical laps are
-# cached forward-only, exactly as they were computed; a scenario branch is
-# cached SEPARATELY, starting from a snapshot of driver state immediately
-# before the injection lap, and is discarded on "RESET SCENARIO" without
-# touching the historical cache at all.
-# ============================================================================
 class ReplayCache:
     def __init__(self, bundle: RaceBundle, dpc: DriverPairContext):
         self.bundle = bundle
@@ -324,13 +231,8 @@ class ReplayCache:
     def get_range(self, lo: int, hi: int) -> dict[int, dict]:
         return {lap: self.get(lap) for lap in range(lo, hi + 1)}
 
-
 class ScenarioReplayCache:
-    """Forks off a ReplayCache at `fork_from_lap` (the last lap the scenario
-    should still be HISTORICAL for) and applies `lap_overrides` to every lap
-    from `injection_lap` onward, up to `duration_laps` (None = rest of race).
-    Laps before `injection_lap` are read straight from the historical cache -
-    not recomputed, not duplicated."""
+    ""
 
     def __init__(self, historical: ReplayCache, injection_lap: int,
                  lap_overrides: dict, duration_laps: Optional[int] = None):
@@ -340,13 +242,10 @@ class ScenarioReplayCache:
         self.end_lap = (injection_lap + duration_laps - 1) if duration_laps else None
         fork_from = injection_lap - 1
         if fork_from > 0:
-            historical.get(fork_from)  # ensure the fork point is computed (lap 0 has no decisions -
-                                        # it's the pre-race snapshot already seeded in __init__ below)
+            historical.get(fork_from)
+
         self.bundle = historical.bundle
-        # Always fork from historical's own recorded snapshot AT fork_from (never
-        # historical.dpc directly - that object keeps mutating forward as the
-        # historical cache is used elsewhere, so it is NOT safe to read "as of"
-        # any particular lap; _state_after[fork_from] is the frozen snapshot).
+
         snap = historical._state_after[fork_from]
         self.dpc = DriverPairContext(historical.dpc.ctx, copy.deepcopy(snap[0]),
                                       copy.deepcopy(snap[1]), historical.dpc.radios_by_driver_lap)
@@ -376,15 +275,8 @@ class ScenarioReplayCache:
             self._state_after[lap] = (copy.deepcopy(self.dpc.state_d1), copy.deepcopy(self.dpc.state_d2))
         return self._decisions[lap_number]
 
-
-# ============================================================================
-# Full-grid helpers (timing tower / track map - every car, not just D1/D2)
-# ============================================================================
 def full_grid_for_lap(bundle: RaceBundle, lap_number: int) -> pd.DataFrame:
-    """Rows for every driver at this lap, ranked exactly as HERMES's own
-    adjacency logic ranks them (master._rank_by_gap_to_leader), with no
-    columns beyond lap_number ever consulted (NO LOOKAHEAD). Memoised per lap -
-    treat the returned frame as READ-ONLY."""
+    ""
     hit = bundle.grid_cache.get(lap_number)
     if hit is not None:
         return hit
@@ -395,14 +287,8 @@ def full_grid_for_lap(bundle: RaceBundle, lap_number: int) -> pd.DataFrame:
     bundle.grid_cache[lap_number] = out
     return out
 
-
 def weather_for_lap(bundle: RaceBundle, lap_number: int) -> dict:
-    """UI-display-only weather lookup (AirTemp/TrackTemp/Humidity/WindSpeed are
-    NOT attached to bundle.laps by master._attach_weather_columns - that
-    function only attaches Rainfall/_seconds_since_rain_end, the two fields
-    HERMES's own weather gate actually consumes). Same no-lookahead as-of lookup
-    as before, but against the weather table prepared ONCE at load time. It does
-    not feed HERMES anything."""
+    ""
     lap_df = _lap_frame(bundle, lap_number)
     if lap_df is None or lap_df.empty:
         return {}

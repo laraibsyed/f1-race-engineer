@@ -1,0 +1,8 @@
+metric,value
+n_rows_with_team_strategy_execution,1016.0
+n_override,128.0
+pct_override,12.6
+n_upgrade_to_pit_now,368.0
+pct_upgrade_to_pit_now,36.2
+override_reason=tier3_active_trigger_not_suppressed,90.0
+override_reason=tier1_or_2_hard_constraint,38.0

@@ -1,28 +1,4 @@
-r"""
-SC Gamble A/B: analytic evaluate_sc_gamble  vs  Monte Carlo evaluate_sc_gamble_mc
-======================================================================================
-Runs the SAME parameter grids sc-gamble-v2.py's run_sweep() used (full 11x11x11
-grid, and the "realistic operating range" grid, both at horizon 5) through both
-evaluators and reports whether the Monte Carlo version is a faithful
-uncertainty-propagation wrapper around the analytic reference - NOT whether it
-is "more right". Framing (deliberate): the analytic model is the validated
-reference; MC quantifies uncertainty around the same cost model and must not
-change the strategy logic. Passing means the two agree on decisions everywhere
-except cells that are genuine toss-ups within simulation noise.
 
-Checks:
-  1. schema        MC return keys are a superset of the analytic keys; same vocabulary
-  2. semantics     INSUFFICIENT_DATA parity for missing inputs
-  3. reproducible  same seed -> identical output
-  4. agreement     decision agreement over both grids; every disagreement classified as
-                   "within MC noise" (|analytic saving| < 3 x MC standard error) or "MATERIAL"
-  5. seed stability  decisions that flip across seeds must be the same noise-level cells
-  6. mean fidelity   MC mean saving vs analytic mean saving
-
-Usage (from the repo dir):
-    .\.venv\Scripts\python.exe system\HERMES\safety-car\sc-gamble-ab.py
-Exit code 0 = all checks passed.
-"""
 import importlib.util
 import itertools
 import sys
@@ -34,29 +10,24 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("sc_gamble", HERE / "sc-gamble.py")
 scg = importlib.util.module_from_spec(spec)
-sys.modules["sc_gamble"] = scg                    # required by dataclasses on Python 3.14
+sys.modules["sc_gamble"] = scg
 spec.loader.exec_module(scg)
 
 S = scg.SCGambleInputs
 VOCAB = {"WAIT", "NO_ADVANTAGE_TO_WAITING", "INSUFFICIENT_DATA"}
 HORIZON = 5
 SEEDS = (0, 1, 2, 3)
-NOISE_SE = 3.0   # a cell is a "toss-up" if |analytic saving| < NOISE_SE x MC standard error. 3 (not 2): with hundreds of
-                 # cells scanned, some sit right at 2 sigma and WILL flip on a different seed - that is expected sampling
-                 # noise, not a defect. Raising n_sims shrinks the band.
+NOISE_SE = 3.0
 
 FULL_GRID = list(itertools.product(np.linspace(0, 1, 11), np.linspace(0, 1, 11), np.linspace(0, 1, 11)))
 REAL_GRID = list(itertools.product(np.linspace(0, 0.15, 8), np.linspace(0, 0.10, 6), np.linspace(0, 0.30, 7)))
-# tuple order in both grids: (p_sc, cliff_probability, pace_loss_per_lap)
 
 ok = True
-
 
 def check(label, cond, detail=""):
     global ok
     ok &= bool(cond)
     print(f"  [{'PASS' if cond else 'FAIL'}] {label}" + (f"  {detail}" if detail else ""))
-
 
 def run_grid(name, grid):
     print(f"\n=== {name}: {len(grid)} cells, horizon {HORIZON} ===")
@@ -86,7 +57,6 @@ def run_grid(name, grid):
           f"95th pct |diff| {np.percentile(np.abs(diffs), 95):.3f}s")
     check(f"{name}: MC mean within 0.25s of analytic in 95% of cells", np.percentile(np.abs(diffs), 95) <= 0.25)
 
-    # seed stability: which cells flip when only the seed changes?
     base = {(p, c, pace): m["recommendation"] for p, c, pace, a, m in rows}
     flips = set()
     for seed in SEEDS[1:]:
@@ -104,7 +74,6 @@ def run_grid(name, grid):
         print("  cells whose decision changes with the seed: 0")
     check(f"{name}: seed-sensitive cells are all toss-ups", len(non_noise_flips) == 0)
     return rows
-
 
 print("=" * 78)
 print("1-3. schema, semantics, reproducibility")

@@ -1,36 +1,13 @@
-"""
-SC/VSC Empirical Prior — Leave-One-Race-Out Validation
-==========================================================
-Answers the checklist's validation question honestly: the empirical prior is
-a historical BASE RATE, not a live crash detector - it cannot "predict" a
-specific race's specific incident. What it CAN be validated for: does the
-lap-level structure (not just circuit-level average) carry real signal -
-across many real historical incidents, is the predicted probability at the
-ACTUAL incident lap systematically higher than at a random other lap in the
-same race?
-
-LEAVE-ONE-RACE-OUT, not in-sample: with only 5-8 races per circuit, a single
-incident can meaningfully inflate its own lap's probability estimate in the
-full prior - evaluating a race against a prior that includes its own data
-would be circular. Each race is evaluated against a prior rebuilt WITHOUT it.
-
-Same paired-comparison + AUC approach as the Cox model's ROC validation
-earlier in this project - consistent methodology across the codebase.
-"""
 
 import pandas as pd
 import numpy as np
 from sklearn.metrics import roc_auc_score
 
-# Reused from sc_vsc_probability_model.py - duplicated deliberately so this
-# validation script is self-contained, same pattern as the rest of this project.
 MIN_RACES_FOR_RELIABLE_PRIOR = 4
 SMOOTHING_WINDOW = 5
 
-
 def compute_race_lap_extents(laps: pd.DataFrame) -> pd.DataFrame:
     return laps.groupby(["Season", "Race"])["LapNumber"].max().reset_index(name="total_race_laps")
-
 
 def compute_deployment_by_lap(laps: pd.DataFrame) -> pd.DataFrame:
     return laps.groupby(["Season", "Race", "LapNumber"]).agg(
@@ -38,11 +15,9 @@ def compute_deployment_by_lap(laps: pd.DataFrame) -> pd.DataFrame:
         vsc_deployed=("is_vsc_deployed_lap", "any"),
     ).reset_index()
 
-
 def build_prior_for_circuit(extents: pd.DataFrame, deployment: pd.DataFrame, circuit: str,
                               exclude_season: int = None) -> pd.DataFrame:
-    """Same logic as sc_vsc_probability_model.build_empirical_prior, but for
-    ONE circuit at a time, with an optional season excluded (leave-one-out)."""
+    ""
     race_extents = extents[extents["Race"] == circuit]
     race_deployment = deployment[deployment["Race"] == circuit]
     if exclude_season is not None:
@@ -72,7 +47,6 @@ def build_prior_for_circuit(extents: pd.DataFrame, deployment: pd.DataFrame, cir
     prior["p_either_smoothed"] = 1 - (1 - prior["p_sc_smoothed"]) * (1 - prior["p_vsc_smoothed"])
     return prior
 
-
 def run_leave_one_out_validation(laps: pd.DataFrame, seed: int = 42) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     extents = compute_race_lap_extents(laps)
@@ -90,7 +64,7 @@ def run_leave_one_out_validation(laps: pd.DataFrame, seed: int = 42) -> pd.DataF
             race_deploy = circuit_deployment[circuit_deployment["Season"] == season]
             incident_laps = race_deploy.loc[race_deploy["sc_deployed"] | race_deploy["vsc_deployed"], "LapNumber"].tolist()
             if not incident_laps:
-                continue  # this race had no SC/VSC at all - nothing to validate against
+                continue
 
             loo_prior = build_prior_for_circuit(extents, deployment, circuit, exclude_season=season)
             if loo_prior.empty:
@@ -112,7 +86,6 @@ def run_leave_one_out_validation(laps: pd.DataFrame, seed: int = 42) -> pd.DataF
                              "p_control": p_control.iloc[0]})
 
     return pd.DataFrame(rows)
-
 
 if __name__ == "__main__":
     import os

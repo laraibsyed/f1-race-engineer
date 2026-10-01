@@ -1,14 +1,4 @@
-"""
-HERMES RL - compact validation / evaluation report
-========================================================
-NEW FILE. One script producing everything Step 13/14 of the RL brief asks
-for: policy comparison (random / untrained / trained), a decision trace,
-a HERMES (Gate Tree + Execution Tree) integration demo, and a small
-self-contained test suite. Exit code 0 iff every test passes.
-
-Usage (from the repo root, after rl_train.py has produced rl_artifacts/qtable.json):
-    .\\.venv\\Scripts\\python.exe system\\HERMES\\trees\\rl_validate.py
-"""
+""
 from __future__ import annotations
 
 import sys
@@ -18,18 +8,14 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from rl_agent import ACTIONS, QLearningConfig, TabularQAgent, epsilon_at  # noqa: E402
-from rl_env import HermesStrategyEnv  # noqa: E402
-import rl_bridge  # noqa: E402
+from rl_agent import ACTIONS, QLearningConfig, TabularQAgent, epsilon_at
+from rl_env import HermesStrategyEnv
+import rl_bridge
 
 ARTIFACT_DIR = Path(__file__).resolve().parent / "rl_artifacts"
 N_EVAL_EPISODES = 200
-EVAL_SEED_BASE = 9000   # disjoint from training seed (42) and from any world/env seed used elsewhere
+EVAL_SEED_BASE = 9000
 
-
-# ============================================================================
-# Policy comparison (Step 8 / Step 13 "Policy comparison")
-# ============================================================================
 def run_policy(policy_fn, n_episodes: int, seed_base: int, repo_root=None):
     returns, actions_taken = [], Counter()
     for i in range(n_episodes):
@@ -46,28 +32,20 @@ def run_policy(policy_fn, n_episodes: int, seed_base: int, repo_root=None):
         returns.append(ep_return)
     return returns, actions_taken
 
-
 def random_policy(state, valid, rng):
     return valid[rng.integers(len(valid))]
 
-
 def make_untrained_policy():
-    """An UNTRAINED agent: a fresh TabularQAgent whose Q-table is all zeros
-    everywhere (nothing has been visited/updated yet) - greedy over an
-    all-zero table picks the first legal action every time (a fixed,
-    deterministic, non-learned policy), used as the explicit "before any
-    learning happened" baseline (Step 8)."""
+    ""
     agent = TabularQAgent(QLearningConfig())
     def _policy(state, valid, rng):
         return agent.greedy_action(state, valid)
     return _policy
 
-
 def make_trained_policy(agent: TabularQAgent):
     def _policy(state, valid, rng):
         return agent.greedy_action(state, valid)
     return _policy
-
 
 def report_policy_comparison(agent: TabularQAgent) -> dict:
     print("\n" + "=" * 78)
@@ -96,7 +74,6 @@ def report_policy_comparison(agent: TabularQAgent) -> dict:
     diff_u = results["trained Q-learning"]["mean"] - results["untrained (all-zero Q)"]["mean"]
     print(f"  trained - untrained mean reward difference: {diff_u:+.2f}s")
 
-    # reproducibility across fixed seeds
     returns_a, _ = run_policy(make_trained_policy(agent), 20, EVAL_SEED_BASE)
     returns_b, _ = run_policy(make_trained_policy(agent), 20, EVAL_SEED_BASE)
     reproducible = returns_a == returns_b
@@ -106,10 +83,6 @@ def report_policy_comparison(agent: TabularQAgent) -> dict:
     results["diff_vs_untrained"] = diff_u
     return results
 
-
-# ============================================================================
-# Example decision trace (Step 13 "Example decision trace")
-# ============================================================================
 def print_decision_trace(agent: TabularQAgent, seed: int = 777, max_steps: int = 12, repo_root=None):
     print("\n" + "=" * 78)
     print(f"EXAMPLE SIMULATED DECISION TRACE (trained policy, greedy, env seed={seed})")
@@ -131,13 +104,6 @@ def print_decision_trace(agent: TabularQAgent, seed: int = 777, max_steps: int =
             print("  (episode ended)")
             break
 
-
-# ============================================================================
-# HERMES integration demo (Step 9 / Step 13 "H.E.R.M.E.S. integration") -
-# RL recommendation -> REAL Gate Tree -> REAL Execution Tree -> final instruction,
-# on REAL replayed laps (2023 Bahrain Grand Prix, VER/PER) if the cached race
-# data is available; falls back to a clearly labelled synthetic scenario if not.
-# ============================================================================
 def run_hermes_integration_demo(agent: TabularQAgent, repo_root=None):
     print("\n" + "=" * 78)
     print("HERMES INTEGRATION DEMO: RL recommendation -> Gate Tree -> Execution Tree")
@@ -191,11 +157,8 @@ def run_hermes_integration_demo(agent: TabularQAgent, repo_root=None):
         if shown >= 8:
             break
 
-
 def _run_synthetic_integration_examples(agent: TabularQAgent):
-    """SYNTHETIC, clearly labelled scenarios (no real race data) exercising
-    both branches described in the RL brief: RL overridden by a Tier-1
-    safety gate, and RL agreeing with an ordinary Tier-3 strategic call."""
+    ""
     master = rl_bridge.master
 
     print("\n  [SYNTHETIC] Scenario A - RL wants to stay out, Tier 1 forces PIT_NOW (unsafe tyre damage):")
@@ -224,11 +187,6 @@ def _run_synthetic_integration_examples(agent: TabularQAgent):
           f"{hermes_b['execution']['driving_instruction']})")
     print(f"    agree             : {combined_b['agrees_with_hermes']}")
 
-
-# ============================================================================
-# Sanity checks / tests (Step 14) - pass/fail printout, same style as
-# sc-gamble-ab.py. Exit code reflects overall pass/fail.
-# ============================================================================
 def run_tests(agent: TabularQAgent, repo_root=None) -> bool:
     print("\n" + "=" * 78)
     print("VALIDATION / SANITY CHECKS (Step 14)")
@@ -240,7 +198,6 @@ def run_tests(agent: TabularQAgent, repo_root=None) -> bool:
         ok &= bool(cond)
         print(f"  [{'PASS' if cond else 'FAIL'}] {label}" + (f"  {detail}" if detail else ""))
 
-    # 1. Q-learning update equation
     test_agent = TabularQAgent(QLearningConfig(alpha=0.1, gamma=0.9))
     s0, s1 = ("SOFT", "0-4", "early", "low", False, False, "NEUTRAL", "OK"), \
              ("SOFT", "0-4", "early", "low", False, False, "NEUTRAL", "OK")
@@ -252,7 +209,6 @@ def run_tests(agent: TabularQAgent, repo_root=None) -> bool:
     check("Q-learning update matches Q(s,a) += alpha*(r + gamma*max Q(s',.) - Q(s,a))",
           abs(actual - expected) < 1e-9, f"expected {expected:.5f}, got {actual:.5f}")
 
-    # 2. deterministic inference with fixed seed
     env1, env2 = HermesStrategyEnv(repo_root=repo_root, seed=123), HermesStrategyEnv(repo_root=repo_root, seed=123)
     s_a, s_b = env1.reset(), env2.reset()
     trace_a = [agent.greedy_action(s_a, env1.valid_actions())]
@@ -265,7 +221,6 @@ def run_tests(agent: TabularQAgent, repo_root=None) -> bool:
         trace_a.append(a_a); trace_b.append(a_b)
     check("deterministic inference: identical seed -> identical greedy action trace", trace_a == trace_b)
 
-    # 3. valid action selection (agent never returns an action outside the mask)
     env = HermesStrategyEnv(repo_root=repo_root, seed=55)
     state = env.reset()
     n_checked = 0
@@ -283,25 +238,22 @@ def run_tests(agent: TabularQAgent, repo_root=None) -> bool:
     check("valid action selection: agent never selects outside valid_actions()",
           violations == 0, f"{violations}/{n_checked} violations")
 
-    # 4. invalid tyre compound cannot be selected (wet-weather masking)
     env = HermesStrategyEnv(repo_root=repo_root, seed=7)
     env.reset()
     env.world.rain_now = True
     valid_wet = env.valid_actions()
     check("wet-weather masking: only STAY_OUT is legal while rain_now=True",
           valid_wet == ["STAY_OUT"], f"got {valid_wet}")
-    ns, r, d, info = env.step("PIT_SOFT")   # deliberately request an illegal action
+    ns, r, d, info = env.step("PIT_SOFT")
     check("env hard-safety-net: an illegal PIT_SOFT request while raining executes as STAY_OUT, not a pit",
           info["action_taken"] == "STAY_OUT" and info["invalid_attempted"] and info["pit_duration_s"] is None)
 
-    # zero-sets masking
     env2b = HermesStrategyEnv(repo_root=repo_root, seed=8)
     env2b.reset()
     env2b.sets_left = 0
     check("zero-sets masking: only STAY_OUT is legal once sets_left == 0",
           env2b.valid_actions() == ["STAY_OUT"], f"got {env2b.valid_actions()}")
 
-    # 5. Q-table persistence / reload
     tmp_path = ARTIFACT_DIR / "_persistence_test_qtable.json"
     agent.save(tmp_path)
     reloaded = TabularQAgent.load(tmp_path)
@@ -312,7 +264,6 @@ def run_tests(agent: TabularQAgent, repo_root=None) -> bool:
           same_config and same_table)
     tmp_path.unlink(missing_ok=True)
 
-    # 6. Gate Tree still overrides unsafe RL recommendations
     hermes_unsafe = {"compound": "SOFT", "tyre_age": 5, "lap": 10, "gate_tree_trigger_tier": 1,
                       "gate_decision": "PIT_NOW", "triggers": {}, "projection": {},
                       "execution": {"driving_instruction": "PIT_LAP"}}
@@ -323,28 +274,20 @@ def run_tests(agent: TabularQAgent, repo_root=None) -> bool:
           combined["hermes_final_action"] == "PIT_SOFT" and not combined["agrees_with_hermes"]
           and combined["override_reason"] is not None)
 
-    # 7. no future information enters the RL state (structural check: discretize_hermes_result only
-    #    reads fields that are present at decision time in evaluate_driver_lap's OWN result dict -
-    #    confirmed by construction, tested here by checking it uses none of the "future" keys that
-    #    would only be known after the lap resolves, e.g. actual_is_pit_in_lap / explanation)
     import inspect
     src = inspect.getsource(rl_bridge.discretize_hermes_result)
     forbidden = ["actual_is_pit_in_lap", "explanation", "data_quality_notes"]
     check("no-lookahead: discretize_hermes_result() reads none of the post-hoc/explanation fields",
           not any(f in src for f in forbidden))
 
-    # 8. existing HERMES tests still pass (master.py selftest, unaffected by these new files)
     import subprocess
     result = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "master.py"), "selftest"],
                              capture_output=True, text=True)
     check("existing HERMES selftest (master.py selftest) still passes", result.returncode == 0)
 
-    # 9. RL-disabled behaviour is unchanged (import-only check here; the byte-identical replay
-    #    diff against the pre-RL backup is run separately - see the final report)
     check("rl_env.py imports master.py without modifying it (module identity)",
           rl_bridge.master.__name__ == "hermes_master")
 
-    # 10. training produces non-identical Q-values from the initial (all-zero) table
     n_nonzero_states = sum(1 for v in agent.q.values() if np.any(v != 0))
     check("training produced non-identical Q-values from the initial all-zero table",
           n_nonzero_states > 0 and agent.n_visited_states() > 0,
@@ -352,10 +295,6 @@ def run_tests(agent: TabularQAgent, repo_root=None) -> bool:
 
     return ok
 
-
-# ============================================================================
-# Sensitivity check (one hyperparameter, small - Step 14 "sensitivity check")
-# ============================================================================
 def run_alpha_sensitivity(repo_root=None, n_episodes: int = 800):
     print("\n" + "=" * 78)
     print(f"SENSITIVITY CHECK: learning rate alpha (n_episodes={n_episodes}, gamma=0.97 fixed, seed=42)")
@@ -369,8 +308,6 @@ def run_alpha_sensitivity(repo_root=None, n_episodes: int = 800):
         print(f"  alpha={alpha:.2f}: mean return (last {last_n} episodes) = {last_mean:+.2f}s, "
               f"visited states = {trained.n_visited_states()}")
 
-
-# ============================================================================
 def main():
     import argparse
     parser = argparse.ArgumentParser()
@@ -395,7 +332,6 @@ def main():
 
     print("\n" + ("ALL CHECKS PASSED" if ok else "SOME CHECKS FAILED"))
     sys.exit(0 if ok else 1)
-
 
 if __name__ == "__main__":
     main()

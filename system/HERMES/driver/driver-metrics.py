@@ -1,13 +1,3 @@
-"""
-Data Discovery — What Exists for aggression_level / pressure_risk_tolerance /
-defensive_strength?
-================================================================================
-Before building anything for these three metrics, find out what's ACTUALLY in
-the bucket rather than assume. Lists top-level structure, checks for
-standings/results tables, and checks whether tracinginsights telemetry
-(known to have drs/DriverAhead/DistanceToDriverAhead fields, confirmed from
-the sample JSON shared earlier) is raw per-lap files or already aggregated.
-"""
 
 import os
 from collections import Counter
@@ -18,14 +8,11 @@ load_dotenv()
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 
-
 def top_level_prefixes(bucket, prefix="", delimiter="/"):
-    """Lists immediate 'folders' under a prefix, without descending into them -
-    cheap way to see bucket structure without listing everything."""
+    ""
     iterator = bucket.list_blobs(prefix=prefix, delimiter=delimiter)
-    blobs = list(iterator)  # must consume to populate .prefixes
+    blobs = list(iterator)
     return list(iterator.prefixes), [b.name for b in blobs]
-
 
 if __name__ == "__main__":
     client = storage.Client()
@@ -65,7 +52,7 @@ if __name__ == "__main__":
         print("Sample paths:")
         for t in tel_blobs[:5]:
             print(f"  {t}")
-        # crude check: if there are thousands of small per-lap files, it's raw
+
         if len(tel_blobs) > 1000:
             print(f"[note] {len(tel_blobs)} files strongly suggests RAW per-lap telemetry, "
                   f"not pre-aggregated - processing this for overtakes/DRS would be a "

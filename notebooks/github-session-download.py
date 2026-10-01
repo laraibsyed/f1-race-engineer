@@ -7,9 +7,8 @@ from pathlib import Path
 
 load_dotenv()
 
-# --- CONFIG ---
 BUCKET_NAME = "f1-race-engineer-bucket"
-CLONE_DIR = "data\\tracinginsights"  # local temp folder
+CLONE_DIR = "data\\tracinginsights"
 YEARS = range(2018, 2027)
 
 client = storage.Client()
@@ -41,7 +40,7 @@ def upload_year(year, repo_dir):
     print(f"  Found {len(tel_files)} telemetry files")
 
     for local_path in tel_files:
-        # Build GCS path preserving folder structure
+
         relative = local_path.relative_to(repo_dir)
         gcs_path = f"raw/tracinginsights/{year}/{relative.as_posix()}"
 
@@ -55,7 +54,6 @@ def upload_year(year, repo_dir):
             print(f"  FAILED {gcs_path}: {e}")
             failed_files.append((year, str(relative), str(e)))
 
-# --- MAIN ---
 os.makedirs(CLONE_DIR, exist_ok=True)
 
 for year in YEARS:
@@ -65,7 +63,6 @@ for year in YEARS:
 
     repo_dir = Path(CLONE_DIR) / str(year)
 
-    # Clone if not already cloned
     if repo_dir.exists():
         print(f"  Repo already cloned at {repo_dir}, skipping clone.")
     else:
@@ -75,12 +72,10 @@ for year in YEARS:
             print(f"  Could not clone {year}: {e}")
             continue
 
-    # Upload all telemetry files
     upload_year(year, repo_dir)
 
     print(f"  Year {year} done.")
 
-# --- SUMMARY ---
 print(f"\n{'='*50}")
 if failed_files:
     print(f"FAILED FILES ({len(failed_files)}):")

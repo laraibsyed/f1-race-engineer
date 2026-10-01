@@ -1,45 +1,3 @@
-"""
-align_telemetry.py
-
-Step: Align telemetry samples to lap-level granularity.
-
-Takes raw tracinginsights telemetry and the corresponding
-clean/fastf1/.../laps_flagged.csv (from clean_laps.py), and produces ONE
-ROW PER DRIVER PER LAP with aggregated telemetry stats -- ready to join
-against laps_flagged.csv for feature engineering (tyre_age, degradation
-rate, etc. all need lap-level numbers, not raw timestamp streams).
-
-How the alignment actually works (confirmed via debug run, 2024 Abu Dhabi
-Race -- this contradicted the original assumption, see below):
-    Each tracinginsights JSON file is NOT a whole driver-session stream.
-    It's already exactly ONE DRIVER'S ONE LAP. Evidence: 'time' resets to
-    ~0.0 at the start of every file (matches a single lap duration, not a
-    ~90min session); file count for a session matches the session's total
-    lap count almost exactly (1035 files == 1035 laps_flagged.csv rows for
-    2024 Abu Dhabi Race); and the 'dataKey' scalar field inside each file
-    (e.g. "2024-Abu Dhabi Grand Prix-Race-ALB-10") ends in the SAME number
-    as the filename ("10_tel.json") -- and that number is the LAP NUMBER,
-    not the driver number (ALB's real car number is 23).
-
-    So there's no time-matching/merge_asof needed at all -- each file
-    already tells you its own lap number via the filename. We just parse
-    it and aggregate that file's samples directly. laps_flagged.csv is
-    still loaded, but only for a sanity check (does the lap count line up),
-    not for the join itself.
-
-Requirements:
-    pip install google-cloud-storage pandas gcsfs python-dotenv --break-system-packages
-
-Usage:
-    # One session
-    python align_telemetry.py --session "2024/Abu_Dhabi_Grand_Prix/R"
-
-    # Every session in a year
-    python align_telemetry.py --year 2024
-
-    # Everything (slow -- this is the full 2018-2025 span)
-    python align_telemetry.py --year all
-"""
 
 import argparse
 import io
@@ -60,12 +18,8 @@ BUCKET_NAME = os.getenv("BUCKET_NAME", "f1-race-engineer-bucket")
 CACHE_DIR = Path(os.getenv("GCS_CACHE_DIR", "./gcs_cache"))
 
 TELEMETRY_PREFIX = "raw/tracinginsights/"
-RAW_LAPS_PREFIX = "clean/fastf1/"  # read the already-cleaned laps, not raw
+RAW_LAPS_PREFIX = "clean/fastf1/"
 
-# tracinginsights only stores telemetry for Race (and Sprint, on sprint
-# weekends) -- no FP1/FP2/FP3/Qualifying telemetry exists at all. Sessions
-# not in this set are skipped outright in bulk mode rather than wasting a
-# GCS list call and printing a confusing "0 files found" for every one.
 TELEMETRY_AVAILABLE_SESSIONS = {"R", "S"}
 
 SESSION_CODE_MAP = {
@@ -73,20 +27,12 @@ SESSION_CODE_MAP = {
     "S": "Sprint",
 }
 
-
 def to_telemetry_race_name(fastf1_race: str) -> str:
     return fastf1_race.replace("_", " ")
-
 
 def to_telemetry_session_name(fastf1_session: str) -> str:
     return SESSION_CODE_MAP.get(fastf1_session, fastf1_session)
 
-
-# --------------------------------------------------------------------------
-# Local disk cache wrapper around GCS (same pattern as clean_laps.py, so
-# anything already downloaded there -- e.g. laps_flagged.csv -- is reused
-# here with zero extra GCS calls).
-# --------------------------------------------------------------------------
 class CachedBucket:
     def __init__(self, bucket_name: str, cache_dir: Path = CACHE_DIR):
         print(f"[init] Connecting to GCS bucket '{bucket_name}' ...")
@@ -96,7 +42,7 @@ class CachedBucket:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._hits = 0
         self._misses = 0
-        self._lock = threading.Lock()  # protects the counters below across threads
+        self._lock = threading.Lock()
         print(f"[init] Connected. Local cache dir: {self.cache_dir.resolve()}")
 
     def _local_path(self, blob_path: str) -> Path:
@@ -125,8 +71,7 @@ class CachedBucket:
         local_path.write_text(content, encoding="utf-8")
 
     def exists(self, blob_path: str) -> bool:
-        """Cheap existence check -- local cache first, then GCS. Used to
-        skip sessions that already have output from a previous run."""
+        ""
         if self._local_path(blob_path).exists():
             return True
         return self.bucket.blob(blob_path).exists()
@@ -136,18 +81,10 @@ class CachedBucket:
         pct_cached = round(self._hits / total * 100, 1) if total else 0
         print(f"Cache: {self._hits} hits, {self._misses} misses ({pct_cached}% served from disk)")
 
-
 bucket = CachedBucket(BUCKET_NAME)
 
-
 def read_csv_robust(data: bytes, path: str) -> pd.DataFrame | None:
-    """
-    Some laps_flagged.csv files (accented race names like São_Paulo,
-    non-ASCII driver/event fields from older seasons) aren't clean UTF-8.
-    Try UTF-8 first (correct in the vast majority of cases), fall back to
-    latin-1 (never raises -- worst case a character renders slightly off,
-    but it won't crash the whole multi-hour run over one file).
-    """
+    ""
     try:
         return pd.read_csv(io.BytesIO(data))
     except UnicodeDecodeError:
@@ -158,26 +95,12 @@ def read_csv_robust(data: bytes, path: str) -> pd.DataFrame | None:
             print(f"    [error] {path}: failed even with latin-1 fallback ({e}), skipping this session.")
             return None
 
-
-# --------------------------------------------------------------------------
-# Telemetry flattening (same logic as flatten_telemetry.py)
-# --------------------------------------------------------------------------
 def extract_year(path: str) -> str | None:
     m = re.search(r"/((?:19|20)\d{2})/", path)
     return m.group(1) if m else None
 
-
 def parse_driver_file_path(path: str) -> dict:
-    """
-    raw/tracinginsights/<year>/<race>/<session>/<driver_code>/<lap_number>_tel.json
-
-    IMPORTANT: the leading number in the filename is the LAP NUMBER, not
-    the driver number (confirmed via the 'dataKey' field inside each file,
-    e.g. "2024-Abu Dhabi Grand Prix-Race-ALB-10" -- the trailing 10 matches
-    the filename, and ALB's real car number is 23). Each file is exactly
-    one driver's one lap -- 'time' resets to 0.0 at the start of every
-    file -- not a whole-session stream as originally assumed.
-    """
+    ""
     parts = path.rstrip("/").split("/")
     filename = parts[-1]
     lap_number = filename.split("_")[0]
@@ -188,7 +111,6 @@ def parse_driver_file_path(path: str) -> dict:
         "driver_code": parts[-2],
         "lap_number": int(lap_number) if lap_number.isdigit() else None,
     }
-
 
 def find_fields(obj: dict, prefix: str = "") -> tuple[dict, dict]:
     array_fields, scalar_fields = {}, {}
@@ -203,7 +125,6 @@ def find_fields(obj: dict, prefix: str = "") -> tuple[dict, dict]:
         else:
             scalar_fields[key] = v
     return array_fields, scalar_fields
-
 
 def flatten_one_file(path: str) -> pd.DataFrame | None:
     try:
@@ -244,15 +165,8 @@ def flatten_one_file(path: str) -> pd.DataFrame | None:
 
     return df
 
-
-# --------------------------------------------------------------------------
-# Lap boundaries
-# --------------------------------------------------------------------------
 def load_laps_for_session(year: str, race: str, session: str) -> pd.DataFrame | None:
-    """Reads clean/fastf1/<year>/<race>/<session>/laps_flagged.csv.
-    Used only for a post-hoc sanity check (lap count comparison) now that
-    the actual telemetry-to-lap join comes from the filename, not time
-    matching -- LapStartTime_sec is computed but no longer load-bearing."""
+    ""
     path = f"{RAW_LAPS_PREFIX}{year}/{race}/{session}/laps_flagged.csv"
     print(f"[laps] Looking for {path} ...")
     try:
@@ -271,31 +185,23 @@ def load_laps_for_session(year: str, race: str, session: str) -> pd.DataFrame | 
         return None
 
     laps["LapStartTime_sec"] = pd.to_timedelta(laps["LapStartTime"], errors="coerce").dt.total_seconds()
-    # fallback: if that produced all-NaT (e.g. already stored as plain seconds), try numeric parse
+
     if laps["LapStartTime_sec"].isna().all():
         laps["LapStartTime_sec"] = pd.to_numeric(laps["LapStartTime"], errors="coerce")
 
     return laps.dropna(subset=["LapStartTime_sec"]).sort_values("LapStartTime_sec")
 
-
-# --------------------------------------------------------------------------
-# Alignment + aggregation
-# --------------------------------------------------------------------------
 TELEMETRY_AGG = {
     "speed": ["mean", "max"],
     "rpm": ["mean", "max"],
     "throttle": ["mean"],
-    "brake": ["mean"],  # fraction of samples with brake applied (0/1 or %) -> mean = time-on-brake proxy
+    "brake": ["mean"],
     "drs": ["mean"],
     "gear": ["mean"],
 }
 
-
 def aggregate_one_lap_file(tel_df: pd.DataFrame, meta: dict) -> dict | None:
-    """
-    Each file is already exactly one driver's one lap -- no time-matching
-    needed. Just aggregate this file's samples into one summary row.
-    """
+    ""
     if meta["lap_number"] is None:
         return None
 
@@ -313,13 +219,8 @@ def aggregate_one_lap_file(tel_df: pd.DataFrame, meta: dict) -> dict | None:
 
     return row
 
-
 def process_one_file(path: str) -> tuple[str, dict | None, str]:
-    """
-    Runs in a worker thread: download + flatten + aggregate one file.
-    Returns (path, row_or_None, status) where status is one of
-    'ok', 'flatten_failed', 'no_lap_number', 'no_agg_columns'.
-    """
+    ""
     tel_df = flatten_one_file(path)
     if tel_df is None:
         return path, None, "flatten_failed"
@@ -331,7 +232,6 @@ def process_one_file(path: str) -> tuple[str, dict | None, str]:
         return path, None, status
 
     return path, row, "ok"
-
 
 def align_session(year: str, race: str, session: str, ti_race: str | None = None,
                    ti_session: str | None = None, workers: int = 20, force: bool = False):
@@ -366,11 +266,6 @@ def align_session(year: str, race: str, session: str, ti_race: str | None = None
     print(f"  Aligning {len(driver_files)} driver-files for {year}/{race}/{session} "
           f"using {workers} threads ...")
 
-    # First 3 files sequentially with full debug printing (cheap since
-    # they're likely already cached from earlier test runs), rest in
-    # parallel via a thread pool -- these are network-bound downloads,
-    # so threads (not processes) are the right tool: the GIL releases
-    # during I/O waits, letting many downloads happen concurrently.
     debug_files = driver_files[:3]
     rest_files = driver_files[3:]
 
@@ -416,10 +311,6 @@ def align_session(year: str, race: str, session: str, ti_race: str | None = None
 
     combined = pd.DataFrame(results)
 
-    # sanity check: does the set of lap numbers we aggregated roughly match
-    # what's in laps_flagged.csv? (won't be 1:1 -- laps has ALL drivers'
-    # laps, this is filtered to whichever drivers had telemetry files --
-    # but a wildly different count is worth knowing about.)
     print(f"  [sanity] laps_flagged.csv has {laps['LapNumber'].nunique()} unique lap numbers; "
           f"aligned telemetry covers {combined['LapNumber'].nunique()} unique lap numbers.")
 
@@ -429,11 +320,8 @@ def align_session(year: str, race: str, session: str, ti_race: str | None = None
     bucket.upload_from_string(out_path, buf.getvalue(), content_type="text/csv")
     print(f"    Wrote {out_path} ({len(combined)} driver-lap rows)")
 
-
 def list_sessions(year: str) -> list[tuple[str, str, str]]:
-    """Returns (year, race, session) tuples in fastf1-style naming, by
-    walking clean/fastf1/ -- i.e. only sessions you've already run
-    clean_laps.py on are candidates for alignment."""
+    ""
     prefix = f"{RAW_LAPS_PREFIX}{year}/" if year != "all" else RAW_LAPS_PREFIX
     paths = [b.name for b in bucket.list_blobs(prefix=prefix) if b.name.endswith("laps_flagged.csv")]
     sessions = set()
@@ -442,7 +330,6 @@ def list_sessions(year: str) -> list[tuple[str, str, str]]:
         if len(parts) >= 4:
             sessions.add((parts[-4], parts[-3], parts[-2]))
     return sorted(sessions)
-
 
 if __name__ == "__main__":
     print("[main] Script started.")
@@ -471,9 +358,7 @@ if __name__ == "__main__":
                     align_session(y, r, s, ti_race=args.ti_race, ti_session=args.ti_session,
                                   workers=args.workers, force=args.force)
                 except Exception as e:
-                    # One bad session (bad encoding, malformed file, transient
-                    # network error, etc.) should NOT take down a multi-hour
-                    # run over hundreds of sessions -- log it and move on.
+
                     n_failed += 1
                     failed_sessions.append(f"{y}/{r}/{s}")
                     print(f"[error] Session {y}/{r}/{s} FAILED, skipping and continuing: "

@@ -1,33 +1,4 @@
-"""
-Fit and pickle the real Regression V2 + Survival V2 (Cox) models.
-======================================================================
-tyre_life_projection.py's build_tyre_life_projection() is a pure interface --
-it takes already-fitted reg_models/cph and returns a projection. Its own
-docstring flags the one thing it deliberately doesn't do: "fit once ... and
-have the tree load the pickle instead of calling fit_all_models() directly."
-
-This script IS that fit-once step. It re-runs the real fitting pipelines
-from tyre-regression-v2.py (per (Compound, Race, regulation_era) linear
-models) and survival-analysis-v2.py (single Cox model stratified by
-compound), on the real GCS data -- not the synthetic self-test data used to
-prove build_tyre_life_projection's wiring -- then pickles everything a tree
-node needs to call that function for real:
-
-    reg_models             {(compound, circuit, era): fitted LinearRegression}
-    cph                     fitted CoxPHFitter, stratified by compound
-    temp_dummy_columns      consistent across both models' design matrices
-    era_dummy_columns       Cox-only (Regression V2 stratifies by era instead
-                            of using it as a dummy column, so this list is
-                            built specifically for Cox's own design, not
-                            reused from the regression side)
-
-Reuses the existing pipeline logic (structural cleaning, pace_loss target,
-Cox design construction) rather than reimplementing it from scratch -- kept
-consistent with tyre-regression-v2.py and survival-analysis-v2.py's own
-specs line for line. If those files change, this script needs updating to
-match; it does not import them directly because they are run as __main__
-scripts, not modules, in this project.
-"""
+""
 
 import argparse
 import os
@@ -42,7 +13,6 @@ load_dotenv()
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CACHE_DIR = os.environ.get("GCS_CACHE_DIR", "./gcs_cache")
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=CACHE_DIR):
@@ -61,17 +31,16 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 RBR_ALIASES = {
     "Red Bull Racing", "Red Bull Racing Honda", "Red Bull Racing RBPT",
     "Oracle Red Bull Racing", "Red Bull",
 }
 DRY_COMPOUNDS = ["HYPERSOFT", "ULTRASOFT", "SUPERSOFT", "SOFT", "MEDIUM", "HARD"]
-MIN_ROWS_PER_GROUP = 40   # matches tyre-regression-v2.py exactly
+MIN_ROWS_PER_GROUP = 40
 MIN_STINT_LENGTH = 5
 RED_FLAG_RESTART_BUFFER = 2
 LAPTIME_OUTLIER_Z_THRESH = 4.0
-MIN_EVENTS_PER_COMPOUND = 15   # matches survival-analysis-v2.py
+MIN_EVENTS_PER_COMPOUND = 15
 EXCLUDED_COMPOUNDS_COX = ["WET"]
 
 CIRCUIT_ID_TO_RACE_NAMES = {
@@ -89,12 +58,8 @@ CIRCUIT_ID_TO_RACE_NAMES = {
     "IST": ["Turkish_Grand_Prix"], "DUT": ["Dutch_Grand_Prix"], "QTR": ["Qatar_Grand_Prix"],
     "KSA": ["Saudi_Arabian_Grand_Prix"], "MIA": ["Miami_Grand_Prix"], "LAS": ["Las_Vegas_Grand_Prix"],
 }
-TAXONOMY_PATH = "src/taxanomy/circuit_taxonomy.xlsx"  # LOCAL disk path, relative to repo root -- NOT a GCS blob path (confirmed: file is not in the bucket)
+TAXONOMY_PATH = "src/taxanomy/circuit_taxonomy.xlsx"
 
-
-# ---------------------------------------------------------------------------
-# Shared loading + structural cleaning -- identical to tyre-regression-v2.py
-# ---------------------------------------------------------------------------
 def load_all_teams_laps(bucket: CachedBucket) -> pd.DataFrame:
     paths = bucket.list_blob_names("clean/features/")
     frames = []
@@ -113,7 +78,6 @@ def load_all_teams_laps(bucket: CachedBucket) -> pd.DataFrame:
     full["is_rbr"] = full["Team"].isin(RBR_ALIASES)
     return full
 
-
 def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_BUFFER) -> set:
     red_flag_mask = df["TrackStatus"].astype(str).str.contains("5", na=False)
     red_flag_laps = df.loc[red_flag_mask, ["Season", "Race", "Session", "LapNumber"]].drop_duplicates()
@@ -122,7 +86,6 @@ def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_
         for offset in range(buffer + 1):
             affected.add((row["Season"], row["Race"], row["Session"], row["LapNumber"] + offset))
     return affected
-
 
 def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH) -> pd.DataFrame:
     red_flag_affected = get_red_flag_affected_laps(df)
@@ -139,7 +102,6 @@ def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH
     stint_lengths = clean.groupby(["Season", "Race", "Session", "Driver", "Stint"])["LapNumber"].transform("count")
     return clean[stint_lengths >= min_stint_length]
 
-
 def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float = LAPTIME_OUTLIER_Z_THRESH) -> pd.DataFrame:
     grp = df.groupby(["Compound", "Race"])["degradation_rate"]
     med = grp.transform("median")
@@ -148,7 +110,6 @@ def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float = LAPTI
     robust_z = 0.6745 * (df["degradation_rate"] - med) / mad_safe
     is_outlier = robust_z.abs().gt(z_thresh).fillna(False)
     return df[~is_outlier]
-
 
 def add_pace_loss_and_era(clean_laps: pd.DataFrame) -> pd.DataFrame:
     df = clean_laps[clean_laps["Compound"].isin(DRY_COMPOUNDS)].copy()
@@ -161,22 +122,12 @@ def add_pace_loss_and_era(clean_laps: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
-
-# ---------------------------------------------------------------------------
-# Regression V2 fitting -- identical model spec to tyre-regression-v2.py.
-# NOTE: this fits on the FULL dataset (no train/test split) -- this script
-# produces the production model, not a validation run. Regression V2's own
-# validation (RMSE by split method) already happened separately; re-fitting
-# here on 100% of the data is the correct thing to ship, since there is no
-# "test set" once the model is actually going into the tree.
-# ---------------------------------------------------------------------------
 def build_regression_design_matrix(df: pd.DataFrame, temp_dummy_columns: list) -> pd.DataFrame:
     temp_dummies = pd.get_dummies(df["track_temp_bucket"], prefix="temp", drop_first=True)
     temp_dummies = temp_dummies.reindex(columns=temp_dummy_columns, fill_value=0).astype(float)
     X = pd.concat([df[["tyre_age", "fuel_load_estimate", "stint_number"]].reset_index(drop=True),
                    temp_dummies.reset_index(drop=True)], axis=1)
     return X
-
 
 def fit_regression_v2_models(modeling_df: pd.DataFrame, temp_dummy_columns: list) -> dict:
     from sklearn.linear_model import LinearRegression
@@ -195,23 +146,12 @@ def fit_regression_v2_models(modeling_df: pd.DataFrame, temp_dummy_columns: list
           f"skipped {skipped} groups below MIN_ROWS_PER_GROUP={MIN_ROWS_PER_GROUP}")
     return models
 
-
-# ---------------------------------------------------------------------------
-# Cox V2 fitting -- identical model spec to survival-analysis-v2.py's main
-# model (the one WITHOUT is_rbr -- that flag was a robustness check for the
-# training-scope assumption, not part of the production model this feed uses).
-# ---------------------------------------------------------------------------
 def load_cliff_detection_stints(bucket: CachedBucket, path: str) -> pd.DataFrame:
-    """cliff_detection_stints.csv is produced by cliff_detection.py separately
-    from laps_features.csv. Read directly if already local (matches
-    survival-analysis-v2.py's own loading); fall back to a GCS read under
-    processed/ if not found locally, since this script may run somewhere
-    other than where that file was originally produced."""
+    ""
     if os.path.exists(path):
         return pd.read_csv(path)
     print(f"[cox] {path} not found locally, trying GCS at processed/{path} ...")
     return bucket.read_csv(f"processed/{path}")
-
 
 def prepare_cox_data(stints: pd.DataFrame, bucket: CachedBucket) -> pd.DataFrame:
     if "session" in stints.columns:
@@ -227,12 +167,6 @@ def prepare_cox_data(stints: pd.DataFrame, bucket: CachedBucket) -> pd.DataFrame
     race_to_id = {r: cid for cid, races in CIRCUIT_ID_TO_RACE_NAMES.items() for r in races}
     stints["circuit_id"] = stints["race"].map(race_to_id)
 
-    # circuit_taxonomy.xlsx is an Excel file that lives locally in this
-    # project's own src/taxanomy/ folder -- it was never uploaded to GCS
-    # (confirmed: 404 on the bucket, found only on local disk). Other
-    # scripts in this project read it the same way, directly off disk,
-    # relative to the repo root -- not through CachedBucket like the CSV
-    # data. Read it from there directly rather than trying to fetch it.
     taxonomy = pd.read_excel(TAXONOMY_PATH)[["circuit_id", "circuit_degredation"]]
     stints = stints.merge(taxonomy, on="circuit_id", how="left")
     stints = stints.dropna(subset=["circuit_degredation"])
@@ -240,7 +174,6 @@ def prepare_cox_data(stints: pd.DataFrame, bucket: CachedBucket) -> pd.DataFrame
     severity_map = {"low": 0, "medium": 1, "high": 2}
     stints["circuit_degredation_ordinal"] = stints["circuit_degredation"].map(severity_map)
     return stints
-
 
 def build_cox_design_matrix(stints: pd.DataFrame) -> tuple:
     required = ["duration", "event", "compound", "track_temp_bucket", "fuel_load_estimate",
@@ -261,7 +194,6 @@ def build_cox_design_matrix(stints: pd.DataFrame) -> tuple:
     era_dummy_columns = [c for c in design.columns if c.startswith("regulation_era_")]
     return design, temp_dummy_columns, era_dummy_columns
 
-
 def fit_cox_v2_model(design: pd.DataFrame) -> CoxPHFitter:
     cph = CoxPHFitter(penalizer=0.1)
     cph.fit(design, duration_col="duration", event_col="event", strata=["compound"])
@@ -269,10 +201,6 @@ def fit_cox_v2_model(design: pd.DataFrame) -> CoxPHFitter:
           f"concordance={cph.concordance_index_:.3f}")
     return cph
 
-
-# ---------------------------------------------------------------------------
-# Run
-# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cliff-stints-csv", default="cliff_detection_stints.csv",
@@ -282,7 +210,6 @@ if __name__ == "__main__":
 
     bucket = CachedBucket()
 
-    # --- Regression V2 ---
     print("[load] pulling ALL TEAMS' laps_features.csv for Regression V2 ...")
     raw = load_all_teams_laps(bucket)
     clean = filter_valid_laps(raw)
@@ -294,20 +221,12 @@ if __name__ == "__main__":
         modeling_df["track_temp_bucket"], prefix="temp", drop_first=True).columns.tolist())
     reg_models = fit_regression_v2_models(modeling_df, reg_temp_dummy_columns)
 
-    # --- Cox V2 ---
     print(f"\n[load] reading {args.cliff_stints_csv} for Cox V2 ...")
     stints_raw = load_cliff_detection_stints(bucket, args.cliff_stints_csv)
     stints = prepare_cox_data(stints_raw, bucket)
     cox_design, cox_temp_dummy_columns, era_dummy_columns = build_cox_design_matrix(stints)
     cph = fit_cox_v2_model(cox_design)
 
-    # --- Sanity check: the two temp-dummy-column sets should describe the
-    #     same categories even though they're built from different source
-    #     dataframes (laps_features.csv vs cliff_detection_stints.csv).
-    #     tyre_life_projection.py's build_tyre_life_projection() takes ONE
-    #     temp_dummy_columns argument shared by both models -- if these
-    #     disagree, that function's regression call and Cox call would
-    #     silently one-hot-encode differently. Flag loudly, don't guess.
     if set(reg_temp_dummy_columns) != set(cox_temp_dummy_columns):
         raise AssertionError(
             f"temp dummy columns still differ after prefix fix -- Regression V2: "
@@ -320,7 +239,6 @@ if __name__ == "__main__":
     temp_dummy_columns = reg_temp_dummy_columns
     print(f"[check] temp dummy columns match across both models: {temp_dummy_columns}")
 
-    # --- Pickle everything the tree needs ---
     payload = {
         "reg_models": reg_models,
         "cph": cph,

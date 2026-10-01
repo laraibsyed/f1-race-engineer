@@ -16,3 +16,5 @@ folds
 eval_out_clean_crossera
 eval_out_strategic_window
 laps_features_with_driver_profiles.csv
+eval_team_strategy_run.log
+eval_out_team_strategy/replays

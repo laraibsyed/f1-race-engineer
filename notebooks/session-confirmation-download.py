@@ -8,13 +8,12 @@ import time
 
 load_dotenv()
 
-# --- CONFIG ---
 BUCKET_NAME = "f1-race-engineer-bucket"
 CACHE_DIR = "data\\raw"
 
 YEAR = 2026
 SPRINT_ROUNDS = [2, 4, 5, 9]
-SESSIONS = ["FP1", "SQ", "S", "Q", "R"]  # 2023 sprint format
+SESSIONS = ["FP1", "SQ", "S", "Q", "R"]
 
 PAUSE_BETWEEN_SESSIONS = 1
 PAUSE_BETWEEN_ROUNDS = 10
@@ -96,7 +95,6 @@ def download_session(year, round_num, session_name):
     if not results_df.empty:
         upload_df_to_gcs(results_df,  f"{base_path}/results.csv")
 
-# --- MAIN ---
 for round_num in SPRINT_ROUNDS:
     print(f"\n{'='*50}")
     print(f"  Downloading: {YEAR} Round {round_num}")
@@ -116,7 +114,6 @@ for round_num in SPRINT_ROUNDS:
     print(f"  Round done. Pausing {PAUSE_BETWEEN_ROUNDS}s...")
     time.sleep(PAUSE_BETWEEN_ROUNDS)
 
-# --- SUMMARY ---
 print(f"\n{'='*50}")
 if failed_sessions:
     print("FAILED SESSIONS:")

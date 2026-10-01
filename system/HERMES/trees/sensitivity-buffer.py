@@ -1,22 +1,4 @@
-"""
-DEADLINE_BUFFER_LAPS Sensitivity Sweep
-==========================================
-gate_tree_tier2.py's deadline_approaching() flags urgency when the mandatory
-2-compound rule isn't yet satisfied and laps_remaining_in_race <= buffer.
-DEADLINE_BUFFER_LAPS=5 was a placeholder - not specified anywhere in the MDP
-doc. This grounds the choice in real historical behaviour instead of a guess.
-
-Method: for every (Season, Race), Race sessions only (mandatory compound rule
-is a race rule, not a sprint one), for every driver who does NOT get the
-wet-race exception (never ran INTERMEDIATE/WET all race), find the lap on
-which their SECOND distinct dry compound was first used - the lap they became
-rule-compliant - and compute how many laps remained in the race at that
-point. This produces a real distribution of "how much margin do actual
-strategies carry when they comply." The buffer should sit near the tight end
-of that distribution - large enough to rarely misfire on ordinary two-stop
-strategies (which comply early, with laps to spare), small enough to still
-catch genuinely late compliance before it becomes a problem.
-"""
+""
 
 import os
 import pandas as pd
@@ -31,7 +13,6 @@ load_dotenv()
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CACHE_DIR = os.environ.get("GCS_CACHE_DIR", "./gcs_cache")
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=CACHE_DIR):
@@ -51,13 +32,11 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 DRY_COMPOUNDS = {"HYPERSOFT", "ULTRASOFT", "SUPERSOFT", "SOFT", "MEDIUM", "HARD"}
 WET_COMPOUNDS = {"WET", "INTERMEDIATE"}
 
-
 def load_race_sessions(bucket: CachedBucket) -> pd.DataFrame:
-    """Race sessions ONLY - the mandatory compound rule is a race rule."""
+    ""
     paths = bucket.list_blob_names("clean/features/")
     frames = []
     for p in paths:
@@ -72,15 +51,8 @@ def load_race_sessions(bucket: CachedBucket) -> pd.DataFrame:
         frames.append(df)
     return pd.concat(frames, ignore_index=True)
 
-
 def compute_compliance_margins(laps: pd.DataFrame) -> pd.DataFrame:
-    """
-    For every driver-race, finds compliance_lap (lap of 2nd distinct dry
-    compound) and laps_remaining_at_compliance. Excludes wet-exception drivers
-    (ran INTERMEDIATE/WET at any point - the rule doesn't apply to them) and
-    non-compliant drivers (never reached a 2nd dry compound - DNF or a real
-    rule violation, either way not informative about normal margin).
-    """
+    ""
     rows = []
     for (season, race), race_laps in laps.groupby(["Season", "Race"]):
         total_race_laps = race_laps["LapNumber"].max()
@@ -105,7 +77,6 @@ def compute_compliance_margins(laps: pd.DataFrame) -> pd.DataFrame:
                 "laps_remaining_at_compliance": total_race_laps - compliance_lap,
             })
     return pd.DataFrame(rows)
-
 
 if __name__ == "__main__":
     bucket = CachedBucket()

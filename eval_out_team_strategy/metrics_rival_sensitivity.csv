@@ -1,0 +1,7 @@
+metric,value
+n_rows_with_both_rival_on_and_off,1016.0
+n_rows_rival_adjustment_nonzero_ON,512.0
+pct_rows_rival_adjustment_nonzero_ON,50.4
+"n_rows_rival_adjustment_nonzero_OFF (sanity check, must be 0)",0.0
+mean_abs_rival_adjustment_s_when_nonzero_ON,2.33
+pct_rows_d1_action_differs_rival_on_vs_off,0.2

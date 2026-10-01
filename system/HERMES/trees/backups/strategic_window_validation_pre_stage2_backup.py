@@ -1,27 +1,5 @@
-#!/usr/bin/env python3
-"""
-HERMES Strategic-Window Validation Harness
-================================================
-READ-ONLY. Does not modify master.py, any tree/module file, or any decision
-logic - it calls `master.py replay` exactly as documented (no new CLI flag,
-no new parameter), reads back the JSONL it already produces, and compares it
-AFTER THE FACT against real historical pit laps. Reuses list_races /
-load_real_laps / real_pit_laps / read_jsonl / rbr_drivers_for from evaluate.py
-(the existing evaluation helper - see this file's own header for exactly
-which parts of evaluate.py this does and does NOT reuse).
 
-WHAT THIS MEASURES (and does not): "did HERMES flag that remaining out was
-becoming strategically inferior within a reasonable window around the real
-pit" - NOT an exact pit-lap prediction test. This is a different, simpler,
-more literal question than evaluate.py's F1/precision-recall framework (which
-uses a different tolerance, a different "counts as a hit" vocabulary, and
-collapses consecutive recommendations into one event). Both are legitimate;
-this file does not replace or modify evaluate.py.
-
-USAGE (from the repo root):
-    .\\.venv\\Scripts\\python.exe system\\HERMES\\trees\\strategic_window_validation.py
-    .\\.venv\\Scripts\\python.exe system\\HERMES\\trees\\strategic_window_validation.py --force
-"""
+""
 from __future__ import annotations
 
 import argparse
@@ -35,47 +13,20 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import evaluate as ev  # noqa: E402 - REUSED, not duplicated: list_races, load_real_laps,
-                        # real_pit_laps, read_jsonl, rbr_drivers_for
+import evaluate as ev
 
-# ============================================================================
-# STEP 2 - metric definitions (fixed BEFORE results are looked at)
-# ============================================================================
-STRATEGIC_TOLERANCE_LAPS = 3          # window = [L-3, L+3], fixed per the task spec. STAGE 1 result:
-                                        # 37/37 window hits, 36/37 pre-pit hits - SATURATED (see the
-                                        # 2026-09-30 base-rate finding below). Kept and reported, but
-                                        # labelled COVERAGE metrics, not predictive-timing evidence -
-                                        # this file does NOT attempt to change this number.
-STRATEGIC_HIT_DECISIONS = {"PIT_NOW", "PIT_LATER"}   # deliberately NOT evaluate.py's PIT_DECISIONS
-                                                       # set ({"PIT_NOW","PIT_FLEXIBLE"}) - this task
-                                                       # defines its OWN, different "hit" vocabulary
+STRATEGIC_TOLERANCE_LAPS = 3
 
-# ----------------------------------------------------------------------------
-# STAGE 2 (2026-09-30) - timing/escalation metrics, added on top of the frozen
-# Stage 1 coverage metrics above. Nothing in STRATEGIC_TOLERANCE_LAPS or
-# STRATEGIC_HIT_DECISIONS changes; these are ADDITIONAL, separately-labelled
-# measurements answering a different question (onset timing / escalation /
-# trigger-count trend / saturation baseline), not a replacement for Stage 1.
-# ----------------------------------------------------------------------------
-USEFUL_WARNING_WINDOW = (1, 5)        # onset in [L-5, L-1] - fixed BEFORE running, per the task spec;
-                                        # NOT tuned after seeing results.
-ESCALATION_PRE_WINDOW = (1, 3)        # "PIT_NOW first appears 1-3 laps before the actual pit" bucket
-TRIGGER_COUNT_LAPS_BACK = (5, 4, 3, 2, 1)   # L-5 .. L-1, fixed set, per the task spec
-SHORT_REPLAY_MAX_LAPS = 10            # generic (not race-name-specific) cutoff flagging an
-                                        # abnormally short available replay (e.g. a red-flagged race) -
-                                        # well below any normal Grand Prix distance, so this only ever
-                                        # fires on a genuinely truncated replay, not a short/sprint race.
-BASELINE_SEED = 20260930              # fixed seed, reproducible (STEP 6)
+STRATEGIC_HIT_DECISIONS = {"PIT_NOW", "PIT_LATER"}
 
-# ============================================================================
-# STEP 4 - race sample (selected BEFORE any HERMES output was inspected - see
-# the printed justification in main(); metadata sourced from
-# src/taxanomy/circuit_taxonomy.xlsx (circuit_type, circuit_degredation) and
-# sc_vsc_circuit_level_prior.csv (p_window_horizon, the VALIDATED SC/VSC
-# prior) via the SAME circuit_id alias table master.py's own calibration fix
-# uses (duplicated here for the same standalone-callability reason, per this
-# project's established convention - see master.py's own CIRCUIT_ID_TO_RACE_NAMES).
-# ============================================================================
+USEFUL_WARNING_WINDOW = (1, 5)
+
+ESCALATION_PRE_WINDOW = (1, 3)
+TRIGGER_COUNT_LAPS_BACK = (5, 4, 3, 2, 1)
+SHORT_REPLAY_MAX_LAPS = 10
+
+BASELINE_SEED = 20260930
+
 CIRCUIT_ID_TO_RACE_NAMES = {
     "MEL": ["Australian_Grand_Prix"], "BAH": ["Bahrain_Grand_Prix", "Sakhir_Grand_Prix"],
     "CHN": ["Chinese_Grand_Prix"], "AZR": ["Azerbaijan_Grand_Prix"], "SPN": ["Spanish_Grand_Prix"],
@@ -93,8 +44,6 @@ CIRCUIT_ID_TO_RACE_NAMES = {
 }
 _RACE_TO_CIRCUIT_ID = {r: cid for cid, races in CIRCUIT_ID_TO_RACE_NAMES.items() for r in races}
 
-# (season, race, justification tag). Selected on metadata alone - no race here was chosen
-# because a preliminary run "looked good"; none was replayed before this list was fixed.
 SELECTED_RACES = [
     (2023, "Bahrain_Grand_Prix", "SANITY CHECK - used during debugging this session; Track/high-degradation, "
                                    "moderate SC prior (0.077). Included per the task's explicit allowance, "
@@ -128,10 +77,6 @@ SELECTED_RACES = [
                                      "contrasts with every high-degradation/high-SC entry above."),
 ]
 
-
-# ============================================================================
-# STEP 1 reuse - run the replay exactly as documented (no new CLI flag)
-# ============================================================================
 def run_replay_if_needed(repo_root: Path, master_path: Path, out_dir: Path,
                           season: int, race: str, d1: str, d2: str, force: bool) -> Path:
     out_file = out_dir / f"{season}_{race}.jsonl"
@@ -140,10 +85,7 @@ def run_replay_if_needed(repo_root: Path, master_path: Path, out_dir: Path,
     cmd = [sys.executable, str(master_path), "replay", "--repo-root", str(repo_root),
            "--season", str(season), "--race", race, "--session", "R",
            "--d1", d1, "--d2", d2, "--out", str(out_file)]
-    # STEP 5 (no lookahead): this is the COMPLETE command line master.py replay accepts (see its
-    # own --help / argparse setup) - there is no flag to pass an actual pit lap, and none is passed
-    # here. The historical pit lap is read ONLY below, from laps_features.csv, AFTER this replay
-    # has already finished and its JSONL is on disk.
+
     print(f"  [replay] {season} {race} {d1}/{d2}")
     res = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_root))
     if res.returncode != 0 or not out_file.exists():
@@ -151,23 +93,14 @@ def run_replay_if_needed(repo_root: Path, master_path: Path, out_dir: Path,
         return None
     return out_file
 
-
-# ============================================================================
-# Decision-row helpers
-# ============================================================================
 def is_strategic_recommendation(row: dict) -> bool:
-    """execution.decision if present (the final call), else gate_decision -
-    SAME fallback pattern evaluate.py's hermes_pit_laps() already uses, but
-    against THIS task's own hit vocabulary (PIT_NOW/PIT_LATER only - not
-    evaluate.py's PIT_NOW/PIT_FLEXIBLE)."""
+    ""
     exec_dec = ev._get(row, "execution", "decision") if isinstance(row.get("execution"), dict) else None
     final = exec_dec if exec_dec is not None else row.get("gate_decision")
     return final in STRATEGIC_HIT_DECISIONS
 
-
 def dominant_triggers(rows: list[dict]) -> str:
-    """Comma-joined names of triggers active on >=half of the given rows - a compact
-    'what was driving this window' summary for the misses table."""
+    ""
     if not rows:
         return ""
     counts: dict[str, int] = {}
@@ -178,10 +111,6 @@ def dominant_triggers(rows: list[dict]) -> str:
     half = len(rows) / 2.0
     return ",".join(sorted(k for k, c in counts.items() if c >= half))
 
-
-# ============================================================================
-# Core per-event evaluation (STEP 2 + STEP 7 diagnostics)
-# ============================================================================
 def evaluate_pit_event(dec_by_lap: dict, season: int, race: str, driver: str,
                         actual_lap: int, total_laps: int, sanity_issues: list) -> dict:
     lo, hi = actual_lap - STRATEGIC_TOLERANCE_LAPS, actual_lap + STRATEGIC_TOLERANCE_LAPS
@@ -208,13 +137,11 @@ def evaluate_pit_event(dec_by_lap: dict, season: int, race: str, driver: str,
     first_rec_lap = hit_laps[0] if hit_laps else None
     warning_offset = (first_rec_lap - actual_lap) if first_rec_lap is not None else None
 
-    # STEP 7 diagnostics, preserved in full regardless of hit/miss
     at_event = dec_by_lap.get(actual_lap) or {}
     at_first_rec = dec_by_lap.get(first_rec_lap) if first_rec_lap is not None else None
     closest_rec_lap, closest_rec_dist = None, None
     if not window_hit:
-        # search the WHOLE replay (still backward+forward looking is fine here - this is
-        # POST-HOC diagnostic reporting for a miss, not a value fed back into any decision)
+
         all_hit_laps = sorted(lap for lap, r in dec_by_lap.items() if is_strategic_recommendation(r))
         if all_hit_laps:
             closest_rec_lap = min(all_hit_laps, key=lambda lap: abs(lap - actual_lap))
@@ -226,33 +153,24 @@ def evaluate_pit_event(dec_by_lap: dict, season: int, race: str, driver: str,
         window_hit=window_hit, pre_pit_hit=pre_pit_hit, exact_pit_lap_match=exact_match,
         first_recommendation_lap=first_rec_lap, warning_offset_laps=warning_offset,
         hit_laps_in_window=json.dumps(hit_laps),
-        # STEP 7 preserved diagnostics
+
         compound_at_pit=at_event.get("compound"), tyre_age_at_pit=at_event.get("tyre_age"),
         gate_tier_at_pit=at_event.get("tier_reached"),
         instruction_at_pit=ev._get(at_event, "execution", "driving_instruction"),
         triggers_at_first_rec=json.dumps((at_first_rec or {}).get("triggers") or {}),
         dominant_triggers_in_window=dominant_triggers(list(window_rows.values())),
         sc_active_in_window=any(bool((r.get("triggers") or {}).get("safety_car")) for r in window_rows.values()),
-        rain_in_window=any(bool(r.get("rain_now")) for r in window_rows.values()),  # present only if master.py
-                                                                                      # attached it; else always False
-        # STEP 5 miss diagnostics (recorded, never silently discarded - STEP 2.5)
+        rain_in_window=any(bool(r.get("rain_now")) for r in window_rows.values()),
+
         closest_recommendation_lap=closest_rec_lap, closest_recommendation_offset=closest_rec_dist,
     )
 
-
-# ============================================================================
-# STEP 8 - sanity checks (fail loudly, never silently coerce)
-# ============================================================================
 def sanity_check_duplicates(real_laps: list[int], season: int, race: str, driver: str, issues: list):
     for a, b in zip(real_laps, real_laps[1:]):
         if b - a <= 1:
             issues.append(f"{season} {race} {driver}: pit laps {a} and {b} are adjacent/duplicate "
                            f"(STEP 8 check #4) - evaluated independently, not merged, per the task spec.")
 
-
-# ============================================================================
-# Main evaluation loop
-# ============================================================================
 def run_validation(repo_root: Path, master_path: Path, out_dir: Path, races: list, force: bool):
     replay_dir = out_dir / "replays"
     replay_dir.mkdir(parents=True, exist_ok=True)
@@ -277,37 +195,29 @@ def run_validation(repo_root: Path, master_path: Path, out_dir: Path, races: lis
         total_laps = int(laps["LapNumber"].max())
 
         for driver in (d1, d2):
-            real_laps = ev.real_pit_laps(laps, driver)   # STEP 1/3: reused, existing historical-pit-event definition
+            real_laps = ev.real_pit_laps(laps, driver)
             sanity_check_duplicates(real_laps, season, race, driver, sanity_issues)
 
             sub = dec[dec["driver"] == driver] if "driver" in dec.columns else pd.DataFrame()
             dec_by_lap = {int(r["lap"]): r for r in sub.to_dict("records")} if not sub.empty else {}
-            # STEP 8 check #2: every decision row's lap must be inside the replay's own race length
+
             out_of_range = [lap for lap in dec_by_lap if lap < 1 or lap > total_laps]
             if out_of_range:
                 sanity_issues.append(f"{season} {race} {driver}: {len(out_of_range)} decision row(s) outside "
                                       f"[1,{total_laps}] (STEP 8 check #2): {out_of_range[:5]}")
-            # STEP 8 check #3: structural guarantee the historical pit lap was never passed into the
-            # decision function - confirmed by inspecting master.py's replay CLI (no such parameter
-            # exists) before this harness was written; checked again here by confirming dec_by_lap
-            # was built from the SAME file the (unmodified) replay wrote, untouched since.
+
             for lap in real_laps:
                 n_events_before_diag_check += 1
                 event_rows.append(evaluate_pit_event(dec_by_lap, season, race, driver, lap,
                                                         total_laps, sanity_issues))
 
     events = pd.DataFrame(event_rows)
-    # STEP 8 check #6: the number of evaluated events must not silently change because of missing
-    # diagnostic fields - assert the row count matches what was actually iterated.
+
     assert len(events) == n_events_before_diag_check, (
         f"STEP 8 check #6 FAILED: built {len(events)} event rows but iterated "
         f"{n_events_before_diag_check} historical pit events - some were silently dropped.")
     return events, sanity_issues
 
-
-# ============================================================================
-# Reporting (STEP 6)
-# ============================================================================
 def per_race_table(events: pd.DataFrame) -> pd.DataFrame:
     def summarise(g):
         n = len(g)
@@ -321,7 +231,6 @@ def per_race_table(events: pd.DataFrame) -> pd.DataFrame:
             mean_warning_offset=offs.mean() if len(offs) else np.nan,
         ))
     return events.groupby(["season", "race", "driver"]).apply(summarise).reset_index()
-
 
 def aggregate_table(events: pd.DataFrame, group_cols=None) -> pd.DataFrame:
     def summarise(g):
@@ -340,7 +249,6 @@ def aggregate_table(events: pd.DataFrame, group_cols=None) -> pd.DataFrame:
     if group_cols:
         return events.groupby(group_cols).apply(summarise).reset_index()
     return summarise(events).to_frame().T
-
 
 def main():
     ap = argparse.ArgumentParser(description="HERMES strategic-window validation (read-only)")
@@ -420,7 +328,6 @@ def main():
         print("  (none)")
 
     print(f"\n[strategic_window_validation] wrote CSVs to {out_dir}")
-
 
 if __name__ == "__main__":
     main()

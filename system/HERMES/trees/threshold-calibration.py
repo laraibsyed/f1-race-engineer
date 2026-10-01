@@ -1,35 +1,4 @@
-"""
-Tier 3 Threshold Calibration
-================================
-Grounds CLIFF_PROBABILITY_THRESHOLD, PACE_LOSS_THRESHOLD_SECONDS, and
-TYRE_AGE_TRIGGER_RATIO in real historical data instead of leaving them as
-guessed placeholders - same treatment DEADLINE_BUFFER_LAPS got.
-
-Three separate analyses, since these three thresholds measure genuinely
-different things:
-
-  1. TYRE_AGE_TRIGGER_RATIO - what fraction through a stint do real cliffs
-     actually occur at? (cliff_detection_stints.csv directly)
-
-  2. PACE_LOSS_THRESHOLD_SECONDS - what counts as "notably elevated" pace
-     loss vs. typical, using the real distribution from Regression V2's
-     cleaned lap data.
-
-  3. CLIFF_PROBABILITY_THRESHOLD - an actual ROC validation of the fitted
-     Cox model: at various checkpoints before a real cliff, does the model's
-     predicted cliff_probability_next_5_laps correctly separate "cliff
-     coming soon" from "not yet"? This is the most important of the three,
-     since it's the one most directly tied to real tyre-model output rather
-     than a strategic judgement call.
-
-HONEST LIMITATION for Part 3: only stints with event=1 (a real detected
-cliff) are used to build positive/negative checkpoint labels. Censored
-stints are deliberately EXCLUDED from this specific validation - their true
-label near the end of observation is unknowable (the informative-censoring
-problem from the survival analysis work: a team may have pitted right
-before a cliff would have happened). Using them would risk circularity, not
-add a genuine ground truth.
-"""
+""
 
 import os
 import pandas as pd
@@ -49,7 +18,6 @@ CACHE_DIR = os.environ.get("GCS_CACHE_DIR", "./gcs_cache")
 STINTS_CSV = "cliff_detection_stints.csv"
 TAXONOMY_PATH = r"src\taxanomy\circuit_taxonomy.xlsx"
 
-
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=CACHE_DIR):
         self.client = storage.Client()
@@ -68,10 +36,6 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
-# =============================================================================
-# PART 1: TYRE_AGE_TRIGGER_RATIO
-# =============================================================================
 def calibrate_tyre_age_ratio():
     print("\n" + "=" * 70)
     print("PART 1: TYRE_AGE_TRIGGER_RATIO")
@@ -92,12 +56,7 @@ def calibrate_tyre_age_ratio():
     print(f"[compare] current placeholder TYRE_AGE_TRIGGER_RATIO = 0.80")
     return p10
 
-
-# =============================================================================
-# PART 2: PACE_LOSS_THRESHOLD_SECONDS
-# =============================================================================
 DRY_COMPOUNDS = ["HYPERSOFT", "ULTRASOFT", "SUPERSOFT", "SOFT", "MEDIUM", "HARD"]
-
 
 def load_all_teams_laps(bucket):
     paths = bucket.list_blob_names("clean/features/")
@@ -111,11 +70,9 @@ def load_all_teams_laps(bucket):
         frames.append(df)
     return pd.concat(frames, ignore_index=True)
 
-
 MIN_STINT_LENGTH_P2 = 5
 RED_FLAG_RESTART_BUFFER_P2 = 2
 LAPTIME_OUTLIER_Z_THRESH_P2 = 4.0
-
 
 def _get_red_flag_affected_laps(df):
     red_flag_mask = df["TrackStatus"].astype(str).str.contains("5", na=False)
@@ -126,10 +83,8 @@ def _get_red_flag_affected_laps(df):
             affected.add((row["Season"], row["Race"], row["Session"], row["LapNumber"] + offset))
     return affected
 
-
 def _filter_valid_laps(df):
-    """IDENTICAL to tyre_regression_v2.py's filter_valid_laps - reused here
-    deliberately so this calibration isn't measuring contaminated data."""
+    ""
     red_flag_affected = _get_red_flag_affected_laps(df)
     lap_keys = list(zip(df["Season"], df["Race"], df["Session"], df["LapNumber"]))
     is_red_flag_affected = pd.Series(lap_keys, index=df.index).isin(red_flag_affected)
@@ -144,9 +99,8 @@ def _filter_valid_laps(df):
     stint_lengths = clean.groupby(["Season", "Race", "Session", "Driver", "Stint"])["LapNumber"].transform("count")
     return clean[stint_lengths >= MIN_STINT_LENGTH_P2]
 
-
 def _filter_global_degradation_outliers(df):
-    """IDENTICAL to tyre_regression_v2.py's filter_global_degradation_outliers."""
+    ""
     grp = df.groupby(["Compound", "Race"])["degradation_rate"]
     med = grp.transform("median")
     mad = grp.transform(lambda x: (x - x.median()).abs().median())
@@ -154,7 +108,6 @@ def _filter_global_degradation_outliers(df):
     robust_z = 0.6745 * (df["degradation_rate"] - med) / mad_safe
     is_outlier = robust_z.abs().gt(LAPTIME_OUTLIER_Z_THRESH_P2).fillna(False)
     return df[~is_outlier]
-
 
 def calibrate_pace_loss_threshold(bucket):
     print("\n" + "=" * 70)
@@ -183,15 +136,11 @@ def calibrate_pace_loss_threshold(bucket):
     print(f"[compare] current placeholder PACE_LOSS_THRESHOLD_SECONDS = 1.0")
     return p90
 
-
-# =============================================================================
-# PART 3: CLIFF_PROBABILITY_THRESHOLD - ROC validation of the Cox model
-# =============================================================================
 MIN_STINT_LENGTH = 5
 RED_FLAG_RESTART_BUFFER = 2
 LAPTIME_OUTLIER_Z_THRESH = 4.0
-CHECKPOINT_HORIZON = 5   # matches cliff_horizon_laps in tyre_life_projection.py
-NEGATIVE_CHECKPOINT_BUFFER = 10  # checkpoints this far before the event = definitely "not yet"
+CHECKPOINT_HORIZON = 5
+NEGATIVE_CHECKPOINT_BUFFER = 10
 
 CIRCUIT_ID_TO_RACE_NAMES = {
     "MEL": ["Australian_Grand_Prix"], "BAH": ["Bahrain_Grand_Prix", "Sakhir_Grand_Prix"],
@@ -209,9 +158,8 @@ CIRCUIT_ID_TO_RACE_NAMES = {
     "KSA": ["Saudi_Arabian_Grand_Prix"], "MIA": ["Miami_Grand_Prix"], "LAS": ["Las_Vegas_Grand_Prix"],
 }
 
-
 def fit_cox_model():
-    """Refits the exact same Cox model as survival_model_v2.py."""
+    ""
     stints = pd.read_csv(STINTS_CSV)
     stints = stints[stints["session"] == "R"]
     stints = stints[~stints["compound"].isin(["WET"])]
@@ -247,7 +195,6 @@ def fit_cox_model():
     cph.fit(design, duration_col="duration", event_col="event", strata=["compound"])
     return cph, stints, temp_dummy_columns, era_dummy_columns
 
-
 def calibrate_cliff_probability_threshold():
     print("\n" + "=" * 70)
     print("PART 3: CLIFF_PROBABILITY_THRESHOLD (ROC validation)")
@@ -272,14 +219,12 @@ def calibrate_cliff_probability_threshold():
         base_row["circuit_degredation_ordinal"] = s["circuit_degredation_ordinal"]
         base_row["compound"] = s["compound"]
 
-        # Positive checkpoints: within CHECKPOINT_HORIZON laps of the real cliff
         for offset in range(1, CHECKPOINT_HORIZON + 1):
             checkpoint_age = duration - offset
             if checkpoint_age <= 0:
                 continue
             rows.append({**base_row, "checkpoint_age": checkpoint_age, "true_label": 1})
 
-        # Negative checkpoints: well before the event, definitely "not yet"
         checkpoint_age = duration - NEGATIVE_CHECKPOINT_BUFFER
         if checkpoint_age > 0:
             rows.append({**base_row, "checkpoint_age": checkpoint_age, "true_label": 0})
@@ -292,7 +237,7 @@ def calibrate_cliff_probability_threshold():
     predicted_probs = []
     n_failures = 0
     first_error = None
-    for record in checkpoints.to_dict("records"):  # to_dict avoids the iterrows() dtype trap below
+    for record in checkpoints.to_dict("records"):
         t0 = record["checkpoint_age"]
         t1 = t0 + CHECKPOINT_HORIZON
         design_row = pd.DataFrame([{k: v for k, v in record.items()
@@ -345,7 +290,6 @@ def calibrate_cliff_probability_threshold():
     print("[save] cliff_probability_roc.png")
 
     return best_threshold
-
 
 if __name__ == "__main__":
     bucket = CachedBucket()

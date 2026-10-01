@@ -1,30 +1,3 @@
-"""
-NLP Stress Signal <-> Pit Decision Correlation Validation
-=============================================================
-Closes the NLP module's remaining to-do item: "Validate: do signals
-correlate with pit decisions made shortly after?"
-
-DESIGN: rather than comparing against an arbitrary baseline pit rate, uses
-tyre_feedback messages at "informational" stress as the CONTROL group,
-compared against "medium"/"high" stress messages. This isolates whether
-STRESS LEVEL specifically predicts an upcoming pit, not just "any
-tyre-related radio message predicts a pit somewhat" - a cleaner comparison
-than picking an arbitrary baseline pit rate.
-
-JOIN STRATEGY: classified_radios.csv uses driver_id (e.g. "MAXVER01"), not
-the standard 3-letter FastF1 code. racing_number is the reliable join key -
-confirmed against real 2018 data (VER=33, HAM=44, VET=5, RAI=7, all correct
-historical car numbers), stable within a season. Joins to laps_features.csv
-via (Season, DriverNumber) - ASSUMES that column exists (standard FastF1
-field, not verified against your actual pipeline - if this script errors on
-a missing column, that tells us the real column name to use instead).
-
-TIME ALIGNMENT: assumes laps_features.csv has "LapStartDate" (FastF1's
-standard absolute-UTC-datetime field) to align message_timestamp against a
-specific lap. If that column doesn't exist under this name, the script will
-fail clearly rather than silently misalign - check the real error if so.
-"""
-
 import os
 import pandas as pd
 import numpy as np
@@ -36,8 +9,7 @@ load_dotenv()
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CACHE_DIR = os.environ.get("GCS_CACHE_DIR", "./gcs_cache")
 RADIOS_CSV = r"data\external\team-radios\classified_radios.csv"
-PIT_LOOKAHEAD_LAPS = 3  # ASSUMPTION - "shortly after" interpreted as within this many laps
-
+PIT_LOOKAHEAD_LAPS = 3
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=CACHE_DIR):
@@ -57,7 +29,6 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 def load_classified_radios(path: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     bad_rows = df["message_timestamp"] == "message_timestamp"
@@ -70,9 +41,8 @@ def load_classified_radios(path: str) -> pd.DataFrame:
     df["racing_number"] = df["racing_number"].astype(int)
     return df[df["category"] == "tyre_feedback"].copy()
 
-
 def load_race_laps(bucket: CachedBucket, seasons: set, races: set) -> pd.DataFrame:
-    """Only pulls sessions actually needed for the seasons/races present in the radio data."""
+    ""
     paths = bucket.list_blob_names("clean/features/")
     frames = []
     for p in paths:
@@ -90,30 +60,8 @@ def load_race_laps(bucket: CachedBucket, seasons: set, races: set) -> pd.DataFra
                             "between classified_radios.csv and your GCS bucket structure")
     return pd.concat(frames, ignore_index=True)
 
-
 def estimate_lap_start_times(laps: pd.DataFrame, radios: pd.DataFrame) -> pd.DataFrame:
-    """
-    FALLBACK time alignment: neither FastF1's LapStartDate (NaT for every
-    season except 2020 - telemetry=False in this repo's download scripts
-    skips the t0_date computation that backfills it) nor tracinginsights
-    telemetry (time field is per-lap relative, 0 to lap duration, not
-    absolute) has a usable absolute timestamp for most seasons.
-
-    Approximation used instead: race_start_estimate = earliest radio message
-    timestamp for that race (ANY category, not just tyre_feedback) as a
-    rough green-flag proxy. Per driver, lap_start_estimate = race_start +
-    cumulative sum of LapTime for all PRIOR laps.
-
-    KNOWN LIMITATIONS, stated not hidden:
-      - Race start proxy is approximate - radio chatter may start before or
-        after the actual green flag.
-      - Red flag stoppages are NOT captured in LapTime (which measures only
-        active racing time between line crossings), so estimated lap starts
-        will drift increasingly late for the remainder of any race that had
-        a red flag - a systematic, not random, error for those races.
-      - This is a fallback for a SECONDARY validation check, not a
-        replacement for real timestamps anywhere else in the pipeline.
-    """
+    ""
     laps = laps.copy()
     laps["LapTime_seconds"] = pd.to_timedelta(laps["LapTime"]).dt.total_seconds()
 
@@ -127,14 +75,8 @@ def estimate_lap_start_times(laps: pd.DataFrame, radios: pd.DataFrame) -> pd.Dat
     laps["LapStartDate_estimated"] = laps["race_start_estimate"] + pd.to_timedelta(cum_prior, unit="s")
     return laps
 
-
 def match_messages_to_nearest_lap(tyre_feedback: pd.DataFrame, laps: pd.DataFrame) -> pd.DataFrame:
-    """
-    Does the expensive part ONCE: finds each message's nearest lap and stores
-    that driver/race's full set of pit-in lap numbers alongside it. Lookahead
-    window checks (compute_pit_rate_for_lookahead below) are then cheap to
-    run repeatedly for a sweep, without redoing the time-matching each time.
-    """
+    ""
     required_cols = {"DriverNumber", "LapNumber", "is_pit_in", "LapTime"}
     missing = required_cols - set(laps.columns)
     if missing:
@@ -156,9 +98,6 @@ def match_messages_to_nearest_lap(tyre_feedback: pd.DataFrame, laps: pd.DataFram
             n_skipped_no_laps += 1
             continue
 
-        # NaT can still occur if a race has no radio data at all (no race_start
-        # estimate) or missing LapTime for the very first laps - drop those
-        # rows before aligning, rather than let an all-NaT group crash idxmin()
         driver_laps_valid_time = driver_laps.dropna(subset=[time_col])
         if driver_laps_valid_time.empty:
             n_skipped_no_valid_timestamp += 1
@@ -181,9 +120,8 @@ def match_messages_to_nearest_lap(tyre_feedback: pd.DataFrame, laps: pd.DataFram
 
     return pd.DataFrame(matched_rows)
 
-
 def compute_pit_rate_for_lookahead(matched: pd.DataFrame, lookahead_laps: int) -> pd.DataFrame:
-    """Cheap re-check against the already-matched nearest lap + stored pit-lap set."""
+    ""
     matched = matched.copy()
     matched["pitted_within_lookahead"] = matched.apply(
         lambda r: any(r["matched_lap"] <= p <= r["matched_lap"] + lookahead_laps for p in r["pit_laps"]),
@@ -192,9 +130,8 @@ def compute_pit_rate_for_lookahead(matched: pd.DataFrame, lookahead_laps: int) -
     summary = matched.groupby("stress_level")["pitted_within_lookahead"].agg(["mean", "count"])
     return summary.rename(columns={"mean": "pit_rate", "count": "n_messages"})
 
-
 def two_prop_z_test(p1, n1, p2, n2):
-    """Two-proportion z-test, no scipy dependency needed for just this."""
+    ""
     if n1 == 0 or n2 == 0:
         return np.nan, np.nan
     p_pool = (p1 * n1 + p2 * n2) / (n1 + n2)
@@ -202,14 +139,12 @@ def two_prop_z_test(p1, n1, p2, n2):
     if se == 0:
         return np.nan, np.nan
     z = (p2 - p1) / se
-    # two-sided p-value from the standard normal CDF, via the error function
+
     from math import erf
     p_val = 2 * (1 - 0.5 * (1 + erf(abs(z) / np.sqrt(2))))
     return z, p_val
 
-
 LOOKAHEAD_WINDOWS_TO_SWEEP = [1, 3, 5, 7]
-
 
 if __name__ == "__main__":
     print("[load] pulling classified_radios.csv ...")
@@ -229,7 +164,6 @@ if __name__ == "__main__":
           "(cumulative LapTime + race-start proxy) for ALL seasons instead, so no season needs "
           "to be excluded - see estimate_lap_start_times() docstring for the known limitations.")
 
-    # Expensive matching done ONCE - every window below reuses this
     matched = match_messages_to_nearest_lap(tyre_feedback, laps)
     print(f"[match] {len(matched)}/{len(tyre_feedback)} messages matched to a lap")
 

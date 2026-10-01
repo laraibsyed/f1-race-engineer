@@ -2,9 +2,6 @@ import pdfplumber
 import re
 import json
 
-# ─────────────────────────────────────────────
-#  CONFIG
-# ─────────────────────────────────────────────
 REGULATION_FILES = {
     2018: r"data\external\fia-pdfs\fia-sporting-regulations-2018.pdf",
     2019: r"data\external\fia-pdfs\fia-sporting-regulations-2019.pdf",
@@ -19,22 +16,8 @@ REGULATION_FILES = {
 
 OUTPUT_FILE = "f1_tyre_constraints.json"
 
-# ─────────────────────────────────────────────
-#  KNOWN GROUND TRUTH
-#  Verified against FIA PDFs + Autosport/Pirelli sources.
-#
-#  Key change points:
-#  - Sprint introduced: 2021 (12 dry vs 13 std)
-#  - Q2 rule dropped: 2022
-#  - Inter 4→5, Wet 3→2: 2024 (confirmed Autosport Apr 2024)
-#  - 2021–2023 sprint: same inter/wet as standard GP (4/3)
-#  - 2024–2025 sprint: same inter/wet as standard GP (5/2)
-#  - 2026: back to 4 inter / 3 wet (new reg cycle, per Mercedes notes)
-#  - Monaco exception (3 wet always): not encoded here as it's
-#    circuit-specific, handled in race-level logic not season constraints
-# ─────────────────────────────────────────────
 KNOWN_VALUES = {
-    #        std_dry  std_inter  std_wet  q2     wet_exc  sprint  sp_dry  sp_inter  sp_wet
+
     2018: dict(total_sets_allocated=13, intermediate_sets_allocated=4,  wet_sets_allocated=3, q2_start_tyre_rule=True,  wet_race_exception=True,  sprint_weekend=False, sprint_dry_sets=None, sprint_intermediate_sets=None, sprint_wet_sets=None),
     2019: dict(total_sets_allocated=13, intermediate_sets_allocated=4,  wet_sets_allocated=3, q2_start_tyre_rule=True,  wet_race_exception=True,  sprint_weekend=False, sprint_dry_sets=None, sprint_intermediate_sets=None, sprint_wet_sets=None),
     2020: dict(total_sets_allocated=13, intermediate_sets_allocated=4,  wet_sets_allocated=3, q2_start_tyre_rule=True,  wet_race_exception=True,  sprint_weekend=False, sprint_dry_sets=None, sprint_intermediate_sets=None, sprint_wet_sets=None),
@@ -46,10 +29,6 @@ KNOWN_VALUES = {
     2026: dict(total_sets_allocated=13, intermediate_sets_allocated=4,  wet_sets_allocated=3, q2_start_tyre_rule=False, wet_race_exception=True,  sprint_weekend=True,  sprint_dry_sets=12,   sprint_intermediate_sets=4,   sprint_wet_sets=3),
 }
 
-
-# ─────────────────────────────────────────────
-#  WORD → INT
-# ─────────────────────────────────────────────
 def text_to_int(text: str) -> int:
     word_map = {
         "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
@@ -65,10 +44,6 @@ def text_to_int(text: str) -> int:
     except ValueError:
         return 0
 
-
-# ─────────────────────────────────────────────
-#  PARSE PDF INTO ARTICLES
-# ─────────────────────────────────────────────
 def parse_regulations(year: int, file_path: str) -> dict:
     print(f"\n📚 Parsing Year: {year}...")
 
@@ -109,10 +84,6 @@ def parse_regulations(year: int, file_path: str) -> dict:
 
     return articles
 
-
-# ─────────────────────────────────────────────
-#  FIND TYRE ARTICLE
-# ─────────────────────────────────────────────
 def find_tyre_article_id(articles_dict: dict) -> str | None:
     header_keywords = [
         "supply of tyres", "quantity of tyres", "use of tyres",
@@ -138,14 +109,6 @@ def find_tyre_article_id(articles_dict: dict) -> str | None:
 
     return best_id
 
-
-# ─────────────────────────────────────────────
-#  EXTRACT FROM ARTICLE TEXT
-#  Only mandatory_dry_compounds is extracted via
-#  regex — everything else is set by KNOWN_VALUES
-#  since PDF phrasing varies too much year-to-year
-#  and the values are well-documented externally.
-# ─────────────────────────────────────────────
 def extract_tyre_data(article_text: str) -> dict:
     data = {
         "mandatory_dry_compounds": 0,
@@ -160,7 +123,6 @@ def extract_tyre_data(article_text: str) -> dict:
         "q2_start_tyre_rule": False,
     }
 
-    # ── 1. MANDATORY COMPOUNDS ────────────────────────────────────────────
     m = re.search(
         r"must\s+use\s+at\s+least\s+(\w+|\d+)(?:\s*\(\d+\))?\s+different",
         article_text, re.IGNORECASE | re.DOTALL
@@ -168,9 +130,6 @@ def extract_tyre_data(article_text: str) -> dict:
     if m:
         data["mandatory_dry_compounds"] = text_to_int(m.group(1))
 
-    # ── 2. DRY SET ALLOCATION (regex, validated later) ────────────────────
-    # Must score >= 10 to be plausible as a dry count.
-    # Anchored to "dry" where possible to avoid matching inter/wet counts.
     dry_patterns = [
         re.compile(r"no\s+driver\s+may\s+use\s+more\s+than\s+(\w+|\d+)(?:\s*\(\d+\))?\s+sets\s+of\s+dry", re.IGNORECASE | re.DOTALL),
         re.compile(r"allocated\s+(\w+|\d+)(?:\s*\(\d+\))?\s+sets\s+of\s+dry", re.IGNORECASE | re.DOTALL),
@@ -186,7 +145,6 @@ def extract_tyre_data(article_text: str) -> dict:
                 data["total_sets_allocated"] = val
                 break
 
-    # ── 3. WET RACE EXCEPTION ─────────────────────────────────────────────
     wet_exc_patterns = [
         re.compile(r"unless.*?(?:intermediate|wet.weather)\s+tyre", re.IGNORECASE | re.DOTALL),
         re.compile(r"wet.weather\s+tyre.*?exempt", re.IGNORECASE | re.DOTALL),
@@ -197,7 +155,6 @@ def extract_tyre_data(article_text: str) -> dict:
             data["wet_race_exception"] = True
             break
 
-    # ── 4. Q2 TYRE START RULE ─────────────────────────────────────────────
     q2_checks = [
         re.compile(r"start\s+the\s+race\s+on\s+the\s+tyre", re.IGNORECASE),
         re.compile(r"fastest\s+time\s+in\s+(?:Q2|the\s+second)", re.IGNORECASE),
@@ -210,18 +167,10 @@ def extract_tyre_data(article_text: str) -> dict:
 
     return data
 
-
-# ─────────────────────────────────────────────
-#  APPLY & VALIDATE KNOWN VALUES
-#  Regex is used as a cross-check; KNOWN_VALUES
-#  are authoritative. Logs any mismatch so you
-#  can spot if a PDF changes phrasing.
-# ─────────────────────────────────────────────
 def apply_known_values(year: int, extracted: dict) -> dict:
     known = KNOWN_VALUES[year]
     result = extracted.copy()
 
-    # Fields always set from known values (too variable to regex reliably)
     always_override = [
         "intermediate_sets_allocated", "wet_sets_allocated",
         "sprint_weekend", "sprint_dry_sets",
@@ -230,7 +179,6 @@ def apply_known_values(year: int, extracted: dict) -> dict:
     for field in always_override:
         result[field] = known[field]
 
-    # Dry sets: override only if regex got something implausible
     if result["total_sets_allocated"] < 10:
         print(f"      ⚠️  Dry sets extracted as {result['total_sets_allocated']} "
               f"— overriding with known value: {known['total_sets_allocated']}")
@@ -240,12 +188,10 @@ def apply_known_values(year: int, extracted: dict) -> dict:
               f"known={known['total_sets_allocated']} — using known")
         result["total_sets_allocated"] = known["total_sets_allocated"]
 
-    # wet_race_exception: override if regex missed it
     if not result["wet_race_exception"] and known["wet_race_exception"]:
         print(f"      ⚠️  wet_race_exception missed by regex — overriding to True")
         result["wet_race_exception"] = True
 
-    # q2 rule: log mismatch, trust known
     if result["q2_start_tyre_rule"] != known["q2_start_tyre_rule"]:
         print(f"      ⚠️  q2_start_tyre_rule mismatch "
               f"(regex={result['q2_start_tyre_rule']}, known={known['q2_start_tyre_rule']}) "
@@ -254,10 +200,6 @@ def apply_known_values(year: int, extracted: dict) -> dict:
 
     return result
 
-
-# ─────────────────────────────────────────────
-#  MAIN
-# ─────────────────────────────────────────────
 def main():
     full_database = {}
     print("\n🚀 Starting FIA Tyre Regulation Extractor...")
@@ -299,7 +241,6 @@ def main():
             f"{str(d['sprint_intermediate_sets']):>7} {str(d['sprint_wet_sets']):>7} "
             f"{str(d['q2_start_tyre_rule']):>5} {str(d['wet_race_exception']):>7}"
         )
-
 
 if __name__ == "__main__":
     main()

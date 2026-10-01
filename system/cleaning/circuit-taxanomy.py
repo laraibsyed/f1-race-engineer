@@ -1,31 +1,3 @@
-"""
-Populate Circuit Taxonomy From Real Data
-============================================
-Your circuit_taxonomy.xlsx has circuit_degredation, sc_probability_pct, and
-vsc_probability_pct hand-estimated. All three are directly measurable from
-your own cleaned pipeline data - this script computes real values and merges
-them in, LEAVING every other column (circuit_type, drs_zones_count,
-overtaking_difficulty, etc.) untouched, since those are genuine external/
-judgment-based reference data, not something your lap data would tell you.
-
-NAMING MISMATCH (same pattern as your fastf1/tracinginsights naming issues):
-circuit_taxonomy.xlsx uses circuit_id/circuit_name (e.g. "MON"/"Monaco").
-Your lap data's Race column uses FastF1 folder-style names (e.g.
-"Monaco_Grand_Prix"). CIRCUIT_ID_TO_RACE_NAMES below is a best-effort mapping,
-built by inspection, NOT verified against your actual folder listing - check
-it before trusting the output, per your own "never guess a schema" rule.
-
-KNOWN GAPS (races in your data with no taxonomy row at all - not guessed,
-left as an explicit TODO for you to add manually since circuit_type/
-overtaking_difficulty/etc. can't be derived from lap timing data):
-  - Portuguese_Grand_Prix (Portimão, 2020-2021)
-  - Tuscan_Grand_Prix (Mugello, 2020)
-  - Eifel_Grand_Prix (Nürburgring, 2020) - NOT the same track as GER/Hockenheim,
-    do not merge into that row.
-
-Writes to circuit_taxonomy_updated.xlsx (NOT overwriting your original) -
-review the diff yourself before replacing the file your pipeline actually reads.
-"""
 
 import os
 import pandas as pd
@@ -35,12 +7,8 @@ from google.cloud import storage
 
 load_dotenv()
 
-# ---------------------------------------------------------------------------
-# 0. CachedBucket (same pattern as your other scripts)
-# ---------------------------------------------------------------------------
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CACHE_DIR = os.environ.get("GCS_CACHE_DIR", "./gcs_cache")
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=CACHE_DIR):
@@ -60,10 +28,6 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
-# ---------------------------------------------------------------------------
-# 1. Load + clean - same pipeline as tyre_regression_v1.py, ALL TEAMS
-# ---------------------------------------------------------------------------
 def load_all_teams_laps(bucket: CachedBucket) -> pd.DataFrame:
     paths = bucket.list_blob_names("clean/features/")
     frames = []
@@ -80,11 +44,9 @@ def load_all_teams_laps(bucket: CachedBucket) -> pd.DataFrame:
         frames.append(df)
     return pd.concat(frames, ignore_index=True)
 
-
 MIN_STINT_LENGTH = 5
 RED_FLAG_RESTART_BUFFER = 2
 LAPTIME_OUTLIER_Z_THRESH = 4.0
-
 
 def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_BUFFER) -> set:
     red_flag_mask = df["TrackStatus"].astype(str).str.contains("5", na=False)
@@ -94,7 +56,6 @@ def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_
         for offset in range(buffer + 1):
             affected.add((row["Season"], row["Race"], row["Session"], row["LapNumber"] + offset))
     return affected
-
 
 def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH) -> pd.DataFrame:
     red_flag_affected = get_red_flag_affected_laps(df)
@@ -111,7 +72,6 @@ def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH
     stint_lengths = clean.groupby(["Season", "Race", "Session", "Driver", "Stint"])["LapNumber"].transform("count")
     return clean[stint_lengths >= min_stint_length]
 
-
 def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float = LAPTIME_OUTLIER_Z_THRESH) -> pd.DataFrame:
     grp = df.groupby(["Compound", "Race"])["degradation_rate"]
     med = grp.transform("median")
@@ -121,25 +81,18 @@ def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float = LAPTI
     is_outlier = robust_z.abs().gt(z_thresh).fillna(False)
     return df[~is_outlier]
 
-
-# ---------------------------------------------------------------------------
-# 2. circuit_id <-> Race name mapping - BEST EFFORT, VERIFY AGAINST YOUR OWN
-#    FOLDER LISTING BEFORE TRUSTING. Multiple Race names can map to one
-#    circuit_id where the SAME physical track hosted different-named races
-#    (e.g. Austrian GP / Styrian GP are both Red Bull Ring).
-# ---------------------------------------------------------------------------
 CIRCUIT_ID_TO_RACE_NAMES = {
     "MEL": ["Australian_Grand_Prix"],
-    "BAH": ["Bahrain_Grand_Prix", "Sakhir_Grand_Prix"],  # Sakhir GP 2020 used the outer layout - same venue, different layout, flagged not fixed
+    "BAH": ["Bahrain_Grand_Prix", "Sakhir_Grand_Prix"],
     "CHN": ["Chinese_Grand_Prix"],
     "AZR": ["Azerbaijan_Grand_Prix"],
     "SPN": ["Spanish_Grand_Prix"],
     "MON": ["Monaco_Grand_Prix"],
     "CAN": ["Canadian_Grand_Prix"],
     "FRA": ["French_Grand_Prix"],
-    "AUS": ["Austrian_Grand_Prix", "Styrian_Grand_Prix"],  # same track, Red Bull Ring
-    "UK": ["British_Grand_Prix", "70th_Anniversary_Grand_Prix"],  # same track, Silverstone
-    "GER": ["German_Grand_Prix"],  # Hockenheim ONLY - Eifel GP (Nürburgring) is a DIFFERENT track, not mapped here
+    "AUS": ["Austrian_Grand_Prix", "Styrian_Grand_Prix"],
+    "UK": ["British_Grand_Prix", "70th_Anniversary_Grand_Prix"],
+    "GER": ["German_Grand_Prix"],
     "HUN": ["Hungarian_Grand_Prix"],
     "BEL": ["Belgian_Grand_Prix"],
     "ITA": ["Italian_Grand_Prix"],
@@ -147,8 +100,8 @@ CIRCUIT_ID_TO_RACE_NAMES = {
     "RUS": ["Russian_Grand_Prix"],
     "JPN": ["Japanese_Grand_Prix"],
     "TEX": ["United_States_Grand_Prix"],
-    "MEX": ["Mexican_Grand_Prix", "Mexico_City_Grand_Prix"],  # renamed after 2019
-    "BRA": ["Brazilian_Grand_Prix", "São_Paulo_Grand_Prix"],  # renamed after 2020
+    "MEX": ["Mexican_Grand_Prix", "Mexico_City_Grand_Prix"],
+    "BRA": ["Brazilian_Grand_Prix", "São_Paulo_Grand_Prix"],
     "AUH": ["Abu_Dhabi_Grand_Prix"],
     "IMO": ["Emilia_Romagna_Grand_Prix"],
     "IST": ["Turkish_Grand_Prix"],
@@ -161,29 +114,8 @@ CIRCUIT_ID_TO_RACE_NAMES = {
 
 KNOWN_GAPS = ["Portuguese_Grand_Prix", "Tuscan_Grand_Prix", "Eifel_Grand_Prix"]
 
-
-# ---------------------------------------------------------------------------
-# 3. Compute REAL per-circuit metrics
-#
-# NOTE: circuit_degredation is deliberately NOT computed here. Four separate
-# approaches were tried and each failed for a distinct, real reason (compound-
-# allocation confound, WET/INTERMEDIATE contamination + traffic effects, and
-# finally the discovery that Pirelli's Hard/Medium/Soft labels are relative to
-# each race weekend rather than absolute compound hardness, making them
-# structurally unable to represent cross-circuit severity). Full writeup in
-# circuit_severity_investigation_notes.md. circuit_degredation is kept at its
-# original manually-estimated value.
-# ---------------------------------------------------------------------------
-
-
 def compute_sc_vsc_probability(raw_laps: pd.DataFrame) -> pd.DataFrame:
-    """
-    Session-level: did SC/VSC deploy AT ALL this session? Then average across
-    sessions per Race. Uses raw_laps (pre-filter) deliberately - filtering out
-    SC/VSC laps for the DEGRADATION model is correct, but here we're measuring
-    HOW OFTEN SC/VSC happens per circuit, so those exact rows are the signal,
-    not noise to remove.
-    """
+    ""
     session_flags = raw_laps.groupby(["Season", "Race", "Session"]).agg(
         any_sc=("is_sc_lap", "any"), any_vsc=("is_vsc_lap", "any")
     ).reset_index()
@@ -194,10 +126,6 @@ def compute_sc_vsc_probability(raw_laps: pd.DataFrame) -> pd.DataFrame:
     ).reset_index()
     return per_circuit
 
-
-# ---------------------------------------------------------------------------
-# 4. Run
-# ---------------------------------------------------------------------------
 TAXONOMY_PATH = r"src\taxanomy\circuit_taxonomy.xlsx"
 OUTPUT_PATH = r"src\taxanomy\circuit_taxonomy_updated.xlsx"
 
@@ -246,7 +174,6 @@ if __name__ == "__main__":
         print(f"[warn] taxonomy circuit_ids with NO matching lap data found: "
               f"{no_data['circuit_id'].tolist()} - old manual values kept for these")
 
-    # ONLY sc/vsc probability updated - circuit_degredation left completely alone
     merged["sc_probability_pct"] = merged["sc_probability_computed"].combine_first(
         merged["sc_probability_pct"])
     merged["vsc_probability_pct"] = merged["vsc_probability_computed"].combine_first(

@@ -1,0 +1,10 @@
+metric,value
+n_lap_rows_both_drivers_tracked,508.0
+team_objective=default_driver_1_priority,351.0
+team_objective=maximise_surviving_car_result,49.0
+team_objective=protect_d2_track_position,16.0
+team_objective=maximise_d2_championship_value,92.0
+pct_lap_rows_nondefault_role,30.9
+n_lap_rows_both_selected_joint_pit_now,122.0
+n_of_those_staggered_by_execution,113.0
+pct_joint_pit_now_staggered_by_execution,92.6

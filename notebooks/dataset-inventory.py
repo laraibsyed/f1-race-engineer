@@ -1,37 +1,3 @@
-"""
-gcs_dataset_inventory.py
-
-Step 1 of the FastF1 data audit: Dataset Inventory, built directly from
-GCS bucket contents.
-
-IMPORTANT: this bucket has TWO separate data sources living side by side:
-    raw/fastf1/<year>/<race_name>/<session>/<table>.csv
-        -> laps, results, weather, messages (one file per session)
-    raw/tracinginsights/<year>/<race_name>/<session>/<driver_number>_tel.json
-        -> telemetry, RACE sessions only, one JSON file PER DRIVER per session
-
-Because of that split, this script treats them as two separate scans:
-  - CSV tables under raw/fastf1/  -> grouped by filename (table name)
-  - JSON telemetry under raw/tracinginsights/ -> grouped by session folder
-    (i.e. all N driver files inside one .../Race/ folder = 1 session's worth
-    of telemetry), so file_count in the output = number of driver-files,
-    and a separate session_count column tells you how many sessions that
-    spans.
-
-Requirements:
-    pip install google-cloud-storage pandas gcsfs python-dotenv --break-system-packages
-
-Auth:
-    gcloud auth application-default login
-
-Bucket name:
-    .env file with BUCKET_NAME=f1-race-engineer-bucket, or --bucket flag.
-
-Usage:
-    python gcs_dataset_inventory.py
-    python gcs_dataset_inventory.py --fastf1-prefix raw/fastf1/2018/ --telemetry-prefix raw/tracinginsights/2018/
-"""
-
 import argparse
 import io
 import json
@@ -49,9 +15,8 @@ DEFAULT_BUCKET_NAME = os.getenv("BUCKET_NAME", "f1-race-engineer-bucket")
 
 client = storage.Client()
 
-
 def list_files(bucket_name: str, prefix: str, exts: tuple[str, ...], limit: int | None = None) -> list[str]:
-    """Return blob paths under prefix matching any of the given extensions, with progress output."""
+    ""
     print(f"Listing files in gs://{bucket_name}/{prefix} (extensions: {exts}) ...")
     t0 = time.time()
     paths = []
@@ -68,18 +33,14 @@ def list_files(bucket_name: str, prefix: str, exts: tuple[str, ...], limit: int 
     print(f"Done: {len(paths)} matching files found in {time.time()-t0:.1f}s")
     return paths
 
-
-# ---------- fastf1 CSV tables ----------
-
 def group_csv_by_table(paths: list[str]) -> dict[str, list[str]]:
-    """raw/fastf1/<year>/<race>/<session>/<table>.csv -> group by <table>"""
+    ""
     groups = defaultdict(list)
     for path in paths:
         filename = path.rstrip("/").split("/")[-1]
         dataset_name = filename[:-4] if filename.lower().endswith(".csv") else filename
         groups[dataset_name].append(path)
     return groups
-
 
 def sample_and_check_csv_schema(bucket_name: str, paths: list[str], sample_size: int = 5) -> dict:
     bucket = client.bucket(bucket_name)
@@ -103,7 +64,6 @@ def sample_and_check_csv_schema(bucket_name: str, paths: list[str], sample_size:
         "n_distinct_schemas": len(unique_schemas),
     }
 
-
 def estimate_csv_row_count(bucket_name: str, path: str, exact: bool = False) -> int:
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(path)
@@ -117,7 +77,6 @@ def estimate_csv_row_count(bucket_name: str, path: str, exact: bool = False) -> 
         return 0
     avg_row_bytes = len(sample) / len(sample_df)
     return int(blob.size / avg_row_bytes) if avg_row_bytes else 0
-
 
 def build_fastf1_inventory(bucket_name: str, prefix: str, exact_counts: bool, limit: int | None) -> pd.DataFrame:
     paths = list_files(bucket_name, prefix, (".csv",), limit)
@@ -135,7 +94,7 @@ def build_fastf1_inventory(bucket_name: str, prefix: str, exact_counts: bool, li
             "source": "fastf1",
             "dataset_name": dataset_name,
             "file_count": len(file_paths),
-            "session_count": len(file_paths),  # 1 file = 1 session for these tables
+            "session_count": len(file_paths),
             "example_path": file_paths[0],
             "schema_consistent_across_sample": schema_info["schema_consistent"],
             "n_distinct_schemas_in_sample": schema_info["n_distinct_schemas"],
@@ -146,28 +105,17 @@ def build_fastf1_inventory(bucket_name: str, prefix: str, exact_counts: bool, li
         })
     return pd.DataFrame(rows)
 
-
-# ---------- tracinginsights JSON telemetry ----------
-
 def group_json_by_session(paths: list[str]) -> dict[str, list[str]]:
-    """
-    raw/tracinginsights/<year>/<race>/<session>/<driver_code>/<driver_number>_tel.json
-    e.g. raw/tracinginsights/2018/Abu Dhabi Grand Prix/Race/ALO/10_tel.json
-
-    -> group by everything up to and INCLUDING the session folder (Race/Quali/etc),
-    i.e. drop the last TWO path segments (driver_code/filename), not just one.
-    Each group = all per-driver-code subfolders' files for one session.
-    """
+    ""
     groups = defaultdict(list)
     for path in paths:
         parts = path.rstrip("/").split("/")
-        session_folder = "/".join(parts[:-2])  # drop driver_code + filename
+        session_folder = "/".join(parts[:-2])
         groups[session_folder].append(path)
     return groups
 
-
 def sample_and_check_json_schema(bucket_name: str, paths: list[str], sample_size: int = 3) -> dict:
-    """Reads top-level keys from sample JSON files. Adjust if structure is nested differently."""
+    ""
     bucket = client.bucket(bucket_name)
     sample_paths = paths[:sample_size] if len(paths) >= sample_size else paths
 
@@ -178,7 +126,7 @@ def sample_and_check_json_schema(bucket_name: str, paths: list[str], sample_size
         if isinstance(obj, dict):
             keys = tuple(sorted(obj.keys()))
         elif isinstance(obj, list) and obj and isinstance(obj[0], dict):
-            keys = tuple(sorted(obj[0].keys()))  # list of records -> inspect first record's keys
+            keys = tuple(sorted(obj[0].keys()))
         else:
             keys = ("UNRECOGNISED_JSON_SHAPE",)
         schemas[p] = keys
@@ -191,14 +139,11 @@ def sample_and_check_json_schema(bucket_name: str, paths: list[str], sample_size
         "n_distinct_schemas": len(unique_schemas),
     }
 
-
 def build_telemetry_inventory(bucket_name: str, prefix: str, limit: int | None) -> pd.DataFrame:
     paths = list_files(bucket_name, prefix, (".json",), limit)
     session_groups = group_json_by_session(paths)
     print(f"\ntracinginsights telemetry: {len(paths)} driver-files across {len(session_groups)} sessions")
 
-    # schema check: sample a handful of files spread across different sessions,
-    # not just files from one session (they'd trivially all match each other)
     all_paths_sorted = sorted(paths)
     sample_size = min(8, len(all_paths_sorted))
     step = max(1, len(all_paths_sorted) // sample_size) if sample_size else 1
@@ -217,13 +162,12 @@ def build_telemetry_inventory(bucket_name: str, prefix: str, limit: int | None) 
         "schema_consistent_across_sample": schema_info["schema_consistent"],
         "n_distinct_schemas_in_sample": schema_info["n_distinct_schemas"],
         "columns": ", ".join(schema_info["columns"]) if schema_info["columns"] else "MIXED - inspect manually",
-        "avg_rows_per_file": None,  # not meaningful the same way for nested JSON; inspect manually
+        "avg_rows_per_file": None,
         "est_total_rows": None,
         "row_count_method": "not computed (JSON, per-driver files) -- see avg_files_per_session instead",
         "avg_files_per_session": round(avg_files_per_session, 1),
     }
     return pd.DataFrame([row])
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inventory FastF1 + tracinginsights data stored in GCS.")

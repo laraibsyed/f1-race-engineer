@@ -1,31 +1,3 @@
-"""
-column_profile.py
-
-Step 2 of the FastF1 data audit: per-column data dictionary.
-For every fastf1 CSV table and the tracinginsights telemetry, samples
-files spread ACROSS YEARS (not just the first few) and documents, per
-column:
-    - dtype (as loaded by pandas)
-    - nullability (% null across the sample)
-    - range (numeric: min/max/mean | categorical: unique values, capped)
-    - example value
-    - source (fastf1 / tracinginsights)
-    - n_files_sampled (so you know how much of the data this range reflects)
-
-Requirements:
-    pip install google-cloud-storage pandas gcsfs python-dotenv --break-system-packages
-
-Usage:
-    # Profile fastf1 CSV tables (laps, messages, results, weather)
-    python column_profile.py --source fastf1
-
-    # Profile tracinginsights telemetry JSON
-    python column_profile.py --source telemetry
-
-    # Both, with more files sampled per year for tighter ranges
-    python column_profile.py --source both --files-per-year 5
-"""
-
 import argparse
 import io
 import json
@@ -42,18 +14,15 @@ BUCKET_NAME = os.getenv("BUCKET_NAME", "f1-race-engineer-bucket")
 client = storage.Client()
 bucket = client.bucket(BUCKET_NAME)
 
-
 def list_files(prefix: str, exts: tuple[str, ...]) -> list[str]:
     return [b.name for b in client.list_blobs(BUCKET_NAME, prefix=prefix) if b.name.lower().endswith(exts)]
-
 
 def extract_year(path: str) -> str | None:
     m = re.search(r"/((?:19|20)\d{2})/", path)
     return m.group(1) if m else None
 
-
 def sample_across_years(paths: list[str], files_per_year: int = 3) -> list[str]:
-    """Pick N files per year so the profile reflects the full 2018-2025 span, not one season."""
+    ""
     by_year = defaultdict(list)
     for p in paths:
         by_year[extract_year(p)].append(p)
@@ -61,7 +30,6 @@ def sample_across_years(paths: list[str], files_per_year: int = 3) -> list[str]:
     for year, year_paths in sorted(by_year.items()):
         sampled.extend(year_paths[:files_per_year])
     return sampled
-
 
 def profile_csv_dataset(dataset_name: str, paths: list[str], files_per_year: int) -> pd.DataFrame:
     sample_paths = sample_across_years(paths, files_per_year)
@@ -121,20 +89,12 @@ def profile_csv_dataset(dataset_name: str, paths: list[str], files_per_year: int
         })
     return pd.DataFrame(rows)
 
-
 def profile_telemetry(prefix: str, files_per_year: int) -> pd.DataFrame:
-    """
-    Telemetry is JSON, one file per driver per session, nested under
-    .../<session>/<driver_code>/<file>.json. Sampling strategy: pick a
-    handful of SESSIONS spread across years, then within each sampled
-    session, grab just 1-2 driver files (enough to profile the schema,
-    not every driver -- that would be huge).
-    """
+    ""
     print("Listing telemetry files (this can take a few minutes given file count)...")
     paths = list_files(prefix, (".json",))
     print(f"  Found {len(paths)} telemetry files total.")
 
-    # group by session folder (drop driver_code + filename), then sample sessions per year
     session_groups = defaultdict(list)
     for p in paths:
         parts = p.rstrip("/").split("/")
@@ -149,7 +109,7 @@ def profile_telemetry(prefix: str, files_per_year: int) -> pd.DataFrame:
     sample_files = []
     for year, sessions in sorted(sessions_by_year.items()):
         for session_folder in sessions[:files_per_year]:
-            # take up to 2 driver files from this session for schema profiling
+
             sample_files.extend(session_groups[session_folder][:2])
 
     print(f"  Sampling {len(sample_files)} driver-files across years for telemetry schema...")
@@ -180,8 +140,7 @@ def profile_telemetry(prefix: str, files_per_year: int) -> pd.DataFrame:
         has_unhashable = len(non_null) > 0 and non_null.apply(lambda v: isinstance(v, (list, dict))).any()
 
         if has_unhashable:
-            # nested/array-valued field (e.g. a list of samples inside one cell) --
-            # can't take .unique() on this. Flag it instead of listing values.
+
             avg_len = non_null.apply(lambda v: len(v) if isinstance(v, (list, dict)) else None).dropna().mean()
             rng = f"NESTED FIELD (list/dict per cell) -- needs flattening before use. avg length={round(avg_len, 1) if pd.notna(avg_len) else 'N/A'}"
         elif pd.api.types.is_numeric_dtype(series):
@@ -198,7 +157,7 @@ def profile_telemetry(prefix: str, files_per_year: int) -> pd.DataFrame:
 
         example = non_null.iloc[0] if len(non_null) else None
         if isinstance(example, (list, dict)):
-            example = str(example)[:200]  # truncate so it doesn't blow up the CSV cell
+            example = str(example)[:200]
 
         rows.append({
             "source": "tracinginsights",
@@ -212,7 +171,6 @@ def profile_telemetry(prefix: str, files_per_year: int) -> pd.DataFrame:
             "n_rows_sampled": len(df),
         })
     return pd.DataFrame(rows)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

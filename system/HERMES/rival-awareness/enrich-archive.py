@@ -1,30 +1,3 @@
-"""
-Rival Knowledge — Archive Enrichment
-=======================================
-Adds three checklist items to the already-completed archive WITHOUT rescanning raw
-telemetry (the expensive part) — reuses each race's already-cached opponent table and
-features:
-  1. Gap/compound/tyre_age for the car BEHIND (add_behind_columns, knowledge.py) —
-     derived from data already computed, no new telemetry parsing.
-  2. A 'direction' label (undercut / overcut / ambiguous) per flagged event, based on
-     pit-order sequencing against the identified rival (summarize_undercut_events).
-  3. A 'points_gap' column per event — the championship points gap between the
-     flagged driver and their rival, as of before that race (standings.py).
-
-Only re-does the CHEAP steps (flagging + summarizing) using the SAME cached opponent
-table and pit-loss constant already computed for each race — build_opponent_table's
-raw telemetry loop is untouched; if a local opponent-table checkpoint already exists
-for a race, this reuses it directly.
-
-RUN standings.py --inspect FIRST for at least one season before running this archive-
-wide — points_gap silently returns None on any lookup failure rather than erroring, so
-a real problem (wrong column names, race-name mismatch) would otherwise show up only
-as an unexplained wall of missing values, not a loud failure.
-
-Usage:
-    python enrich_archive.py --limit 5      # smoke-test on 5 races first
-    python enrich_archive.py                 # enrich the full archive
-"""
 
 import argparse
 import pandas as pd
@@ -32,7 +5,6 @@ import pandas as pd
 import knowledge as rk
 import standings as st
 import risk as rp
-
 
 def enrich_one_race(cb, year, race_fastf1, session_fastf1):
     race_ti = race_fastf1.replace("_", " ")
@@ -44,8 +16,6 @@ def enrich_one_race(cb, year, race_fastf1, session_fastf1):
     features_df = rk.add_cumulative_time(features_df)
     number_to_code = rk.build_number_to_code(features_df)
 
-    # Reuse the ALREADY-CACHED opponent table (local checkpoint from the original
-    # archive run) — this does NOT re-scan raw telemetry if the checkpoint exists.
     opponent_df = rk.build_opponent_table(cb, features_df, number_to_code)
     if opponent_df.empty:
         return None
@@ -66,13 +36,6 @@ def enrich_one_race(cb, year, race_fastf1, session_fastf1):
     events["session"] = session_fastf1
     events["pit_loss_constant_s"] = circuit_constant_s
 
-    # Attach points_gap per event — rival is the ahead_driver at the event's last
-    # flagged lap (the same identity used for the direction label above). Storing
-    # "rival" alongside is new: previously points_gap was attached with no way to
-    # retroactively check WHICH rival it was computed against, making it impossible to
-    # validate. Now signed (not absolute) so a real risk policy can use direction, and
-    # risk_appetite is computed inline — this is the piece that moves the "incorporate
-    # championship standings weight" checklist item from a column to an actual policy.
     rivals, points_gaps, risk_appetites = [], [], []
     for _, ev in events.iterrows():
         rival_row = flagged.loc[
@@ -98,7 +61,6 @@ def enrich_one_race(cb, year, race_fastf1, session_fastf1):
     )
 
     return events
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -149,11 +111,6 @@ def main():
         print(f"[enrich] points_gap available for {combined['points_gap'].notna().sum()}/{len(combined)} events.")
         print(f"[enrich] Risk appetite split: {combined['risk_appetite'].value_counts().to_dict()}")
 
-        # DEMONSTRATION: same physical opportunity, different championship context.
-        # Finds pairs of events with a near-identical tyre-age gap (the physical
-        # signal driving the undercut/overcut flag) but very different risk_appetite
-        # labels — concrete evidence the feature is genuinely wired through, not just
-        # a column sitting unused.
         demo = combined.dropna(subset=["risk_appetite"]).copy()
         if not demo.empty:
             print("\n" + "=" * 70)
@@ -174,7 +131,6 @@ def main():
                 print("time, which now visibly changes the risk_appetite label attached to it.")
     else:
         print("\n[enrich] No events produced — check the errors above.")
-
 
 if __name__ == "__main__":
     main()

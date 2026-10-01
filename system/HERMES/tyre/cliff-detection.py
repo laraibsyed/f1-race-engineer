@@ -1,33 +1,4 @@
-"""
-Cliff Detection — Piecewise-Linear Breakpoint Scan
-======================================================
-Replaces the placeholder CLIFF_THRESHOLD = 1.03 rule from the first draft.
-
-Method: for each (Season, Race, Session, Driver, Stint), scan every possible split
-point in the lap sequence. Fit ONE straight line to the laps before the split and a
-SEPARATE straight line to the laps from the split onward (LapTime vs tyre_age - raw
-pace, not degradation_rate, to avoid the tyre_age circularity flagged in V1). Pick the
-split that minimises combined error (SSE) across both segments.
-
-A cliff is only DECLARED if:
-  1. The two-segment fit meaningfully beats a single straight line across the whole
-     stint (otherwise the stint just degrades steadily - no real cliff).
-  2. The post-split slope is at least MIN_SLOPE_RATIO times steeper than the pre-split
-     slope, in the "getting slower" direction.
-
-Stints where no cliff is declared are CENSORED (tyre never observed hitting a cliff
-within the stint) rather than dropped - this feeds directly into a survival-analysis
-duration/event table.
-
-Uses the SAME cleaned dataset as tyre_regression_v1.py (short-stint filter, red-flag+
-restart-buffer filter, global MAD-based outlier filter) - same reasoning applies here:
-a cliff detector trained on dirty data will find fake cliffs at every red-flag restart.
-
-Produces:
-  - cliff_detection_stints.csv   (one row per stint: duration, event, cliff_lap, etc.)
-  - cliff_detection_examples.png (a few example stints with the detected breakpoint marked,
-    for a quick visual sanity check that the detector is doing something sensible)
-"""
+""
 
 import os
 import pandas as pd
@@ -40,12 +11,8 @@ from google.cloud import storage
 
 load_dotenv()
 
-# ---------------------------------------------------------------------------
-# 0. CachedBucket (same pattern as your other scripts)
-# ---------------------------------------------------------------------------
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CACHE_DIR = os.environ.get("GCS_CACHE_DIR", "./gcs_cache")
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=CACHE_DIR):
@@ -65,25 +32,13 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 RBR_ALIASES = {
     "Red Bull Racing", "Red Bull Racing Honda", "Red Bull Racing RBPT",
     "Oracle Red Bull Racing", "Red Bull",
 }
 
-
-# ---------------------------------------------------------------------------
-# 1. Load + clean - ALL TEAMS now (see load_all_teams_laps docstring for why)
-# ---------------------------------------------------------------------------
 def load_all_teams_laps(bucket: CachedBucket) -> pd.DataFrame:
-    """
-    SCOPE CHANGE: loads ALL teams, not just RBR. Cliff detection on RBR-only
-    data left dangerously thin samples at high tyre_age (e.g. SUPERSOFT had
-    only 1 cliff event ever observed across all 22 stints). Tyre cliff physics
-    is assumed to depend on compound/circuit, not team - a deliberate, stated
-    assumption, not a silent scope change. An `is_rbr` column lets downstream
-    analysis still isolate RBR specifically if needed.
-    """
+    ""
     paths = bucket.list_blob_names("clean/features/")
     frames = []
     for p in paths:
@@ -101,11 +56,9 @@ def load_all_teams_laps(bucket: CachedBucket) -> pd.DataFrame:
     full["is_rbr"] = full["Team"].isin(RBR_ALIASES)
     return full
 
-
 MIN_STINT_LENGTH = 5
 RED_FLAG_RESTART_BUFFER = 2
 LAPTIME_OUTLIER_Z_THRESH = 4.0
-
 
 def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_BUFFER) -> set:
     red_flag_mask = df["TrackStatus"].astype(str).str.contains("5", na=False)
@@ -115,7 +68,6 @@ def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_
         for offset in range(buffer + 1):
             affected.add((row["Season"], row["Race"], row["Session"], row["LapNumber"] + offset))
     return affected
-
 
 def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH) -> pd.DataFrame:
     red_flag_affected = get_red_flag_affected_laps(df)
@@ -133,7 +85,6 @@ def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH
     stint_lengths = clean.groupby(["Season", "Race", "Session", "Driver", "Stint"])["LapNumber"].transform("count")
     return clean[stint_lengths >= min_stint_length]
 
-
 def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float = LAPTIME_OUTLIER_Z_THRESH) -> pd.DataFrame:
     grp = df.groupby(["Compound", "Race"])["degradation_rate"]
     med = grp.transform("median")
@@ -143,25 +94,13 @@ def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float = LAPTI
     is_outlier = robust_z.abs().gt(z_thresh).fillna(False)
     return df[~is_outlier]
 
-
-# ---------------------------------------------------------------------------
-# 2. Cliff detection - piecewise-linear breakpoint scan
-# ---------------------------------------------------------------------------
-MIN_SEGMENT_LENGTH = 3   # laps required on EACH side of a candidate split
-MIN_IMPROVEMENT = 0.20   # 2-segment fit must reduce SSE by at least this fraction vs. 1 line
-MIN_SLOPE_RATIO = 2.0    # post-split slope must be at least this many times steeper
-MIN_STEP_SECONDS = 0.3   # the average pace right after the split must be at least this much
-                         # SLOWER than the average pace right before it - a real cliff should
-                         # show an actual jump at the transition, not just an eventual trend
-                         # across the whole post-segment. Added after visual inspection showed
-                         # 3 of 4 sampled "cliffs" had the lap RIGHT AFTER the split being the
-                         # FASTEST lap in the stint - the opposite of a real cliff. The SSE-based
-                         # split location was picking up longer-run trends (including drying-
-                         # track dynamics on INTERMEDIATE) rather than a genuine step-change.
-
+MIN_SEGMENT_LENGTH = 3
+MIN_IMPROVEMENT = 0.20
+MIN_SLOPE_RATIO = 2.0
+MIN_STEP_SECONDS = 0.3
 
 def _fit_line_sse(x: np.ndarray, y: np.ndarray):
-    """Fit a straight line, return (SSE, slope). Needs at least 2 points."""
+    ""
     if len(x) < 2:
         return 0.0, 0.0
     slope, intercept = np.polyfit(x, y, 1)
@@ -169,12 +108,8 @@ def _fit_line_sse(x: np.ndarray, y: np.ndarray):
     sse = float(np.sum((y - preds) ** 2))
     return sse, float(slope)
 
-
 def detect_cliff(x: np.ndarray, y: np.ndarray):
-    """
-    x = tyre_age array, y = LapTime (seconds) array, for ONE stint, sorted by lap.
-    Returns (cliff_tyre_age_or_None, is_cliff_bool, diagnostics_dict).
-    """
+    ""
     n = len(x)
     if n < 2 * MIN_SEGMENT_LENGTH:
         return None, False, {"reason": "stint too short to scan"}
@@ -196,12 +131,6 @@ def detect_cliff(x: np.ndarray, y: np.ndarray):
     improvement = (whole_sse - best["total_sse"]) / whole_sse if whole_sse > 0 else 0.0
     slope_ratio = (best["post_slope"] / best["pre_slope"]) if best["pre_slope"] > 0 else np.inf
 
-    # NEW: local step check - actual jump at the transition, not just an eventual trend.
-    # Uses MEDIAN, not mean - confirmed necessary after visual inspection showed a
-    # single-lap spike inside the 3-lap post-window (Japan/PER and Qatar/GAS examples)
-    # could drag a MEAN-based step past the threshold even when the very next lap
-    # after the spike dropped back below the pre-cliff baseline entirely. Median is
-    # not moved by one extreme value the way a 3-point mean is.
     pre_tail_median = float(np.median(y[max(0, i - MIN_SEGMENT_LENGTH):i]))
     post_head_median = float(np.median(y[i:i + MIN_SEGMENT_LENGTH]))
     local_step = post_head_median - pre_tail_median
@@ -224,30 +153,11 @@ def detect_cliff(x: np.ndarray, y: np.ndarray):
     }
     return cliff_tyre_age, is_cliff, diagnostics
 
-
-# ---------------------------------------------------------------------------
-# 3. Build the stint-level survival table
-# ---------------------------------------------------------------------------
 def compute_true_stint_lengths(raw_laps: pd.DataFrame) -> dict:
-    """
-    n_laps (post-cleaning row count) undercounts true stint length, since
-    filtered-out laps (pit in/out, missing/outlier, red-flag buffer) are
-    removed from the COUNT but tyre_age still reflects them - confirmed by a
-    max cliff_tyre_age/n_laps ratio of 1.857 in the calibration work, which
-    is logically impossible if n_laps meant true stint length.
-
-    Fix: compute true length from tyre_age's max value in the RAW, UNFILTERED
-    data for each stint - tyre_age is assigned to every lap on that tyre
-    regardless of whether the lap later gets excluded for modelling, so this
-    is immune to any of the cleaning filters applied downstream.
-
-    Must be called on `raw` BEFORE filter_valid_laps()/
-    filter_global_degradation_outliers() run, or this fix doesn't fix anything.
-    """
+    ""
     group_cols = ["Season", "Race", "Session", "Driver", "Stint"]
     lengths = raw_laps.dropna(subset=["tyre_age"]).groupby(group_cols)["tyre_age"].max()
     return lengths.to_dict()
-
 
 def build_stint_table(laps: pd.DataFrame, true_stint_lengths: dict = None) -> pd.DataFrame:
     laps = laps.copy()
@@ -271,15 +181,14 @@ def build_stint_table(laps: pd.DataFrame, true_stint_lengths: dict = None) -> pd
             "is_rbr": bool(g["is_rbr"].iloc[0]),
             "compound": g["Compound"].iloc[0],
             "circuit": keys[1],
-            "n_laps_cleaned": len(g),           # rows surviving cleaning - for model-fitting sample size only
-            "n_laps_true": true_n_laps,          # TRUE stint length from raw tyre_age - use THIS for any ratio
-            "duration": cliff_age if is_cliff else x.max(),   # tyre_age at event OR last observed lap
-            "event": int(is_cliff),                            # 1 = cliff observed, 0 = censored
+            "n_laps_cleaned": len(g),
+            "n_laps_true": true_n_laps,
+            "duration": cliff_age if is_cliff else x.max(),
+            "event": int(is_cliff),
             "cliff_tyre_age": cliff_age,
             "slope_ratio": diag.get("slope_ratio"),
             "improvement": diag.get("improvement"),
-            # --- Cox (survival V2) covariates, added here so cliff detection
-            # and Cox don't need two separate stint-building passes ---
+
             "track_temp_bucket": g["track_temp_bucket"].mode().iloc[0]
                 if g["track_temp_bucket"].notna().any() else np.nan,
             "fuel_load_estimate": g["fuel_load_estimate"].mean(),
@@ -290,18 +199,12 @@ def build_stint_table(laps: pd.DataFrame, true_stint_lengths: dict = None) -> pd
         })
     return pd.DataFrame(rows)
 
-
-# ---------------------------------------------------------------------------
-# 4. Run + sanity-check plots
-# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     bucket = CachedBucket()
     print("[load] pulling ALL TEAMS' laps_features.csv ...")
     raw = load_all_teams_laps(bucket)
     print(f"[load] {len(raw)} raw rows, {raw['is_rbr'].sum()} of which are RBR")
 
-    # MUST compute this BEFORE filtering - tyre_age on raw laps is immune to
-    # any of the cleaning exclusions applied below, which is the whole point
     true_stint_lengths = compute_true_stint_lengths(raw)
 
     clean = filter_valid_laps(raw)
@@ -333,7 +236,6 @@ if __name__ == "__main__":
 
     print("\n[save] cliff_detection_stints.csv (all teams, with is_rbr flag)")
 
-    # --- Sanity-check plot: a handful of detected-cliff stints, breakpoint marked ---
     laps_seconds = clean.copy()
     laps_seconds["LapTime_seconds"] = pd.to_timedelta(laps_seconds["LapTime"]).dt.total_seconds()
 

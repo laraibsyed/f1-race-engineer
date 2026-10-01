@@ -1,47 +1,3 @@
-"""
-Archetype Fallback - drivers with < MIN_CAREER_RACES (20) real races
-=======================================================================
-DESIGN DECISION (documented, not accidental): this uses each driver's FULL career history to
-assign an archetype, matching how the five REAL computed metrics (aggression_level,
-tyre_management, consistency_factor, wet_weather_skill, pressure_risk_tolerance,
-defensive_strength) are also built from each qualifying driver's entire career, not a rolling
-window. An earlier version of this script made archetype assignment leak-free/rolling
-(point-in-time, no future data) while the five real metrics stayed static - which was actually
-the WRONG inconsistency: it held rookies to a stricter no-leakage standard than established
-drivers, when if anything a rookie's eventual full career is the MORE informative signal about
-who they are as a driver, not less.
-
-JUSTIFICATION FOR WHY STATIC IS FINE HERE (for the dissertation write-up): the Second Driver
-Problem diagram's "rolling t-1, no leakage" principle applies to LAYER 3 (live, lap-by-lap
-hierarchy awareness during a race) - genuinely time-sensitive, in-race state. Driver PROFILES
-(Layer 2 - aggression_level, archetype, etc.) are a season-level PRIOR, not live race state -
-using a driver's full career to characterize who they are, then feeding that stable profile into
-a live strategy engine, is a standard and defensible design, not a leakage bug. Given project
-timeline constraints, full-career/static is used consistently across all six metrics AND the
-archetype fallback - this is a scoped, deliberate trade-off, not an oversight.
-
-HEURISTIC (still a genuine judgment call, no more-detailed rule existed anywhere in the
-project - checked against the Second Driver Problem diagram, which confirms the <20-race branch
-exists but doesn't specify HOW to choose among the four specific archetypes):
-
-  AXIS 1 - experience within the sub-20 bracket:
-    < ROOKIE_RACE_CUTOFF (10) career races  -> "true rookie" bucket
-    >= ROOKIE_RACE_CUTOFF (10) career races -> "more experienced, still building" bucket
-
-  AXIS 2 - performance signal, split at a FIXED threshold (see constants above) - NOT a
-  within-population median, because the sub-20 population is small enough (often single digits)
-  that a median-based split degenerates: a bucket of size 1 is mathematically guaranteed to fall
-  "below its own median", and a rookie bucket where most drivers have exactly 0 self-inflicted
-  DNFs (near-certain off 1-7 races) collapses into one label regardless of real differences:
-    True rookie bucket    -> self_inflicted_dnf_rate
-                              above SELF_INFLICTED_RATE_THRESHOLD -> rookie_aggressive, else rookie_conservative
-    Experienced bucket    -> avg_points_per_race
-                              above POINTS_PER_RACE_THRESHOLD -> junior_high_potential, else senior_backmarker
-
-SANITY-CHECK BEFORE TRUSTING: once run, check a few drivers you know personally against their
-assigned archetype - this heuristic has never been checked against real output.
-"""
-
 import argparse
 import os
 import pandas as pd
@@ -53,28 +9,19 @@ load_dotenv()
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 MIN_CAREER_RACES = 20
-ROOKIE_RACE_CUTOFF = 10  # ASSUMPTION - the split between "true rookie" and "more experienced
-                          # but still sub-threshold" - not empirically derived, adjust freely
-SELF_INFLICTED_RATE_THRESHOLD = 0.08  # ASSUMPTION - FIXED, not a within-population median.
-    # With only a handful of sub-20 drivers at any given time (5 in this run: 4 rookies + 1
-    # more-experienced), a median-based split degenerates badly - most 1-7 race rookies have
-    # EXACTLY 0 self-inflicted DNFs by pure chance, collapsing the whole rookie bucket into one
-    # label, and a bucket of size 1 (as DEV was) is mathematically guaranteed to fall on the
-    # "below median" side of ITS OWN VALUE regardless of real performance. A fixed threshold
-    # avoids this: a driver's classification now depends only on their own rate, never on how
-    # many other thin-sample drivers happen to exist alongside them right now.
-POINTS_PER_RACE_THRESHOLD = 2.0  # ASSUMPTION - same fix, same reasoning, for the junior_high_
-    # potential/senior_backmarker split. Revisit both numbers once you see real distributions
-    # across a larger pool (e.g. once more drivers eventually clear the sub-20 threshold).
+ROOKIE_RACE_CUTOFF = 10
+
+SELF_INFLICTED_RATE_THRESHOLD = 0.08
+
+POINTS_PER_RACE_THRESHOLD = 2.0
+
 ARCHETYPES_PATH = "src/taxanomy/drivers_archetypes.xlsx"
 
 SELF_INFLICTED_KEYWORDS = ["accident", "collision", "spun off", "spin", "damage", "off track"]
 
-
 def classify_status(status: str) -> str:
     s = str(status).lower()
     return "self_inflicted" if any(k in s for k in SELF_INFLICTED_KEYWORDS) else "other"
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=os.environ.get("GCS_CACHE_DIR", "./gcs_cache")):
@@ -93,7 +40,6 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 def load_all_results(bucket: CachedBucket) -> pd.DataFrame:
     paths = [p for p in bucket.list_blob_names("raw/fastf1/") if p.endswith("/R/results.csv")]
     frames = []
@@ -104,7 +50,6 @@ def load_all_results(bucket: CachedBucket) -> pd.DataFrame:
         df["season"], df["race"] = season, race
         frames.append(df)
     return pd.concat(frames, ignore_index=True)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -144,7 +89,6 @@ if __name__ == "__main__":
     print(sub20[["career_races", "self_inflicted_dnf_rate", "avg_points_per_race", "archetype"]]
           .sort_values("career_races", ascending=False).to_string())
 
-    # ---- Pull in the generic archetype metric values ----
     archetypes_df = pd.read_excel(ARCHETYPES_PATH)
     print(f"\n[load] {ARCHETYPES_PATH} columns: {archetypes_df.columns.tolist()}")
     archetypes_df = archetypes_df.set_index("archetype")
@@ -161,7 +105,6 @@ if __name__ == "__main__":
         })
     fallback_df = pd.DataFrame(fallback_rows)
 
-    # ---- Combine with the real, qualifying-driver master table ----
     master = pd.read_csv(args.master_csv)
     master["source"] = "real_computed"
     master["archetype"] = None

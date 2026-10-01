@@ -1,19 +1,9 @@
-"""
-Minimal connectivity test — bypasses FastF1 entirely to isolate whether the earlier
-ConnectionResetError is a general network/TLS problem on this machine, or something
-specific to FastF1's request session/cache wrapper.
 
-Usage:
-    python test_connection.py
-"""
 import sys
 import requests
 
 URL = "https://api.jolpi.ca/ergast/f1/2023/drivers.json?limit=5"
 
-# Jolpica's own docs explicitly require an identifying User-Agent — a generic default
-# one may be silently throttled/ignored rather than rejected outright, which would
-# look exactly like the timeout seen in the previous run.
 HEADERS = {"User-Agent": "F1RaceEngineerDissertation/1.0 (RivalKnowledgeModule)"}
 
 print(f"Python version: {sys.version}")

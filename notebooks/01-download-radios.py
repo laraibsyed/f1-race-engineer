@@ -1,6 +1,4 @@
-"""Downloads the team radios dataset from GCP bucket and saves it as a CSV file in the data/external/team-radios folder. Original
-dataset is in Parquet format, so we read it in chunks and append to a CSV file to avoid memory issues. The final CSV will contain all the transcriptions from the team radios dataset."""
-
+""
 
 import pyarrow.parquet
 import pandas as pd
@@ -16,7 +14,6 @@ client = storage.Client()
 bucket = client.bucket(BUCKET_NAME)
 
 first_batch = True
-
 
 for i in range(5):
     file_name = f"raw/team-radios/train-{i:05d}-of-00005.parquet"

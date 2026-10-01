@@ -1,22 +1,5 @@
-#!/usr/bin/env python3
-"""
-Diagnose the SOFT / Bahrain_Grand_Prix / 2022-2025 cliff-probability stratum
-==============================================================================
-Standalone, READ-ONLY diagnostic. Does not modify hermes_master.py,
-sc-gamble.py, gate-tier-3.py, or tyre_life_projection.py - just inspects
-tyre_life_models.pkl and cliff_detection_stints.csv directly.
 
-Answers, in order (per the agreed decision tree - do NOT touch 0.017,
-cliff_proximity, or the Tier-3 gate until this comes back):
-
-    thin stratum (few events)  -> investigate fallback/confidence handling
-    adequate data              -> inspect the Cox fit + baseline hazard
-    baseline hazard itself
-    non-monotonic in age       -> that's the root cause, found directly
-
-Run from the repo root (same place you run master.py from):
-    python diagnose_cliff_stratum.py
-"""
+""
 import pickle
 import sys
 from pathlib import Path
@@ -24,21 +7,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REPO_ROOT = Path(".")   # edit if you run this from somewhere else
+REPO_ROOT = Path(".")
 COMPOUND = "SOFT"
 CIRCUIT = "Bahrain_Grand_Prix"
 ERA = "2022-2025"
-
 
 def section(title):
     print("\n" + "=" * 78)
     print(title)
     print("=" * 78)
 
-
-# ============================================================================
-# STEP 1: load the pickle, inspect its structure defensively
-# ============================================================================
 section("STEP 1: load tyre_life_models.pkl")
 pkl_path = REPO_ROOT / "tyre_life_models.pkl"
 if not pkl_path.exists():
@@ -66,10 +44,6 @@ print(f"cph: type={type(cph)}")
 print(f"temp_dummy_columns: {temp_dummy_columns}")
 print(f"era_dummy_columns: {era_dummy_columns}")
 
-
-# ============================================================================
-# STEP 2: find the exact regression stratum key
-# ============================================================================
 section(f"STEP 2: find the regression key ({COMPOUND!r}, {CIRCUIT!r}, {ERA!r})")
 target_key = (COMPOUND, CIRCUIT, ERA)
 if reg_models is None:
@@ -87,10 +61,6 @@ else:
     print(f"  keys containing '{CIRCUIT}': {[k for k in reg_models if CIRCUIT in str(k)]}")
     print(f"  keys with compound={COMPOUND}: {[k for k in reg_models if k[0] == COMPOUND][:10]}")
 
-
-# ============================================================================
-# STEP 3: inspect the Cox model itself
-# ============================================================================
 section("STEP 3: inspect the Cox model (cph)")
 if cph is None:
     print("cph is None/missing.")
@@ -108,13 +78,9 @@ else:
     try:
         print("\n  --- cph.print_summary() ---")
         cph.print_summary()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"  print_summary() failed: {e}")
 
-
-# ============================================================================
-# STEP 4: real sample size for this exact stratum, from cliff_detection_stints.csv
-# ============================================================================
 section("STEP 4: cliff_detection_stints.csv - real sample size for this stratum")
 csv_path = REPO_ROOT / "cliff_detection_stints.csv"
 if not csv_path.exists():
@@ -134,11 +100,6 @@ else:
                 return lower_map[c.lower()]
         return None
 
-    # Documented schema first (season,race,session,driver,stint,team,is_rbr,
-    # compound,circuit,n_laps_cleaned,n_laps_true,duration,event,
-    # cliff_tyre_age,slope_ratio,improvement,track_temp_bucket,
-    # fuel_load_estimate,stint_number,regulation_era) - falls back to a
-    # case-insensitive / alias search if these aren't actually present.
     compound_col = find_col(["compound"])
     circuit_col = find_col(["circuit"])
     era_col = find_col(["regulation_era", "era"])
@@ -189,19 +150,13 @@ else:
             if len(near) > 0:
                 print(near[[compound_col, circuit_col, era_col]].drop_duplicates().to_string(index=False))
 
-
-# ============================================================================
-# STEP 5: does the non-monotonicity live in S(t) itself, or in the
-#         1 - S(t+5)/S(t) conditional-probability step?
-# ============================================================================
 section("STEP 5: S(t) monotonicity vs. the 5-lap conditional probability")
 if reg_models is None or cph is None or not temp_dummy_columns or not era_dummy_columns:
     print("Missing reg_models/cph/temp_dummy_columns/era_dummy_columns - can't run this step.")
 else:
     def cox_design_row(fuel_load_estimate, stint_number, circuit_degredation_ordinal,
                         track_temp_bucket, regulation_era):
-        """Same B1-fixed column matching hermes_master.py actually uses -
-        this reflects the model as HERMES calls it today, not the pre-fix bug."""
+        ""
         row = {"fuel_load_estimate": fuel_load_estimate, "stint_number": stint_number,
                "circuit_degredation_ordinal": circuit_degredation_ordinal}
         for col in temp_dummy_columns:
@@ -211,12 +166,9 @@ else:
         row["compound"] = COMPOUND
         return pd.DataFrame([row])
 
-    # Fixed inputs (fuel/stint/temp/degr aren't in the pasted out.jsonl, so
-    # these are reasonable stand-ins) - only tyre_age varies below, isolating
-    # the age term specifically, matching what count_active_triggers() sees.
-    FUEL = 90.0          # ASSUMPTION for this diagnostic only
+    FUEL = 90.0
     STINT_NUMBER = 1
-    TEMP_BUCKET = "hot"  # ASSUMPTION - doesn't change the SHAPE of the age curve
+    TEMP_BUCKET = "hot"
     DEGR_ORDINAL = 1
 
     row = cox_design_row(FUEL, STINT_NUMBER, DEGR_ORDINAL, TEMP_BUCKET, ERA)
@@ -266,7 +218,7 @@ else:
             print(f"using column: {compound_col_bch!r}")
             h = bch[compound_col_bch]
             h_at_ages = h.reindex(h.index.union(ages)).sort_index().ffill().reindex(ages)
-            hazard_rate = h_at_ages.diff()  # approximate instantaneous hazard per lap of age
+            hazard_rate = h_at_ages.diff()
             print(f"\n{'age t':>6} {'H(t) cum.hazard':>18} {'approx hazard rate':>20}")
             for t in ages:
                 if t in h_at_ages.index and not pd.isna(h_at_ages[t]):
@@ -277,7 +229,7 @@ else:
             print("later), that is the direct mechanical explanation for the observed")
             print("cliff_probability_next_5_laps shape - go to Step 4's n/n_events next to")
             print("judge whether this specific stratum's hazard shape is trustworthy.")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"predict_survival_function failed: {e}")
 
 section("Paste this entire output back for the next diagnosis step.")

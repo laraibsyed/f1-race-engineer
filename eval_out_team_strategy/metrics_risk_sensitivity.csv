@@ -1,0 +1,8 @@
+metric,value
+n_rows_with_all_3_modes,1016.0
+mean_conservative_score,-4.4037
+mean_balanced_score,-4.3704
+mean_aggressive_score,-4.3504
+pct_rows_d1_action_differs_conservative_vs_balanced,0.0
+pct_rows_d1_action_differs_balanced_vs_aggressive,0.0
+pct_rows_d1_action_differs_conservative_vs_aggressive,0.0

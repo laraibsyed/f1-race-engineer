@@ -15,7 +15,7 @@ CATEGORIES_DICT = {
         "rear left", "rear right", "compound", "soft", "medium",
         "hard", "inter", "intermediate", "wet tyre", "prime", "option",
         "stint", "no grip", "gone", "dropping off", "losing the rear",
-        "rear is gone", "front is gone", "flat spot", "hot", "overheating tyre", 
+        "rear is gone", "front is gone", "flat spot", "hot", "overheating tyre",
         "rears", "fronts", "rear temp", "front temp"
     ],
     "pace_management": [
@@ -23,7 +23,7 @@ CATEGORIES_DICT = {
         "conserve", "manage", "lift and coast", "lift", "coast",
         "target lap", "delta", "gap", "offset", "fuel", "fuel save",
         "engine mode", "strat", "battery", "deploy",
-        "harvest", "cool down lap", "rain", 
+        "harvest", "cool down lap", "rain",
         "weather", "wind", "last lap was", "lap time", "overtake available",
         "target lap time", "push now", "push hard", "push push",
         "fuel save", "save fuel", "lift and coast", "mode sc",
@@ -58,7 +58,7 @@ CATEGORIES_DICT = {
         "temperature", "water temp", "oil temp", "tyre pressure",
         "pressure", "loss of power", "power loss", "failure",
         "issue", "problem", "retire", "retiring", "stopped",
-        "broken", "leaking", "smoke", "gps", "lost gps", 
+        "broken", "leaking", "smoke", "gps", "lost gps",
         "difficult to drive", "undriveable"
     ],
     "acknowledgement": [
@@ -120,12 +120,5 @@ print(tyre_df["stress_level"].value_counts())
 df["stress_level"] = None
 df.loc[tyre_df.index, "stress_level"] = tyre_df["stress_level"]
 
-# print(tyre_df[tyre_df["stress_level"] == "high"]["transcription"].sample(5).to_list())
-# print(tyre_df[tyre_df["stress_level"] == "informational"]["transcription"].sample(5).to_list())
-
 df.to_csv("data\\external\\team-radios\\classified_radios.csv", index=False)
 
-# negation_pattern = r"\b(don't|do not|not|never|no)\b.{0,20}\b(box|push|stay out|swap)\b"
-# mask = df["transcription"].str.lower().str.contains(negation_pattern, regex=True, na=False)
-# print(df[mask]["transcription"].head(10).to_list())
-# print(f"Total: {mask.sum()}")

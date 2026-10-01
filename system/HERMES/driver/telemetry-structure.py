@@ -1,12 +1,3 @@
-"""
-Follow-up discovery: what's actually IN telemetry_by_lap.csv and results.csv?
-=================================================================================
-The blob count alone doesn't tell us if telemetry_by_lap.csv is a nicely
-aggregated one-row-per-lap file (easy to use) or something else. And we
-haven't looked at results.csv's actual columns yet, despite confirming it
-exists. Check both directly before deciding what's realistically buildable
-for aggression_level / pressure_risk_tolerance / defensive_strength.
-"""
 
 import os
 import pandas as pd

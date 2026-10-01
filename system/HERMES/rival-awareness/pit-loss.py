@@ -1,17 +1,3 @@
-"""
-Rival Knowledge — Pit-Loss Diagnostic
-========================================
-The SC/VSC exclusion fix to compute_pit_lane_loss() made the outlier problem WORSE
-(15 -> 49 races outside the plausible 8-35s range), the opposite of what was predicted.
-Rather than guess again, this dumps the raw per-driver-stint data compute_pit_lane_loss
-actually used for ONE specific broken case, so we can see the real mechanism.
-
-Target case: 2023 British Grand Prix, which now shows pit_loss_constant_s = 0.042s
-and n_events = 0 — a degenerate near-zero result, not just "low".
-
-Usage:
-    python diagnose_pit_loss.py
-"""
 
 import knowledge as rk
 import pandas as pd
@@ -34,8 +20,6 @@ print(f"\nis_vsc_lap value counts:\n{features_df['is_vsc_lap'].value_counts(drop
 print(f"\nis_pit_in value counts:\n{features_df['is_pit_in'].value_counts(dropna=False)}")
 print(f"\nis_pit_out value counts:\n{features_df['is_pit_out'].value_counts(dropna=False)}")
 
-# Replicate compute_pit_lane_loss's per-stint logic but print everything instead of
-# just returning a final number, so we can see exactly which laps are being compared.
 for (driver, stint), g in features_df.groupby(["Driver", "Stint"]):
     pit_in_rows = g[g["is_pit_in"].fillna(False).astype(bool)]
     pit_out_rows = g[g["is_pit_out"].fillna(False).astype(bool)]
@@ -73,7 +57,6 @@ for (driver, stint), g in features_df.groupby(["Driver", "Stint"]):
         print(f"  PIT_OUT lap {row['LapNumber']}: LapTime_s={row['LapTime_s']:.3f}, "
               f"under_SC/VSC={bool(under_sc)}, loss_if_counted={row['LapTime_s'] - baseline:.3f}")
 
-
 print("\n" + "=" * 70)
 print("VERIFICATION: real PitOutTime-PitInTime duration vs out-lap-based proxy")
 print("=" * 70)
@@ -95,10 +78,10 @@ for _, in_row in sorted_df[sorted_df["is_pit_in"].fillna(False).astype(bool)].it
     if (driver, out_lap) not in indexed.index:
         continue
     out_row = indexed.loc[(driver, out_lap)]
-    if isinstance(out_row, pd.DataFrame):  # defensive, in case of any duplicate index
+    if isinstance(out_row, pd.DataFrame):
         out_row = out_row.iloc[0]
     if not bool(out_row.get("is_pit_out", False)):
-        continue  # the following lap wasn't actually the matching pit-out
+        continue
 
     real_duration = None
     try:
@@ -106,7 +89,6 @@ for _, in_row in sorted_df[sorted_df["is_pit_in"].fillna(False).astype(bool)].it
     except Exception:
         pass
 
-    # Recompute the same stint's clean baseline the out-lap proxy would use
     stint_mask = (features_df["Driver"] == driver) & (features_df["Stint"] == out_row["Stint"])
     stint_laps = features_df[stint_mask]
     clean_mask = (

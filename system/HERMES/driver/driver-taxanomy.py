@@ -1,28 +1,3 @@
-"""
-Driver Taxonomy — Sampled-Race Aggression/Defense Scoring
-================================================================
-Builds real, data-derived aggression_level and defensive_strength scores
-per driver (matching driver_archetypes.xlsx's convention), using a SAMPLED
-set of races per driver rather than the full 197,909-file archive - a
-deliberate scope decision given the project timeline. Sound because the
-underlying reconstruction logic has already been validated to generalize
-correctly across 3 genuinely different race types (2018 Abu Dhabi/Track,
-2019 Monaco/Street, 2023 Bahrain/Track post-2022-regs) - Monaco correctly
-showed far fewer overtakes and a far higher defense-hold rate, matching real
-motorsport knowledge, including one specific, checkable match (Hamilton's
-famous defensive drive at 2019 Monaco).
-
-DUPLICATES the core reconstruction logic from overtake_defense_poc.py rather
-than importing it - that file's name has a hyphen (overtake-defense.py) and
-can't be imported as a Python module directly. Keep both in sync if either
-changes.
-
-SAMPLING STRATEGY: for each driver with >=20 career races, sample
-N_RACES_PER_DRIVER races, STRATIFIED by circuit_type (real values confirmed
-from circuit_taxonomy.xlsx: "Track" or "Street", not assumed) so a driver's
-sample isn't accidentally all-one-circuit-character by chance - Monaco vs.
-Bahrain just proved that would badly distort results.
-"""
 
 import argparse
 import os
@@ -37,12 +12,9 @@ load_dotenv()
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CLOSE_FOLLOWING_SECONDS = 1.0
-MIN_CAREER_RACES = 20    # matches the Second Driver Logic diagram's own archetype-fallback threshold
-CIRCUIT_TAXONOMY_PATH = "src/taxanomy/circuit_taxonomy.xlsx"  # forward slashes - was
-                          # a Windows-only backslash path, would break on the Linux VM
+MIN_CAREER_RACES = 20
+CIRCUIT_TAXONOMY_PATH = "src/taxanomy/circuit_taxonomy.xlsx"
 
-# Same circuit_id <-> race name mapping already built and used for the Cox
-# model - reused here rather than rebuilt, for consistency.
 CIRCUIT_ID_TO_RACE_NAMES = {
     "MEL": ["Australian_Grand_Prix"], "BAH": ["Bahrain_Grand_Prix", "Sakhir_Grand_Prix"],
     "CHN": ["Chinese_Grand_Prix"], "AZR": ["Azerbaijan_Grand_Prix"], "SPN": ["Spanish_Grand_Prix"],
@@ -58,7 +30,6 @@ CIRCUIT_ID_TO_RACE_NAMES = {
     "IST": ["Turkish_Grand_Prix"], "DUT": ["Dutch_Grand_Prix"], "QTR": ["Qatar_Grand_Prix"],
     "KSA": ["Saudi_Arabian_Grand_Prix"], "MIA": ["Miami_Grand_Prix"], "LAS": ["Las_Vegas_Grand_Prix"],
 }
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=os.environ.get("GCS_CACHE_DIR", "./gcs_cache")):
@@ -79,12 +50,7 @@ class CachedBucket:
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
     def read_bytes(self, blob_path):
-        """Same read-through cache pattern as read_csv, but for raw telemetry
-        JSON files. Previously bypassed entirely - build_lap_summaries_for_race
-        called bucket.bucket.blob(path).download_as_bytes() directly, so every
-        run re-downloaded all ~50 races' telemetry from scratch even on a
-        crash/retry. At this scale (hundreds of files per race) that's the
-        difference between a re-run being instant vs. redoing an hour of work."""
+        ""
         local_path = os.path.join(self.cache_dir, blob_path)
         if os.path.exists(local_path):
             with open(local_path, "rb") as f:
@@ -95,13 +61,8 @@ class CachedBucket:
             f.write(data)
         return data
 
-
-# ---------------------------------------------------------------------------
-# Step 1: who qualifies, and what races has each driver actually run?
-# ---------------------------------------------------------------------------
 def build_driver_race_participation(bucket: CachedBucket) -> pd.DataFrame:
-    """Scans every Race-session results.csv (small files, ~20 rows each -
-    much lighter than telemetry) to build a full participation history."""
+    ""
     paths = [p for p in bucket.list_blob_names("raw/fastf1/") if p.endswith("/R/results.csv")]
     rows = []
     for p in paths:
@@ -112,9 +73,8 @@ def build_driver_race_participation(bucket: CachedBucket) -> pd.DataFrame:
             rows.append({"season": season, "race": race, "driver": driver})
     return pd.DataFrame(rows)
 
-
 def get_circuit_type_lookup() -> dict:
-    """race_underscore -> "Track"/"Street", via circuit_id mapping."""
+    ""
     taxonomy = pd.read_excel(CIRCUIT_TAXONOMY_PATH)[["circuit_id", "circuit_type"]]
     race_to_type = {}
     for _, row in taxonomy.iterrows():
@@ -122,40 +82,25 @@ def get_circuit_type_lookup() -> dict:
             race_to_type[race_name] = row["circuit_type"]
     return race_to_type
 
+RACES_PER_SEASON = 6
 
-RACES_PER_SEASON = 6     # global sample size per season - gives ~50-60 total races regardless
-                          # of driver count, vs. the old up-to-468 driver-race pairs
-MIN_RACES_WITH_DATA = 15  # was 5 - too low: a handful of drivers at exactly 5-6 races
-                           # (e.g. MAZ, KUB) topped aggression_level purely from small-sample
-                           # noise, contradicting known real-world driver reputations - the
-                           # exact failure mode already documented in the project's own
-                           # established practices. Override at runtime with --min-races-with-data.
+MIN_RACES_WITH_DATA = 15
 
 CHECKPOINT_DIR = os.environ.get("CHECKPOINT_DIR", "./race_checkpoints")
-
 
 def checkpoint_path(season, race) -> str:
     return os.path.join(CHECKPOINT_DIR, f"{season}_{race}.json")
 
-
 def save_checkpoint(season, race, counts_per_driver: pd.DataFrame, status: str = "ok") -> None:
-    """One JSON file per PROCESSED race, written the moment that race finishes
-    - not just at the end. status is only ever "ok" or "empty" (a real,
-    deterministic outcome for that race) - an exception is NEVER checkpointed,
-    since a network blip is transient and should retry next run, not be
-    treated as a permanent result for that race."""
+    ""
     os.makedirs(CHECKPOINT_DIR, exist_ok=True)
     payload = {"status": status, "season": season, "race": race,
                "counts": counts_per_driver.to_dict(orient="index") if status == "ok" else {}}
     with open(checkpoint_path(season, race), "w") as f:
         json.dump(payload, f)
 
-
 def load_checkpoint(season, race):
-    """Returns None if this race hasn't been checkpointed yet (needs
-    processing). Returns a counts-per-driver DataFrame (possibly empty) if it
-    has - so a dead-and-restarted run skips every race already done and picks
-    up exactly where it left off."""
+    ""
     path = checkpoint_path(season, race)
     if not os.path.exists(path):
         return None
@@ -165,21 +110,9 @@ def load_checkpoint(season, race):
         return pd.DataFrame()
     return pd.DataFrame.from_dict(payload["counts"], orient="index")
 
-
 def build_global_race_sample(participation: pd.DataFrame, race_to_type: dict,
                                races_per_season: int = RACES_PER_SEASON, seed: int = 42) -> list:
-    """
-    ARCHITECTURAL FIX: the previous design sampled races PER DRIVER, meaning
-    two drivers who happened to share a sampled race caused that race's
-    ~900-1500 telemetry files to be downloaded and processed TWICE - once per
-    driver - despite every race's data already containing all ~20 drivers on
-    track. This wasted most of the actual runtime. Fixed here: one GLOBAL,
-    stratified sample of races (per season, by circuit_type), each processed
-    EXACTLY ONCE, with every driver present in that race credited from the
-    same single pass - a driver's effective sample size is just "however many
-    of these global races their career happened to overlap," which naturally
-    scales with career length without any per-driver sampling logic at all.
-    """
+    ""
     rng = random.Random(seed)
     races_with_type = participation.copy()
     races_with_type["circuit_type"] = races_with_type["race"].map(race_to_type)
@@ -195,13 +128,8 @@ def build_global_race_sample(participation: pd.DataFrame, race_to_type: dict,
 
     return sampled
 
-
-# ---------------------------------------------------------------------------
-# Step 2: the validated reconstruction logic, duplicated from overtake_defense_poc.py
-# ---------------------------------------------------------------------------
 def race_name_underscore_to_space(race: str) -> str:
     return race.replace("_", " ")
-
 
 def extract_lap_summary(json_bytes: bytes) -> dict:
     data = json.loads(json_bytes)
@@ -234,7 +162,6 @@ def extract_lap_summary(json_bytes: bytes) -> dict:
 
     return {"driver_ahead": driver_ahead_mode, "min_gap_seconds": gap_seconds_at_min, "mean_speed_kmh": mean_speed_kmh}
 
-
 def build_lap_summaries_for_race(bucket: CachedBucket, season: int, race_underscore: str,
                                    session: str = "Race") -> pd.DataFrame:
     race_space = race_name_underscore_to_space(race_underscore)
@@ -255,10 +182,8 @@ def build_lap_summaries_for_race(bucket: CachedBucket, season: int, race_undersc
         rows.append(summary)
     return pd.DataFrame(rows)
 
-
 def _is_unknown(value) -> bool:
     return isinstance(value, float) and np.isnan(value)
-
 
 def compute_cumulative_elapsed_time(laps_features_df: pd.DataFrame) -> pd.DataFrame:
     df = laps_features_df.copy()
@@ -270,14 +195,12 @@ def compute_cumulative_elapsed_time(laps_features_df: pd.DataFrame) -> pd.DataFr
     return df[["Driver", "LapNumber", "lap_mid_elapsed_seconds"]].rename(
         columns={"Driver": "driver", "LapNumber": "lap_number"})
 
-
 def find_time_aligned_lap(defender_code: str, target_elapsed_seconds: float, lap_summaries_with_time: pd.DataFrame):
     defender_rows = lap_summaries_with_time[lap_summaries_with_time["driver"] == defender_code]
     if defender_rows.empty:
         return None
     idx = (defender_rows["lap_mid_elapsed_seconds"] - target_elapsed_seconds).abs().idxmin()
     return defender_rows.loc[idx]
-
 
 def reconstruct_overtakes_and_defenses(lap_summaries: pd.DataFrame, pit_laps: set,
                                          laps_features_df: pd.DataFrame,
@@ -320,10 +243,8 @@ def reconstruct_overtakes_and_defenses(lap_summaries: pd.DataFrame, pit_laps: se
 
     return pd.DataFrame(events)
 
-
 def process_one_race(bucket: CachedBucket, season: int, race: str) -> pd.DataFrame:
-    """Quiet version of overtake_defense_poc.py's run_proof_of_concept - no
-    per-race printing, just returns events, for use inside the aggregation loop."""
+    ""
     pit_path = f"clean/features/{season}/{race}/R/laps_features.csv"
     pit_df = bucket.read_csv(pit_path, usecols=["Driver", "DriverNumber", "LapNumber", "LapTime",
                                                   "is_pit_in", "is_pit_out"])
@@ -344,31 +265,15 @@ def process_one_race(bucket: CachedBucket, season: int, race: str) -> pd.DataFra
     lap_summaries["driver_ahead"] = lap_summaries["driver_ahead"].apply(_map_driver_ahead)
     return reconstruct_overtakes_and_defenses(lap_summaries, pit_laps, laps_features_df=pit_df)
 
-
-# ---------------------------------------------------------------------------
-# Step 3: aggregate across the sample, normalize into archetype-style scores
-# ---------------------------------------------------------------------------
 def normalize_to_archetype_range(series: pd.Series, low: float = 0.85, high: float = 1.15,
                                   fit_mask: pd.Series = None) -> pd.Series:
-    """Min-max scale into the same 0.85-1.15 range driver_archetypes.xlsx uses,
-    so these scores are directly comparable to/interchangeable with the
-    manual archetype fallback values for drivers below the race threshold.
-
-    fit_mask restricts which rows DEFINE the min/max used for scaling (e.g.
-    only non-thin-sample drivers), while every row (including thin-sample
-    ones) still gets scaled against that range and returned. Without this,
-    a single 5-race outlier (e.g. a driver at 16.0 overtakes/race from a tiny
-    sample) sets the top of the whole scale, artificially compressing every
-    reliable driver's score toward the middle just to accommodate one noisy
-    data point - exactly the small-sample distortion this project has
-    repeatedly had to catch and fix."""
+    ""
     fit_values = series[fit_mask] if fit_mask is not None else series
     lo, hi = fit_values.min(), fit_values.max()
     if hi == lo:
         return pd.Series(1.0, index=series.index)
     scaled = low + (series - lo) / (hi - lo) * (high - low)
-    return scaled.clip(low, high)  # thin-sample rows outside the fit range get clamped, not left to blow past it
-
+    return scaled.clip(low, high)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -403,9 +308,7 @@ if __name__ == "__main__":
           f"regardless of how many drivers qualify) - was up to {len(qualifying_drivers) * 12} "
           f"under the old per-driver design")
 
-    # Accumulate raw counts per driver across every race they actually appear
-    # in from the global sample - one pass per race, not one pass per driver.
-    driver_counts = {}  # driver -> {"overtakes": n, "defense_held": n, "defense_lost": n, "races_with_data": n}
+    driver_counts = {}
 
     n_skipped_from_checkpoint = 0
     for i, (season, race) in enumerate(global_sample, 1):
@@ -434,7 +337,7 @@ if __name__ == "__main__":
 
         for driver, row in counts_per_driver.iterrows():
             if driver not in qualifying_drivers:
-                continue  # not enough career races to trust a real score - archetype fallback instead
+                continue
             stats = driver_counts.setdefault(driver, {"overtakes": 0, "defense_held": 0,
                                                          "defense_lost": 0, "races_with_data": 0})
             stats["overtakes"] += row.get("overtake_made", 0)

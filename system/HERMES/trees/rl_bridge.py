@@ -1,41 +1,4 @@
-"""
-RL -> Gate Tree -> Execution Tree integration adapter
-==========================================================
-NEW FILE. This is the ONLY place a trained rl_agent.TabularQAgent output is
-turned into HERMES-shaped fields and combined with the (unmodified) Gate
-Tree / Execution Tree decision. It does not change how the Gate Tree or
-Execution Tree decide anything - it only ATTACHES an informational RL
-recommendation alongside their real output and records whether the two
-agreed.
-
-ARCHITECTURE (exactly as specified - RL never overrides safety):
-
-    predictive models (tyre_life_projection, real fitted regression/Cox)
-        -> state representation (rl_env._discretize - reused verbatim here)
-        -> Q-learning strategic policy (rl_agent.TabularQAgent, greedy)
-        -> Gate Tree (gate-tier-1/2/3, UNCHANGED) - safety/regulatory authority
-        -> Execution Tree (execution-tree, UNCHANGED) - final executable instruction
-        -> explanation (this file's explain_rl_decision + master.py's own
-           explanation_for, extended additively)
-
-The RL recommendation is advisory strategic input: "here is the action the
-learned policy would take". The Gate Tree still runs its own, independent,
-validated logic against the SAME lap and produces the decision that
-actually reaches the Execution Tree. If they disagree, that disagreement is
-reported, not silently resolved in RL's favour.
-
-Two ways this module is used:
-  1. rl_recommend_for_state(agent, state, valid_actions) - pure function,
-     works on any discretised state tuple (used by rl_validate.py's decision
-     trace and by the synthetic HERMES-integration demo).
-  2. rl_recommend_for_hermes_row(agent, tyre_models, cliff_stints, taxonomy,
-     sc_prior, row, ctx, state) - discretises a REAL master.py per-lap `row`
-     the SAME way rl_env.py discretises its simulated state (same compound
-     families, same calibrated thresholds, same undercut/dirty-air helpers),
-     using ONLY information already available at that lap (no lookahead -
-     see the "no future information" note below), so it can be attached to
-     an actual replay decision (see master.py's optional --rl flag).
-"""
+""
 from __future__ import annotations
 
 import sys
@@ -43,24 +6,19 @@ from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from rl_agent import ACTIONS, TabularQAgent  # noqa: E402
-import rl_env as _rl_env  # noqa: E402  (re-exports `master`, the unmodified master.py module)
+from rl_agent import ACTIONS, TabularQAgent
+import rl_env as _rl_env
 
 master = _rl_env.master
 
-
 def rl_recommend_for_state(agent: TabularQAgent, state: tuple, valid_actions: list) -> dict:
-    """Pure Q-table lookup for an already-discretised state. Returns the
-    recommended action, its Q-value, a simple confidence measure (the gap
-    between the best and second-best LEGAL Q-value - large gap = confident,
-    near-zero gap = a genuine toss-up), and every legal action's Q-value for
-    explainability (Step 12)."""
+    ""
     qv = agent.q_values(state)
     legal_qv = {a: float(qv[ACTIONS.index(a)]) for a in valid_actions}
     ranked = sorted(legal_qv.items(), key=lambda kv: kv[1], reverse=True)
     best_action, best_q = ranked[0]
     second_q = ranked[1][1] if len(ranked) > 1 else best_q
-    confidence = float(best_q - second_q)   # seconds of Q-value margin, not a probability
+    confidence = float(best_q - second_q)
     return {
         "rl_strategy_action": best_action,
         "rl_q_value": best_q,
@@ -70,13 +28,6 @@ def rl_recommend_for_state(agent: TabularQAgent, state: tuple, valid_actions: li
         "rl_valid_actions": list(valid_actions),
     }
 
-
-# Map a Gate/Execution Tree outcome onto the SAME 4-action vocabulary RL
-# uses, so agreement can be checked directly. STAY_OUT covers every
-# non-pitting instruction (PUSH/NEUTRAL/MANAGE/CONSERVE); PIT_LAP is mapped
-# to the compound family HERMES's own Tier-2/3 state implies (family of the
-# CURRENT compound, since neither Gate Tree nor Execution Tree currently
-# choose a specific incoming compound - documented limitation, not guessed).
 def _hermes_action_from_result(result: dict) -> Optional[str]:
     execution = result.get("execution") or {}
     instruction = execution.get("driving_instruction")
@@ -87,24 +38,8 @@ def _hermes_action_from_result(result: dict) -> Optional[str]:
         return {"SOFT": "PIT_SOFT", "MEDIUM": "PIT_MEDIUM", "HARD": "PIT_HARD"}[family]
     return "STAY_OUT"
 
-
 def discretize_hermes_result(result: dict, ctx) -> tuple:
-    """Discretises a REAL master.evaluate_driver_lap() `result` dict into
-    EXACTLY the state representation rl_env.HermesStrategyEnv._discretize()
-    uses, so the same trained Q-table applies to both the simulated
-    environment and a real replay lap.
-
-    Uses ONLY fields master.evaluate_driver_lap already computed for THIS
-    lap (compound, tyre_age, lap number, projection, and - when Tier 3 ran -
-    its OWN real trigger booleans for safety_car/undercut/rival_undercut_threat,
-    reused directly rather than re-derived) - no lookahead, no future row is
-    read anywhere in this function (Step 14 test #7).
-
-    If gate_tree_trigger_tier is 1 or 2, Tier 3 never ran for this lap (the
-    Gate Tree already decided PIT_NOW/PIT_FLEXIBLE on safety/regulatory
-    grounds alone) - sc/gap default to their neutral values in that case,
-    since the Gate Tree's decision governs regardless of what RL would have
-    said (see combine_with_gate_tree)."""
+    ""
     compound = result.get("compound")
     family = _rl_env.COMPOUND_FAMILY.get(compound, "MEDIUM")
     tyre_age = float(result.get("tyre_age") or 0.0)
@@ -137,30 +72,23 @@ def discretize_hermes_result(result: dict, ctx) -> tuple:
 
     triggers = result.get("triggers") or {}
     sc_active = bool(triggers.get("safety_car", False))
-    rain_now = False   # weather is a Tier-1 hard-gate signal handled entirely by the Gate Tree before
-                        # Tier 3 (and RL) ever run for this lap - see combine_with_gate_tree's Tier-1 note
+    rain_now = False
+
     threat_behind = bool(triggers.get("rival_undercut_threat", False))
     opportunity_ahead = bool(triggers.get("undercut", False))
     gap_state = "THREAT_BEHIND" if threat_behind else ("OPPORTUNITY_AHEAD" if opportunity_ahead else "NEUTRAL")
 
-    sets_bucket = "OK"   # real per-compound set tracking is Tier 2's job (BP §7-B10); RL sees the
-                          # generic "OK" bucket on real replay rows, same None-safe spirit as elsewhere -
-                          # documented limitation, not a fabricated count.
+    sets_bucket = "OK"
 
     return (family, age_bucket, phase, cliff_bucket, sc_active, rain_now, gap_state, sets_bucket)
 
-
 def rl_recommend_for_hermes_result(agent: TabularQAgent, result: dict, ctx) -> dict:
     state = discretize_hermes_result(result, ctx)
-    valid_actions = list(ACTIONS)   # rain masking is Tier 1's job on a real replay lap (see above)
+    valid_actions = list(ACTIONS)
     return rl_recommend_for_state(agent, state, valid_actions)
 
-
 def combine_with_gate_tree(rl_out: dict, hermes_result: dict) -> dict:
-    """The actual RL -> Gate Tree -> Execution Tree combination. Returns a
-    dict with the RL recommendation, the Gate/Execution Tree's real
-    decision (untouched), whether they agree, and a plain-English note on
-    which one governs and why (Step 9/12)."""
+    ""
     hermes_action = _hermes_action_from_result(hermes_result)
     agree = (hermes_action is not None) and (hermes_action == rl_out["rl_strategy_action"])
     gate_tier = hermes_result.get("gate_tree_trigger_tier")
@@ -187,10 +115,8 @@ def combine_with_gate_tree(rl_out: dict, hermes_result: dict) -> dict:
         "override_reason": override_reason,
     }
 
-
 def explain_rl_decision(rl_out: dict) -> str:
-    """Step 12: an explanation that corresponds EXACTLY to the Q-table
-    values just used - not a templated natural-language guess."""
+    ""
     lines = [f"RL strategic recommendation: {rl_out['rl_strategy_action']}",
              f"Reason: {rl_out['rl_strategy_action']} had the highest learned Q-value "
              f"({rl_out['rl_q_value']:+.2f}) among the legal actions for state {rl_out['rl_state']}.",

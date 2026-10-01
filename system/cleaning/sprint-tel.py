@@ -1,27 +1,3 @@
-"""
-backfill_telemetry_fastf1.py
-
-Fills the 25 known telemetry gaps identified by coverage_check.py -- all
-Sprint sessions (tracinginsights never collected Sprint telemetry) and
-2018 Australian GP + Bahrain GP (zero telemetry files in tracinginsights
-for those two specifically) -- by pulling telemetry DIRECTLY from FastF1's
-own API instead. FastF1 supports telemetry for 'S' (Sprint) sessions and
-for the full 2018+ span, so this isn't asking for data that doesn't
-exist -- it's just going to a different, more complete source for these
-specific sessions.
-
-Output format matches align_telemetry.py's telemetry_by_lap.csv exactly
-(same columns, same one-row-per-driver-per-lap shape, same output path),
-so downstream feature engineering doesn't need to know or care which
-source a given session's telemetry came from.
-
-Requirements:
-    pip install fastf1 google-cloud-storage pandas python-dotenv --break-system-packages
-
-Usage:
-    python backfill_telemetry_fastf1.py            # all 25 known gaps
-    python backfill_telemetry_fastf1.py --year 2018  # just 2018 gaps
-"""
 
 import argparse
 import io
@@ -40,10 +16,6 @@ FASTF1_CACHE_DIR = Path("./fastf1_cache")
 FASTF1_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 fastf1.Cache.enable_cache(str(FASTF1_CACHE_DIR))
 
-# The 25 sessions coverage_check.py flagged as MISSING, confirmed via
-# direct bucket inspection to be genuine tracinginsights gaps (not a
-# naming bug -- see conversation/lineage notes). Format matches
-# clean/fastf1/ folder naming: (year, race_with_underscores, session_code).
 KNOWN_GAPS = [
     ("2018", "Australian_Grand_Prix", "R"),
     ("2018", "Bahrain_Grand_Prix", "R"),
@@ -72,9 +44,8 @@ KNOWN_GAPS = [
     ("2026", "Miami_Grand_Prix", "S"),
 ]
 
-
 class CachedBucket:
-    """Same read/write-through pattern as clean_laps.py / align_telemetry.py."""
+    ""
 
     def __init__(self, bucket_name: str, cache_dir: Path = CACHE_DIR):
         print(f"[init] Connecting to GCS bucket '{bucket_name}' ...")
@@ -98,9 +69,7 @@ class CachedBucket:
             return True
         return self.bucket.blob(blob_path).exists(timeout=30)
 
-
 bucket = CachedBucket(BUCKET_NAME)
-
 
 def backfill_session(year: str, race: str, session: str, force: bool = False) -> bool:
     out_path = f"clean/tracinginsights/{year}/{race}/{session}/telemetry_by_lap.csv"
@@ -171,7 +140,6 @@ def backfill_session(year: str, race: str, session: str, force: bool = False) ->
     bucket.upload_from_string(out_path, buf.getvalue(), content_type="text/csv")
     print(f"    Wrote {out_path} ({len(combined)} driver-lap rows)")
     return True
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

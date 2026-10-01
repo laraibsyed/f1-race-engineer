@@ -19,12 +19,11 @@ fastf1.Cache.enable_cache(CACHE_DIR)
 client = storage.Client()
 bucket = client.bucket(BUCKET_NAME)
 
-# Only real missing sessions — sprints excluded (naming convention issue)
 TO_REDOWNLOAD = [
-    # Missing
+
     (2019, 17, "FP3"),
     (2021, 15, "FP3"),
-    # Incomplete — force redownload
+
     (2020,  2, "FP3"),
     (2020, 11, "FP1"),
     (2020, 11, "FP2"),
@@ -93,7 +92,6 @@ def download_session(year, round_num, session_name):
     if not results_df.empty:
         upload_df_to_gcs(results_df,  f"{base_path}/results.csv")
 
-# --- MAIN ---
 print(f"Redownloading {len(TO_REDOWNLOAD)} sessions...\n")
 
 for year, round_num, session_name in TO_REDOWNLOAD:

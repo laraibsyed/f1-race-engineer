@@ -1,27 +1,3 @@
-"""
-SC/VSC Empirical Prior — Proper Validation
-================================================
-Redesigned validation, fixing two real problems with the first attempt:
-
-1. The model itself was underspecified. get_sc_probability() only ever
-   returned a per-lap point estimate, but sc_gamble_evaluator.py already
-   expected a windowed probability (p_sc_next_n_laps). Fixed in
-   sc_vsc_probability_model.py FIRST - this validation tests the corrected,
-   properly-defined quantity: P(SC/VSC begins within the next HORIZON_LAPS
-   laps), not an ambiguous instantaneous rate.
-
-2. The first validation's 198-pair paired sample and pooled AUC mixed
-   circuits in a way that either leaked circuit-level baseline differences
-   into a supposedly lap-specific test, or under-used the available data.
-   Fixed here: every lap of every race is used (not one hand-picked control
-   lap per race), and confidence intervals are computed via a RACE-LEVEL
-   bootstrap (resampling whole races, not individual laps) - respecting that
-   laps within the same race are not independent observations.
-
-METRICS: AUC, calibration (reliability) table, Brier score - the same
-methodology used for the Cox model's ROC validation earlier in this project,
-now applied properly at scale.
-"""
 
 import os
 import pandas as pd
@@ -36,7 +12,6 @@ load_dotenv()
 HORIZON_LAPS = 5
 MIN_RACES_FOR_RELIABLE_PRIOR = 4
 N_BOOTSTRAP = 1000
-
 
 class CachedBucket:
     def __init__(self, bucket_name=os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket"),
@@ -57,7 +32,6 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 def load_race_sessions(bucket: CachedBucket) -> pd.DataFrame:
     paths = bucket.list_blob_names("clean/features/")
     frames = []
@@ -71,10 +45,8 @@ def load_race_sessions(bucket: CachedBucket) -> pd.DataFrame:
         frames.append(df)
     return pd.concat(frames, ignore_index=True)
 
-
 def compute_race_lap_extents(laps: pd.DataFrame) -> pd.DataFrame:
     return laps.groupby(["Season", "Race"])["LapNumber"].max().reset_index(name="total_race_laps")
-
 
 def compute_deployment_by_lap(laps: pd.DataFrame) -> pd.DataFrame:
     return laps.groupby(["Season", "Race", "LapNumber"]).agg(
@@ -82,11 +54,9 @@ def compute_deployment_by_lap(laps: pd.DataFrame) -> pd.DataFrame:
         vsc_deployed=("is_vsc_deployed_lap", "any"),
     ).reset_index()
 
-
 def build_loo_prior(extents: pd.DataFrame, deployment: pd.DataFrame, circuit: str,
                      exclude_season: int, horizon: int = HORIZON_LAPS) -> pd.DataFrame:
-    """Same windowed-probability logic as sc_vsc_probability_model.py, for
-    ONE circuit, excluding one season (leave-one-out)."""
+    ""
     race_extents = extents[(extents["Race"] == circuit) & (extents["Season"] != exclude_season)]
     race_deployment = deployment[(deployment["Race"] == circuit) & (deployment["Season"] != exclude_season)]
     if race_extents.empty:
@@ -111,15 +81,8 @@ def build_loo_prior(extents: pd.DataFrame, deployment: pd.DataFrame, circuit: st
         rows.append({"lap_number": lap, "p_incident_within_horizon": n_incident / n_reach})
     return pd.DataFrame(rows)
 
-
 def build_full_validation_dataset(laps: pd.DataFrame, horizon: int = HORIZON_LAPS) -> pd.DataFrame:
-    """
-    EVERY lap of EVERY race (not a hand-picked sample): predicted probability
-    (leave-one-race-out) vs. actual outcome (did SC/VSC begin within the
-    next `horizon` laps, in THIS specific race). LOO prior is built ONCE per
-    (circuit, season) - not recomputed per lap - since it only depends on
-    which season is excluded, not which lap is being evaluated.
-    """
+    ""
     extents = compute_race_lap_extents(laps)
     deployment = compute_deployment_by_lap(laps)
 
@@ -151,10 +114,8 @@ def build_full_validation_dataset(laps: pd.DataFrame, horizon: int = HORIZON_LAP
 
     return pd.DataFrame(all_rows)
 
-
 def race_level_bootstrap_auc(dataset: pd.DataFrame, n_bootstrap: int = N_BOOTSTRAP, seed: int = 42) -> tuple:
-    """Resamples WHOLE (circuit, season) races with replacement - respects
-    that laps within a race aren't independent, unlike a naive per-row bootstrap."""
+    ""
     rng = np.random.default_rng(seed)
     race_keys = dataset[["circuit", "season"]].drop_duplicates().to_records(index=False).tolist()
 
@@ -167,11 +128,10 @@ def race_level_bootstrap_auc(dataset: pd.DataFrame, n_bootstrap: int = N_BOOTSTR
             pieces.append(dataset[(dataset["circuit"] == circuit) & (dataset["season"] == season)])
         resampled = pd.concat(pieces, ignore_index=True)
         if resampled["actual"].nunique() < 2:
-            continue  # can't compute AUC with only one class present
+            continue
         aucs.append(roc_auc_score(resampled["actual"], resampled["predicted_p"]))
 
     return np.percentile(aucs, 2.5), np.percentile(aucs, 97.5)
-
 
 if __name__ == "__main__":
     bucket = CachedBucket()

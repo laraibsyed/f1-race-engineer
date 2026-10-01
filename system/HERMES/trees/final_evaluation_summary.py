@@ -1,26 +1,5 @@
-#!/usr/bin/env python3
-"""
-HERMES Final Decision-Quality Evaluation Summary (closure task, 2026-09-30)
-============================================================================
-READ-ONLY CONSOLIDATION. Does not modify master.py, any tree/module file, any
-decision logic, or any existing evaluation script. Reads back CSVs that
-evaluate.py (`--fold-mode`, the clean walk-forward run) and
-strategic_window_validation.py already wrote to eval_out_clean/ and
-eval_out_strategic_window/, and assembles them into the single final
-evaluation table + 5-question conclusion required to close the HERMES
-evaluation chapter. Computes NO new statistic that isn't already a column in
-one of those existing CSVs - this file only selects, relabels and formats.
 
-WHY eval_out_clean/ (not eval_out/): eval_out_clean/ is the CLEAN walk-forward
-run (models/thresholds refit on training years only per fold via
-model-fit-fold.py, audited for future-season leakage by audit.py) and is the
-only run with null-control results (controls.csv). eval_out/ is the leaky
-all-data-fit run; its numbers are reported as supplementary context only
-where eval_out_clean/ is missing something (it is not).
-
-USAGE (from the repo root):
-    .\\.venv\\Scripts\\python.exe system\\HERMES\\trees\\final_evaluation_summary.py
-"""
+""
 from __future__ import annotations
 
 import argparse
@@ -29,7 +8,6 @@ from pathlib import Path
 import pandas as pd
 
 pd.set_option("display.width", 160)
-
 
 def load_all(repo_root: Path) -> dict:
     clean = repo_root / "eval_out_clean"
@@ -45,7 +23,6 @@ def load_all(repo_root: Path) -> dict:
         sw_baseline_overall=pd.read_csv(sw / "strategic_window_baseline_aggregate_overall.csv"),
     )
     return d
-
 
 def main():
     ap = argparse.ArgumentParser(description="HERMES final decision-quality evaluation summary (read-only)")
@@ -282,7 +259,6 @@ def main():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")
     print(f"\n[final_evaluation_summary] wrote {out_path}")
-
 
 if __name__ == "__main__":
     main()

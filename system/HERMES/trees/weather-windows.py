@@ -1,19 +1,5 @@
-#!/usr/bin/env python3
-"""
-Pull weather_cleaned.csv (or raw weather.csv fallback), time-aligned to the
-same lap windows already inspected in laps_features.csv - step 3, still
-read-only, no fix.
 
-Standalone. Does not modify hermes_master.py or any weather module file.
-
-WHY THIS IS NECESSARY (confirmed by the previous step, not assumed):
-'Rainfall' does not exist as a column in laps_features.csv at all - it lives
-in weather.csv / weather_cleaned.csv, a separate, TIME-indexed file
-hermes_master.py never loads for its per-lap decisions. This pulls that
-real file directly and aligns it to the same three lap windows already
-inspected, by real session time (laps_features.csv's own Time column), not
-by guessing a lap-to-time offset.
-"""
+""
 import importlib.util
 import os
 import sys
@@ -31,13 +17,11 @@ WINDOWS = [
     ("wet crossover (lap 26)", range(22, 30)),
     ("drying crossover (laps 37-38)", range(34, 42)),
 ]
-PAD_SECONDS = 90  # pad either side of the lap window's own time span
-
+PAD_SECONDS = 90
 
 def die(msg):
     print(msg)
     sys.exit(1)
-
 
 if not HERMES_MASTER_PATH.exists():
     die(f"Could not find {HERMES_MASTER_PATH.resolve()} - set HERMES_MASTER_PATH.")
@@ -63,13 +47,11 @@ print("=" * 100)
 print(f"weather file columns found: {list(weather.columns)}")
 print("=" * 100)
 
-
 def find_col(df, candidates):
     for c in candidates:
         if c in df.columns:
             return c
     return None
-
 
 laps_time_col = find_col(laps, ["Time", "LapStartTime"])
 weather_time_col = find_col(weather, ["time_seconds", "Time"])
@@ -78,12 +60,10 @@ if laps_time_col is None or weather_time_col is None:
     die("Could not find a usable time column on both sides - cannot align by time without one.")
 print(f"aligning laps.{laps_time_col!r} against weather.{weather_time_col!r}")
 
-
 def to_seconds(series):
     if pd.api.types.is_numeric_dtype(series):
         return series.astype(float)
     return pd.to_timedelta(series, errors="coerce").dt.total_seconds()
-
 
 laps["_time_s"] = to_seconds(laps[laps_time_col])
 weather["_time_s"] = to_seconds(weather[weather_time_col])

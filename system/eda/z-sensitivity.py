@@ -1,19 +1,3 @@
-"""
-Z-Threshold Sensitivity Check
-================================
-Answers: how sensitive is the tyre degradation model's RMSE to
-LAPTIME_OUTLIER_Z_THRESH (the robust z-score cutoff used by
-filter_global_degradation_outliers in tyre_regression_v1.py)?
-
-Sweeps z_thresh across [2.5, 3, 3.5, 4, 4.5, 5, 6], holding MIN_STINT_LENGTH
-fixed at 5 (already justified separately), re-fits + re-evaluates the SAME V1
-model (same three train/test splits) at each value, and plots RMSE vs. z_thresh
-so "4.0 is deliberately conservative" is backed by a curve, not just asserted.
-
-Produces:
-  - z_threshold_sensitivity.csv   (raw numbers per z_thresh, for your appendix)
-  - z_threshold_sensitivity.png   (the dissertation figure)
-"""
 
 import os
 import pandas as pd
@@ -29,12 +13,8 @@ from sklearn.model_selection import train_test_split
 
 load_dotenv()
 
-# ---------------------------------------------------------------------------
-# 0. CachedBucket (same pattern as your other scripts)
-# ---------------------------------------------------------------------------
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CACHE_DIR = os.environ.get("GCS_CACHE_DIR", "./gcs_cache")
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=CACHE_DIR):
@@ -54,16 +34,11 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 RBR_ALIASES = {
     "Red Bull Racing", "Red Bull Racing Honda", "Red Bull Racing RBPT",
     "Oracle Red Bull Racing", "Red Bull",
 }
 
-
-# ---------------------------------------------------------------------------
-# 1. Load (once)
-# ---------------------------------------------------------------------------
 def load_rbr_laps(bucket: CachedBucket) -> pd.DataFrame:
     paths = bucket.list_blob_names("clean/features/")
     frames = []
@@ -84,13 +59,8 @@ def load_rbr_laps(bucket: CachedBucket) -> pd.DataFrame:
     full = pd.concat(frames, ignore_index=True)
     return full[full["Team"].isin(RBR_ALIASES)].copy()
 
-
-# ---------------------------------------------------------------------------
-# 2. Structural filters - FIXED for this sweep (MIN_STINT_LENGTH=5, already justified)
-# ---------------------------------------------------------------------------
 MIN_STINT_LENGTH = 5
 RED_FLAG_RESTART_BUFFER = 2
-
 
 def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_BUFFER) -> set:
     red_flag_mask = df["TrackStatus"].astype(str).str.contains("5", na=False)
@@ -101,7 +71,6 @@ def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_
         for offset in range(buffer + 1):
             affected.add((row["Season"], row["Race"], row["Session"], row["LapNumber"] + offset))
     return affected
-
 
 def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH) -> pd.DataFrame:
     red_flag_affected = get_red_flag_affected_laps(df)
@@ -126,10 +95,6 @@ def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH
 
     return clean
 
-
-# ---------------------------------------------------------------------------
-# 3. Global outlier filter - z_thresh is now the PARAMETER being swept
-# ---------------------------------------------------------------------------
 def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float) -> pd.DataFrame:
     grp = df.groupby(["Compound", "Race"])["degradation_rate"]
     med = grp.transform("median")
@@ -141,12 +106,7 @@ def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float) -> pd.
 
     return df[~is_outlier]
 
-
-# ---------------------------------------------------------------------------
-# 4. Model + splits - identical to tyre_regression_v1.py
-# ---------------------------------------------------------------------------
 MIN_ROWS_PER_GROUP = 20
-
 
 def fit_baseline_regression(train_df: pd.DataFrame) -> dict:
     models = {}
@@ -157,7 +117,6 @@ def fit_baseline_regression(train_df: pd.DataFrame) -> dict:
         y = g["degradation_rate"].values
         models[(compound, circuit)] = LinearRegression().fit(X, y)
     return models
-
 
 def evaluate(models: dict, test_df: pd.DataFrame) -> pd.DataFrame:
     rows = []
@@ -170,14 +129,12 @@ def evaluate(models: dict, test_df: pd.DataFrame) -> pd.DataFrame:
         rows.append({"compound": compound, "circuit": circuit, "n_test_rows": len(g), "rmse": rmse})
     return pd.DataFrame(rows)
 
-
 def run_random_split(df: pd.DataFrame, test_frac=0.2, seed=42) -> pd.DataFrame:
     train_df, test_df = train_test_split(df, test_size=test_frac, random_state=seed)
     models = fit_baseline_regression(train_df)
     results = evaluate(models, test_df)
     results["split_method"] = "random"
     return results
-
 
 def run_fixed_split(df: pd.DataFrame, cutoff=2024) -> pd.DataFrame:
     train_df = df[df["Season"] < cutoff]
@@ -186,7 +143,6 @@ def run_fixed_split(df: pd.DataFrame, cutoff=2024) -> pd.DataFrame:
     results = evaluate(models, test_df)
     results["split_method"] = "fixed_2018_2023_train"
     return results
-
 
 def run_expanding_window(df: pd.DataFrame, last_complete_season=2025) -> pd.DataFrame:
     all_results = []
@@ -199,10 +155,6 @@ def run_expanding_window(df: pd.DataFrame, last_complete_season=2025) -> pd.Data
         all_results.append(results)
     return pd.concat(all_results, ignore_index=True)
 
-
-# ---------------------------------------------------------------------------
-# 5. Sweep z_thresh and plot
-# ---------------------------------------------------------------------------
 Z_THRESHOLDS_TO_TEST = [2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0]
 
 if __name__ == "__main__":
@@ -242,7 +194,6 @@ if __name__ == "__main__":
     sweep_df.to_csv("z_threshold_sensitivity.csv", index=False)
     print("\n[save] z_threshold_sensitivity.csv")
 
-    # --- Plot: RMSE vs z_thresh on top, % data retained on bottom ---
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(8, 8), sharex=True)
 
     ax1.plot(sweep_df["z_thresh"], sweep_df["mean_rmse"], marker="o", label="Mean RMSE")

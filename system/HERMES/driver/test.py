@@ -1,15 +1,3 @@
-"""
-Targeted diagnostic (single race, six drivers): 2018 Belgian_Grand_Prix.
-
-Checks whether LEC/ERI (expected Sauber pairing), ALO/VAN (expected McLaren
-pairing), and HUL/SAI (expected Renault pairing) are missing from
-driver_rolling_profiles.csv because of a Team-name mismatch that race
-specifically -- e.g. a title-sponsor variant used only that weekend -- rather
-than a genuine data gap.
-
-Scope: this one race, these six drivers, nothing else. Not a general Team
-audit across the archive.
-"""
 
 import os
 import pandas as pd
@@ -21,7 +9,6 @@ load_dotenv()
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 SEASON, RACE = 2018, "Belgian_Grand_Prix"
 DRIVERS_TO_CHECK = ["LEC", "ERI", "ALO", "VAN", "HUL", "SAI"]
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=os.environ.get("GCS_CACHE_DIR", "./gcs_cache")):
@@ -36,7 +23,6 @@ class CachedBucket:
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
         self.bucket.blob(blob_path).download_to_filename(local_path)
         return pd.read_csv(local_path, **kwargs)
-
 
 if __name__ == "__main__":
     bucket = CachedBucket()

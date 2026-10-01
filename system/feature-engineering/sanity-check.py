@@ -1,22 +1,3 @@
-"""
-sanity_check_features.py
-
-Post-engineering sanity check on clean/features/.../laps_features.csv:
-    1. Row count parity vs laps_flagged.csv (engineering shouldn't drop/add rows)
-    2. compound_encoded coverage -- flags any Compound string that didn't
-       map to COMPOUND_ORDER (e.g. unmapped 2018 legacy names like
-       HYPERSOFT/SUPERSOFT/ULTRASOFT, if that cleaning step never actually
-       got wired into clean_laps.py)
-    3. Race-only features (gap_to_leader, gap_to_car_ahead, fuel_load_estimate)
-       are fully null in FP/Q sessions and mostly populated in R/S sessions
-    4. degradation_rate and tyre_age basic range sanity
-
-Read-only, doesn't modify anything.
-
-Usage:
-    python sanity_check_features.py
-    python sanity_check_features.py --year 2024
-"""
 
 import argparse
 import io
@@ -36,12 +17,9 @@ LAPS_PREFIX = "clean/fastf1/"
 FEATURES_PREFIX = "clean/features/"
 RACE_LIKE_SESSIONS = {"R", "S"}
 KNOWN_COMPOUNDS = {"WET", "INTERMEDIATE", "HARD", "MEDIUM", "SOFT", "HYPERSOFT", "SUPERSOFT", "ULTRASOFT"}
-# These are FastF1's own markers for test/undetermined tyres, not a real
-# hardness class -- compound_encoded is SUPPOSED to be null for these.
-# Not a bug, don't flag it as one.
+
 EXPECTED_NULL_COMPOUNDS = {"TEST", "TEST_UNKNOWN", "UNKNOWN"}
 VALID_TRACK_TEMP_BUCKETS = {"cool", "warm", "hot", "extreme"}
-
 
 class CachedBucket:
     def __init__(self, bucket_name: str, cache_dir: Path = CACHE_DIR):
@@ -73,9 +51,7 @@ class CachedBucket:
                 time.sleep(2 * attempt)
         raise last_error
 
-
 bucket = CachedBucket(BUCKET_NAME)
-
 
 def read_csv_robust(data: bytes) -> pd.DataFrame | None:
     try:
@@ -85,7 +61,6 @@ def read_csv_robust(data: bytes) -> pd.DataFrame | None:
             return pd.read_csv(io.BytesIO(data), encoding="latin-1")
         except Exception:
             return None
-
 
 def find_sessions(year: str) -> list[tuple[str, str, str]]:
     prefix = f"{FEATURES_PREFIX}{year}/" if year != "all" else FEATURES_PREFIX
@@ -99,7 +74,6 @@ def find_sessions(year: str) -> list[tuple[str, str, str]]:
                 sessions.add((parts[-4], parts[-3], parts[-2]))
     print(f"[scan] Found {len(sessions)} sessions.")
     return sorted(sessions)
-
 
 def check_session(year: str, race: str, session: str) -> dict:
     result = {"year": year, "race": race, "session": session, "issues": []}
@@ -118,21 +92,17 @@ def check_session(year: str, race: str, session: str) -> dict:
         result["issues"].append("ERROR: unreadable CSV")
         return result
 
-    # 1. row parity
     if len(feat_df) != len(laps_df):
         result["issues"].append(f"ROW COUNT MISMATCH: laps_flagged={len(laps_df)}, laps_features={len(feat_df)}")
 
-    # 2. compound mapping coverage
     if "Compound" in feat_df.columns and "compound_encoded" in feat_df.columns:
         has_compound = feat_df["Compound"].notna()
         unmapped = feat_df.loc[has_compound & feat_df["compound_encoded"].isna(), "Compound"].unique()
-        # only flag genuinely unexpected unmapped strings -- TEST/UNKNOWN/etc
-        # are supposed to be null, not a data quality problem
+
         genuinely_unexpected = set(unmapped) - EXPECTED_NULL_COMPOUNDS
         if genuinely_unexpected:
             result["issues"].append(f"UNMAPPED COMPOUNDS: {sorted(genuinely_unexpected)}")
 
-    # 3. race-only feature null pattern
     race_only_cols = [c for c in ("gap_to_leader", "gap_to_car_ahead", "fuel_load_estimate") if c in feat_df.columns]
     if race_only_cols:
         if session not in RACE_LIKE_SESSIONS:
@@ -144,7 +114,6 @@ def check_session(year: str, race: str, session: str) -> dict:
             if all_null:
                 result["issues"].append(f"UNEXPECTEDLY ALL-NULL in race session: {list(all_null.keys())}")
 
-    # 4. tyre_age / degradation_rate range sanity
     if "tyre_age" in feat_df.columns:
         min_age = feat_df["tyre_age"].min()
         max_age = feat_df["tyre_age"].max()
@@ -157,16 +126,12 @@ def check_session(year: str, race: str, session: str) -> dict:
         pct_null = round(feat_df["degradation_rate"].isna().mean() * 100, 1)
         result["degradation_pct_null"] = pct_null
 
-    # 5. weather coverage -- how much of this session actually got a
-    # matched track temperature, vs weather.csv being missing/unmatched
     if "track_temp_c" in feat_df.columns:
         pct_null_weather = round(feat_df["track_temp_c"].isna().mean() * 100, 1)
         result["track_temp_pct_null"] = pct_null_weather
         if pct_null_weather == 100.0:
             result["issues"].append("NO WEATHER DATA (track_temp_c 100% null -- weather.csv likely missing)")
 
-        # range sanity -- track temps outside this are almost certainly a
-        # parsing/unit bug, not real F1 conditions anywhere on Earth
         temp_vals = pd.to_numeric(feat_df["track_temp_c"], errors="coerce").dropna()
         if len(temp_vals) and (temp_vals.min() < 0 or temp_vals.max() > 70):
             result["issues"].append(f"track_temp_c OUT OF PLAUSIBLE RANGE: min={temp_vals.min()}, max={temp_vals.max()}")
@@ -179,10 +144,6 @@ def check_session(year: str, race: str, session: str) -> dict:
         if unexpected_buckets:
             result["issues"].append(f"UNEXPECTED track_temp_bucket VALUES: {sorted(unexpected_buckets)}")
 
-    # 6. SC/VSC event-marker columns present, and cross-checked against
-    # the broader is_sc_lap/is_vsc_lap flags built earlier from TrackStatus.
-    # These are two independent derivations (race control messages vs
-    # TrackStatus codes) -- if they disagree, one of them has a real bug.
     sc_vsc_cols = ["is_sc_deployed_lap", "is_sc_ending_lap", "is_vsc_deployed_lap",
                    "is_vsc_ending_lap", "is_sc_through_pit_lane_lap"]
     missing_sc_vsc_cols = [c for c in sc_vsc_cols if c not in feat_df.columns]
@@ -198,17 +159,9 @@ def check_session(year: str, race: str, session: str) -> dict:
 
     return result
 
-
 def cross_check_sc_vsc_events(df: pd.DataFrame, deployed_col: str, ending_col: str,
                                active_col: str, label: str) -> list[str]:
-    """
-    For every lap where a deployment or ending event fired, confirm the
-    broader active_col (is_sc_lap/is_vsc_lap, built from TrackStatus in
-    clean_laps.py) agrees that something was actually happening that lap.
-    Doesn't try to validate the full period between events -- just the
-    event laps themselves, which is the strongest signal without assuming
-    a fragile exact-pairing model between deploy/end events.
-    """
+    ""
     issues = []
     if active_col not in df.columns:
         return [f"Cannot cross-check {label}: {active_col} column missing"]
@@ -223,7 +176,6 @@ def cross_check_sc_vsc_events(df: pd.DataFrame, deployed_col: str, ending_col: s
                     f"for every row on that lap -- message-based and TrackStatus-based flags disagree"
                 )
     return issues
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

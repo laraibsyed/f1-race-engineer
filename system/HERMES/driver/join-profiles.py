@@ -1,26 +1,3 @@
-"""
-Join driver_rolling_profiles.csv onto laps_features.csv.
-
-This is the step Stage 1 validation (in driver-rolling.py) deferred: that
-script's stage1_validate() call faked laps_row_count_before and
-merged_row_count as equal to len(profiles), since no real lap data was
-available at that point. This script does the actual join and re-runs the
-same two checks for real.
-
-Join key: (driver, season, target_race) -- matches the profile CSV's own
-key exactly, so no name translation is needed here (both sides already use
-the fastf1/bucket underscore convention, confirmed in earlier work on this
-project). Driver codes are matched directly (e.g. "HAM"), since
-laps_features.csv's Driver column already uses the same abbreviation
-convention as driver_rolling_profiles.csv's driver column.
-
-CRITICAL CHECKS (per the original leakage-safe design spec):
-  1. Row count must not change -- a many-to-one join gone wrong would
-     silently multiply lap rows.
-  2. Unmatched driver/race pairs must be surfaced, not silently dropped.
-  3. profile_source is carried through per-row, so it stays possible to
-     separate 'rolling' vs 'fallback' rows in the downstream ablation.
-"""
 
 import argparse
 import os
@@ -31,7 +8,6 @@ from google.cloud import storage
 load_dotenv()
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=os.environ.get("GCS_CACHE_DIR", "./gcs_cache")):
@@ -50,12 +26,8 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 def load_all_laps_features(bucket: CachedBucket) -> pd.DataFrame:
-    """Loads every clean/features/<season>/<race>/R/laps_features.csv in the
-    archive, tagging each with Season/Race/Session -- same pattern as
-    tyre-regression-v2.py's load_all_teams_laps, reused here rather than
-    reinvented."""
+    ""
     paths = [p for p in bucket.list_blob_names("clean/features/") if p.endswith("/R/laps_features.csv")]
     frames = []
     for p in paths:
@@ -67,16 +39,8 @@ def load_all_laps_features(bucket: CachedBucket) -> pd.DataFrame:
     full = pd.concat(frames, ignore_index=True)
     return full
 
-
 def join_profiles_to_laps(laps: pd.DataFrame, profiles: pd.DataFrame) -> pd.DataFrame:
-    """
-    laps: full laps_features.csv archive, with Driver/Season/Race columns.
-    profiles: driver_rolling_profiles.csv, with driver/season/target_race.
-
-    Renames the profile side's keys to match laps' column names, then joins
-    on (Driver, Season, Race) — the same triple used as the profile's own
-    unique key (Stage 1 already confirmed this has zero duplicates).
-    """
+    ""
     before = len(laps)
 
     profiles_renamed = profiles.rename(columns={
@@ -88,7 +52,7 @@ def join_profiles_to_laps(laps: pd.DataFrame, profiles: pd.DataFrame) -> pd.Data
                            "tyre_management_pti", "consistency_factor_pti", "profile_source"]],
         on=["Driver", "Season", "Race"],
         how="left",
-        validate="many_to_one",  # fails loudly if profiles has a hidden duplicate key
+        validate="many_to_one",
     )
 
     after = len(merged)
@@ -116,7 +80,6 @@ def join_profiles_to_laps(laps: pd.DataFrame, profiles: pd.DataFrame) -> pd.Data
         print("[ok] every lap row matched a profile row.")
 
     return merged
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

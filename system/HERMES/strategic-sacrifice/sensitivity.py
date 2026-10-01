@@ -1,4 +1,4 @@
-"""Sensitivity analysis — separate file to avoid string escaping issues."""
+""
 
 from reward import (
     DriverChampionshipState, TeamChampionshipState,
@@ -11,7 +11,6 @@ def sensitivity_analysis():
     print("  SENSITIVITY ANALYSIS")
     print(SEP)
 
-    # ── Brazil 2022: vary Pérez WDC gap
     print("\n  Brazil 2022: vary Pérez WDC gap (races_remaining=1, alpha=0.3, tau=0.1)")
     header = f"  {'PER gap':>10} {'L2':>8} {'Gain':>10} {'Justified?':>12}"
     print(header)
@@ -26,7 +25,6 @@ def sensitivity_analysis():
         tag = "<- historical (verified)" if gap == 6 else ""
         print(f"  {gap:>10} {R_swap['L2']:>8.4f} {j['gain']:>10.4f} {str(j['justified']):>12}  {tag}")
 
-    # ── Malaysia 2013: vary w1 and tau
     print("\n  Malaysia 2013: vary w1 (D1 role weight) and tau")
     header2 = f"  {'w1':>6} {'w2':>6} {'tau':>6} {'Gain':>10} {'Justified?':>12}"
     print(header2)

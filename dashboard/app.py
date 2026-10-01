@@ -1,23 +1,4 @@
-"""
-HERMES Pit Wall - Streamlit demo dashboard (v2: fast + flicker-free pit-wall redesign).
-=============================================
-Orchestration/UI layer only. All strategy decisions come from the REAL,
-unmodified HERMES Gate Tree / Execution Tree via dashboard/hermes_adapter.py
-(master.evaluate_driver_lap + master.merge_execution + master.explanation_for,
-called directly per lap - no subprocess, no new decision logic here).
-D1/D2 are ALWAYS the Red Bull pair for the selected race, resolved via
-hermes_adapter.resolve_red_bull_pair - never user-selectable. The track map uses
-genuine FastF1 telemetry only (dashboard/track_map.py).
-
-How v2 stays fast (see CHANGES in the hand-over note):
-  * Everything that depends on the current lap lives inside ONE st.fragment, so
-    lap changes / Play only re-run that fragment - the sidebar and page chrome never reload.
-  * Car animation runs in the browser (canvas), not through Python reruns.
-  * Panels are single HTML blocks; charts have stable keys, fixed axes, and are static.
-  * CSS removes Streamlit's grey-out/fade of "stale" elements (the main flicker source).
-
-Run:  streamlit run dashboard/app.py
-"""
+""
 from __future__ import annotations
 
 import inspect
@@ -35,18 +16,13 @@ import track_map as tmap
 import ui_components as ui
 
 def _stretch(fn):
-    """width="stretch" on new Streamlit, use_container_width=True on older versions."""
+    ""
     return {"width": "stretch"} if "width" in inspect.signature(fn).parameters else {"use_container_width": True}
-
 
 BTN_W, CHART_W = _stretch(st.button), _stretch(st.plotly_chart)
 
 st.set_page_config(page_title="HERMES Pit Wall", layout="wide", initial_sidebar_state="expanded")
 
-# ----------------------------------------------------------------------------
-# Pit-wall visual system: near-black background, flat charcoal panels, neon accents,
-# dense condensed typography, team-colour timing tower. No rounded SaaS cards.
-# ----------------------------------------------------------------------------
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600;700;900&display=swap');
@@ -55,7 +31,28 @@ st.markdown("""
   --red:#ff1e1e; --blue:#1e90ff; --yellow:#ffd23b; --cyan:#00e5ff; --green:#19d97a; --amber:#ffb020;
   --ui:"Titillium Web","Bahnschrift","Segoe UI",sans-serif;
   --num:"Consolas","SF Mono","Courier New",monospace;
+  --col-top: 200px;        /* where the 3 main columns start (header + controls have FIXED heights below) */
+  --safe-bottom: 64px;     /* free space kept at the bottom. In browser FULLSCREEN the Windows taskbar sits on top of
+                              the page while 100vh still counts the hidden part - raise if cropped, 0px if windowed. */
+  --col-h: calc(100vh - var(--col-top) - var(--safe-bottom));       /* height of the 3 main columns */
+  --tt-h: clamp(15px, calc((100vh - var(--col-top) - 170px - var(--safe-bottom)) / 20), 25px);  /* tower row height */
 }
+/* ---- LOCK THE PAGE to the window: header, tower, track + charts never scroll away ---- */
+html, body{ overflow:hidden !important; height:100vh; }
+[data-testid="stApp"], [data-testid="stAppViewContainer"], [data-testid="stMain"], section.main{
+  overflow:clip !important; height:100vh; }
+[data-testid="stMainBlockContainer"], .block-container{
+  box-sizing:border-box !important; width:100% !important; max-width:100% !important; min-width:0 !important; }
+[data-testid="stHorizontalBlock"]{ min-width:0 !important; }
+/* the track+charts iframe fills its column */
+iframe, div:has(> iframe){ height:var(--col-h) !important; min-height:0 !important; }
+/* ONLY the strategy column scrolls */
+div[data-testid="stColumn"]:has(.strat-anchor), div[data-testid="column"]:has(.strat-anchor){
+  height:var(--col-h); overflow-y:auto; overflow-x:hidden; padding-right:8px; }
+div[data-testid="stColumn"]:has(.strat-anchor)::-webkit-scrollbar{ width:6px; }
+div[data-testid="stColumn"]:has(.strat-anchor)::-webkit-scrollbar-thumb{ background:#2a3040; border-radius:3px; }
+div[data-testid="stColumn"]:has(.strat-anchor)::-webkit-scrollbar-thumb:hover{ background:var(--cyan); }
+.strat-anchor{ height:0; }
 /* ---- anti-flicker: Streamlit greys out + fades every element while a rerun is in flight ---- */
 [data-stale="true"], .stale-element, .element-container[data-stale="true"]{ opacity:1 !important; }
 [data-testid="stStatusWidget"]{ display:none !important; }
@@ -98,8 +95,10 @@ section[data-testid="stSidebar"]{ background:var(--panel); border-right:1px soli
 .dec-DONT_PIT, .dec-STAY_OUT{ color:var(--green); }
 
 /* ---- top bar ---- */
-.pw-top{ display:flex; align-items:center; background:var(--panel); border:1px solid var(--line); margin-bottom:10px; }
-.pw-cell{ padding:8px 20px; border-right:1px solid var(--line); min-width:96px; }
+.pw-top{ display:flex; align-items:stretch; height:80px; box-sizing:border-box; overflow:hidden;
+         background:var(--panel); border:1px solid var(--line); margin-bottom:10px; }
+.pw-cell{ padding:6px 20px; border-right:1px solid var(--line); min-width:96px;
+           display:flex; flex-direction:column; justify-content:center; }
 .pw-cell:last-child{ border-right:0; }
 .pw-grow{ flex:1; }
 .pw-mode{ min-width:150px; }
@@ -110,11 +109,11 @@ section[data-testid="stSidebar"]{ background:var(--panel); border-right:1px soli
 /* ---- timing tower ---- */
 .tt{ background:var(--panel); border:1px solid var(--line); }
 .tt-row{ display:grid; grid-template-columns:24px 4px 38px 1fr 62px 22px 26px; align-items:center; gap:6px;
-         padding:0 8px 0 4px; height:23px; border-bottom:1px solid #12161d; font-size:0.78rem; }
+         padding:0 8px 0 4px; height:var(--tt-h); border-bottom:1px solid #12161d; font-size:clamp(0.62rem, 1.75vh, 0.8rem); }
 .tt-head span{ white-space:nowrap; overflow:visible; }
 .tt-head{ height:20px; color:var(--dim); font-size:0.58rem; letter-spacing:0.09em; font-weight:700; background:var(--panel2); }
 .tt-pos{ text-align:right; color:var(--dim); font-family:var(--num); }
-.tt-bar{ width:4px; height:15px; }
+.tt-bar{ width:4px; height:65%; }
 .tt-drv{ font-weight:900; letter-spacing:0.03em; }
 .tt-gap, .tt-last, .tt-age{ font-family:var(--num); text-align:right; font-size:0.74rem; }
 .tt-last{ color:#aeb6c2; }
@@ -136,6 +135,7 @@ section[data-testid="stSidebar"]{ background:var(--panel); border-right:1px soli
 .stSlider{ padding-top:2px; }
 div[data-testid="stSlider"]{ padding-top:16px; }
 div[data-testid="stTickBarMin"], div[data-testid="stTickBarMax"]{ display:none; }
+div[data-testid="stHorizontalBlock"]:has(div[data-testid="stSlider"]){ height:52px; max-height:52px; align-items:flex-start; }
 div[data-testid="stExpander"]{ border:1px solid var(--line); border-radius:0; background:var(--panel); }
 
 /* ---- sidebar: compact + properly spaced ---- */
@@ -154,10 +154,6 @@ div[data-testid="stSpinner"]{ font-size:0.72rem; color:var(--dim); }
 </style>
 """, unsafe_allow_html=True)
 
-
-# ============================================================================
-# Session state
-# ============================================================================
 def _init_state():
     defaults = dict(
         race_loaded=False, season=None, race=None, session="R", d1=None, d2=None,
@@ -166,21 +162,15 @@ def _init_state():
         scenario_active=False, scenario_kind=None, scenario_lap=None,
         scenario_duration=None, scenario_cache=None, weather_scenario_active=False,
         weather_kind=None, weather_lap=None, weather_cache=None,
-        risk_mode=ha.DEFAULT_RISK_MODE,
     )
     for k, v in defaults.items():
         st.session_state.setdefault(k, v)
 
-
 _init_state()
 
 RED, BLUE = "#ff1e1e", "#1e90ff"
-PLOT_CFG = {"displayModeBar": False, "staticPlot": True}   # static = lighter + no hover glitches
+PLOT_CFG = {"displayModeBar": False, "staticPlot": True}
 
-
-# ============================================================================
-# Sidebar - selection + scenario controls (kept out of the main one-screen view)
-# ============================================================================
 with st.sidebar:
     st.markdown("<div class='pw-title'>RED BULL PIT WALL</div>", unsafe_allow_html=True)
     seasons = dl.cached_list_seasons()
@@ -224,20 +214,6 @@ with st.sidebar:
 
     if st.session_state.race_loaded:
         st.select_slider("Playback: seconds per lap", options=[2, 3, 4, 6, 8], value=4, key="lap_secs")
-        st.markdown("---")
-        st.caption("TEAM STRATEGY")
-        if st.session_state.dpc and st.session_state.dpc.team_strategy_fn is None:
-            reason = st.session_state.dpc.team_strategy_unavailable_reason or "unavailable"
-            st.markdown(f"<div class='pw-dim' style='font-size:0.68rem'>RISK MODE unavailable this session: "
-                        f"{reason}</div>", unsafe_allow_html=True)
-        else:
-            risk_mode = st.radio("Risk mode", list(ha.RISK_MODES), horizontal=True,
-                                  index=list(ha.RISK_MODES).index(st.session_state.risk_mode),
-                                  key="risk_mode_radio", label_visibility="collapsed")
-            if risk_mode != st.session_state.risk_mode:
-                st.session_state.risk_mode = risk_mode
-                st.rerun()
-            st.markdown(ui.risk_mode_context_html(st.session_state.risk_mode), unsafe_allow_html=True)
         st.markdown("---")
         st.caption("DEMO SCENARIO CONTROLS")
         with st.expander("Safety Car / VSC"):
@@ -316,64 +292,58 @@ with st.sidebar:
                         st.session_state.replay_cache, lap, ha.WEATHER_PRESETS["DRYING_TRACK"], None)
                 st.rerun()
 
-
 if not st.session_state.race_loaded:
     st.markdown("<div class='pw-title' style='font-size:1.1rem'>HERMES PIT WALL</div>", unsafe_allow_html=True)
     st.info("Open the sidebar, pick a season and race, then LOAD RACE. D1/D2 are always the Red Bull pairing.")
     st.stop()
 
-
-# ============================================================================
-# Lap navigation callbacks (callbacks run BEFORE the fragment body, so the panels
-# below always render the already-updated lap - no st.rerun() juggling needed)
-# ============================================================================
 LAP_SECS = float(st.session_state.get("lap_secs", 4))
-_DEFINED_PLAYING = bool(st.session_state.playing)   # run_every is fixed per full-script run
-
+_DEFINED_PLAYING = bool(st.session_state.playing)
 
 def _set_lap(lap: int):
     ss = st.session_state
     ss.current_lap = int(min(max(1, lap), ss.bundle.total_laps))
     ss._last_adv = time.time()
 
-
 def _step(delta: int):
     _set_lap(st.session_state.current_lap + delta)
 
-
 def _on_slider():
     _set_lap(st.session_state.lap_slider)
-
 
 def _toggle_play():
     ss = st.session_state
     ss.playing = not ss.playing
     ss._last_adv = time.time()
 
-
 def _reset_lap():
     st.session_state.playing = False
     _set_lap(1)
 
-
-def _chart_base(height, total_laps, y_range=None, y_title=None):
-    fig = go.Figure()
-    fig.update_layout(
-        height=height, plot_bgcolor="#05070a", paper_bgcolor="#05070a", showlegend=False,
-        margin=dict(l=34, r=8, t=4, b=22), font=dict(color="#e8ecf1", size=9),
-        xaxis=dict(range=[1, total_laps], gridcolor="#1c212b", zeroline=False),
-        yaxis=dict(gridcolor="#1c212b", zeroline=False, title=y_title, range=y_range))
-    return fig
-
+def _chart_payload(pv, d1, d2, current_lap, total_laps):
+    ""
+    def series(col, with_dots):
+        out = []
+        for code, color in ((d1, RED), (d2, BLUE)):
+            d = pv["driver_laps"].get(code)
+            if d is None or col not in d.columns:
+                continue
+            d = d[d["LapNumber"] <= current_lap].dropna(subset=[col])
+            if d.empty:
+                continue
+            item = dict(c=color, pts=[[int(a), round(float(b), 3)] for a, b in zip(d["LapNumber"], d[col])])
+            if with_dots and "Compound" in d.columns:
+                item["dots"] = [ui.compound_color(x) for x in d["Compound"]]
+            out.append(item)
+        return out
+    return dict(total=int(total_laps), lap=int(current_lap),
+                tyre=dict(range=pv["ranges"].get("lap_time"), series=series("LapTime_seconds", True)),
+                gap=dict(range=pv["ranges"].get("gap"), series=series("gap_to_leader", False)))
 
 def _now_line(fig, lap):
     fig.add_shape(type="line", x0=lap, x1=lap, y0=0, y1=1, yref="paper",
                   line=dict(color="#19d97a", width=1, dash="dot"))
 
-
-# ============================================================================
-# THE PIT WALL - one fragment. Play re-runs ONLY this, once per lap.
-# ============================================================================
 @st.fragment(run_every=LAP_SECS if _DEFINED_PLAYING else None)
 def pit_wall():
     ss = st.session_state
@@ -382,21 +352,18 @@ def pit_wall():
     d1, d2 = ss.d1, ss.d2
     replay_cache = ss.replay_cache
 
-    # --- 1) autoplay tick: advance one lap per LAP_SECS ---
     if ss.playing and time.time() - ss._last_adv >= LAP_SECS * 0.9:
         if ss.current_lap < total_laps:
             ss.current_lap += 1
             ss._last_adv = time.time()
         else:
             ss.playing = False
-    # --- 2) play state flipped (button / end of race): run_every must change -> one app rerun ---
+
     if ss.playing != _DEFINED_PLAYING:
         st.rerun(scope="app")
 
     current_lap = ss.current_lap
 
-    # --- scenario windows (a SC/VSC scenario only affects [scenario_lap, end_lap]; UI badges
-    #     must agree with ScenarioReplayCache._overrides_for or it looks like it never ends) ---
     sc_window_active = (
         ss.scenario_active and ss.scenario_lap <= current_lap
         and (ss.scenario_duration is None or current_lap <= ss.scenario_lap + ss.scenario_duration - 1))
@@ -409,14 +376,6 @@ def pit_wall():
         active_cache = ss.weather_cache
     else:
         active_cache = replay_cache
-
-    # Risk-mode propagation: dashboard control -> replay cache -> team_strategy_fn's own
-    # risk_mode_override -> candidate ranking/selection (see hermes_adapter.ReplayCache.
-    # set_risk_mode). Only clears the DECISION cache (driver state evolution is risk-mode-
-    # independent), so this stays cheap even mid-race.
-    replay_cache.set_risk_mode(ss.risk_mode)
-    if active_cache is not replay_cache:
-        active_cache.set_risk_mode(ss.risk_mode)
 
     decisions = active_cache.get(current_lap) or {}
     hist_decisions = replay_cache.get(current_lap) or {}
@@ -434,13 +393,11 @@ def pit_wall():
     if any_scenario:
         scen_kind = ss.scenario_kind if ss.scenario_active else ss.weather_kind
 
-    # ---------------- TOP BAR (one html block) ----------------
     st.markdown(ui.top_bar_html(bundle.season, bundle.race, current_lap, total_laps, sc_state,
                                 bool(weather.get("rainfall")), weather.get("air_temp"),
                                 weather.get("track_temp"), scen_kind), unsafe_allow_html=True)
 
-    # ---------------- CONTROL STRIP ----------------
-    ss.lap_slider = current_lap          # keep slider in sync (set BEFORE the widget is created)
+    ss.lap_slider = current_lap
     c = st.columns([0.6, 0.6, 0.6, 0.6, 0.6, 0.9, 0.9, 4.0])
     c[0].button("◀", key="b_prev", **BTN_W, on_click=_step, args=(-1,))
     c[1].button("▶", key="b_next", **BTN_W, on_click=_step, args=(1,))
@@ -452,10 +409,8 @@ def pit_wall():
                 on_click=_toggle_play)
     c[7].slider("Lap", 1, total_laps, key="lap_slider", label_visibility="collapsed", on_change=_on_slider)
 
-    # ---------------- MAIN GRID: timing tower | track + charts | HERMES strategy ----------------
     col_tower, col_mid, col_right = st.columns([0.95, 2.2, 1.15])
 
-    # ---- LEFT: timing tower + weather ----
     with col_tower:
         st.markdown("<div class='pw-title'>TIMING TOWER</div>", unsafe_allow_html=True)
         st.markdown(ui.timing_tower_html(grid_df, d1, d2), unsafe_allow_html=True)
@@ -463,62 +418,22 @@ def pit_wall():
         st.markdown(ui.weather_html(weather, ss.weather_kind if ss.weather_scenario_active else None,
                                     ss.weather_lap, current_lap), unsafe_allow_html=True)
 
-    # ---- MIDDLE: track + tyre + pace ----
+    pv = ss.pair_view or {"driver_laps": {}, "ranges": {}}
     with col_mid:
-        st.markdown("<div class='pw-title'>TRACK</div>", unsafe_allow_html=True)
         telemetry = ss.telemetry
         window = tmap.lap_window_for(telemetry, current_lap, [d1, d2]) if telemetry is not None else None
+        msg = None
         if telemetry is None:
-            st.markdown("<div class='pw-panel' style='height:300px;display:flex;flex-direction:column;"
-                        "align-items:center;justify-content:center;color:var(--dim);letter-spacing:0.1em'>"
-                        "TRACK GEOMETRY UNAVAILABLE<span class='pw-dim' style='font-size:0.6rem'>"
-                        "No genuine FastF1 telemetry could be loaded for this race/session.</span></div>",
-                        unsafe_allow_html=True)
+            msg = "TRACK GEOMETRY UNAVAILABLE - no genuine FastF1 telemetry for this race/session"
         elif window is None:
-            st.markdown("<div class='pw-panel' style='height:300px;display:flex;align-items:center;"
-                        "justify-content:center;color:var(--dim)'>No recorded timing window for this lap.</div>",
-                        unsafe_allow_html=True)
-        else:
-            codes = grid_df["Driver"].tolist() if not grid_df.empty else [d1, d2]
-            tmap.render_live_track(telemetry, window, codes, ui.team_colors_for(grid_df), d1, d2,
-                                   playing=ss.playing, lap_secs=LAP_SECS, height=340)
+            msg = "NO RECORDED TIMING WINDOW FOR THIS LAP"
+        codes = grid_df["Driver"].tolist() if not grid_df.empty else [d1, d2]
+        tmap.render_track_panel(telemetry, window, codes, ui.team_colors_for(grid_df), d1, d2,
+                                playing=ss.playing, lap_secs=LAP_SECS,
+                                charts=_chart_payload(pv, d1, d2, current_lap, total_laps), msg=msg)
 
-        pv = ss.pair_view or {"driver_laps": {}, "ranges": {}}
-        ca, cb = st.columns(2)
-        with ca:
-            st.markdown("<div class='pw-title'>TYRE / DEGRADATION &middot; lap time, dots = compound</div>",
-                        unsafe_allow_html=True)
-            fig = _chart_base(165, total_laps, pv["ranges"].get("lap_time"), "s")
-            for code, color in ((d1, RED), (d2, BLUE)):
-                d = pv["driver_laps"].get(code)
-                if d is None or "LapTime_seconds" not in d.columns:
-                    continue
-                d = d[d["LapNumber"] <= current_lap]
-                dots = ([ui.compound_color(x) for x in d["Compound"]] if "Compound" in d.columns else color)
-                fig.add_trace(go.Scatter(x=d["LapNumber"], y=d["LapTime_seconds"], mode="lines+markers",
-                                         line=dict(color=color, width=1.5),
-                                         marker=dict(size=5, color=dots, line=dict(width=1, color=color))))
-            _now_line(fig, current_lap)
-            st.plotly_chart(fig, **CHART_W, config=PLOT_CFG, key="chart_tyre")
-        with cb:
-            st.markdown("<div class='pw-title'>PACE / GAP TO LEADER</div>", unsafe_allow_html=True)
-            fig = _chart_base(165, total_laps, pv["ranges"].get("gap"), "gap (s)")
-            for code, color in ((d1, RED), (d2, BLUE)):
-                d = pv["driver_laps"].get(code)
-                if d is None or "gap_to_leader" not in d.columns:
-                    continue
-                d = d[d["LapNumber"] <= current_lap]
-                fig.add_trace(go.Scatter(x=d["LapNumber"], y=d["gap_to_leader"], mode="lines",
-                                         line=dict(color=color, width=1.5)))
-            _now_line(fig, current_lap)
-            st.plotly_chart(fig, **CHART_W, config=PLOT_CFG, key="chart_gap")
-
-    # ---- RIGHT: HERMES strategy + timeline ----
     with col_right:
-        st.markdown("<div class='pw-title'>HERMES STRATEGY</div>", unsafe_allow_html=True)
-        team_strategy_result = next((d.get("team_strategy") for d in decisions.values() if d.get("team_strategy")), None)
-        st.markdown(ui.team_role_html(team_strategy_result, d1, d2), unsafe_allow_html=True)
-
+        st.markdown("<div class='strat-anchor'></div><div class='pw-title'>HERMES STRATEGY</div>", unsafe_allow_html=True)
         teams = {}
         if not grid_df.empty and "Team" in grid_df.columns:
             teams = dict(zip(grid_df["Driver"], grid_df["Team"]))
@@ -544,12 +459,6 @@ def pit_wall():
                         if removed:
                             st.markdown("- " + ", ".join(sorted(removed)))
 
-            ts = dec.get("team_strategy")
-            trade_off = ts.get("trade_off_explanation") if ts else None
-            if trade_off:
-                with st.expander(f"WHY THIS DECISION? — {label}", expanded=False):
-                    st.markdown(ui.trade_off_card_html(label, role, code, trade_off), unsafe_allow_html=True)
-
         st.markdown("<div class='pw-title' style='margin-top:6px'>STRATEGY TIMELINE</div>", unsafe_allow_html=True)
         tl = go.Figure()
         for i, code in enumerate((d1, d2)):
@@ -564,7 +473,7 @@ def pit_wall():
             tl.add_trace(go.Scatter(x=d["LapNumber"], y=[i] * len(d), mode="markers",
                                     marker=dict(size=8, color=cols), showlegend=False))
             if "is_pit_in" in d.columns:
-                pits = d.loc[d["is_pit_in"] == True, "LapNumber"]  # noqa: E712 (column may be object dtype)
+                pits = d.loc[d["is_pit_in"] == True, "LapNumber"]
                 if len(pits):
                     tl.add_trace(go.Scatter(x=pits, y=[i] * len(pits), mode="markers", showlegend=False,
                                             marker=dict(symbol="triangle-down", size=12, color=RED)))
@@ -575,6 +484,5 @@ def pit_wall():
                                     range=[-0.6, 1.6], gridcolor="#1c212b"))
         _now_line(tl, current_lap)
         st.plotly_chart(tl, **CHART_W, config=PLOT_CFG, key="chart_timeline")
-
 
 pit_wall()

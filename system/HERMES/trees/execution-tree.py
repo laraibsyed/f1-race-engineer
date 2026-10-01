@@ -1,140 +1,63 @@
-"""
-Execution Tree
-==================
-Fires when the Gate Tree returns PIT_NOW or PIT_FLEXIBLE. Handles the
-MECHANICAL side of pit execution - who physically pits when, double-stack
-math, pit lane speed limits - not deep strategic questions (that's Second
-Driver Logic's job, not yet built; this tree accepts an optional priority
-override from it and falls back to a documented default otherwise).
-
-Grounded in MDP doc paragraph 130 (Pit Execution Constraints):
-  - Only one pit box per team
-  - Double-stack penalty ≈5 seconds, applied to the SECOND car's pit cost
-  - Unsafe releases are a penalty trigger (transition probability layer,
-    not modelled here - this tree handles the decision, not the outcome
-    probability of a bad stop)
-  - Pit lane speed limit: 80km/h standard, 60km/h at Monaco
-
-Action space alignment (MDP paragraphs 55-63): "Driver 1 Priority" is
-explicitly named as the DEFAULT team-related state - used here as the
-tie-break when no other signal distinguishes urgency. "Pit Both" / "Pit One"
-/ "Stay Out" (Race Interruption Related actions) map to this tree's outputs.
-"""
+""
 
 from dataclasses import dataclass
 from typing import Optional
 
-
-# ---------------------------------------------------------------------------
-# Pit lane speed limits (MDP para 130) - used for pit delta calculations
-# ---------------------------------------------------------------------------
 PIT_LANE_SPEED_LIMIT_KMH = {"default": 80, "Monaco_Grand_Prix": 60}
-DOUBLE_STACK_PENALTY_SECONDS = 5.0  # MDP para 130: "approximately five seconds"
-
+DOUBLE_STACK_PENALTY_SECONDS = 5.0
 
 def get_pit_lane_speed_limit(circuit: str) -> int:
     return PIT_LANE_SPEED_LIMIT_KMH.get(circuit, PIT_LANE_SPEED_LIMIT_KMH["default"])
 
+CLIFF_PROBABILITY_THRESHOLD = 0.017
 
-# ---------------------------------------------------------------------------
-# Driving Instruction - Push/Manage/Pit Lap
-# ---------------------------------------------------------------------------
-CLIFF_PROBABILITY_THRESHOLD = 0.017  # MUST stay in sync with gate_tree_tier3.py's calibrated
-                                       # value - duplicated here deliberately (same pattern as
-                                       # the rest of this project) so this file is callable
-                                       # standalone without importing the whole Gate Tree.
-
-# Diagram box only names two non-pitting options ("Push"/"Manage"), but the MDP's full pace
-# action space (para 64-68) has four levels (Push/Neutral/Conserve/Manage Degradation). Using
-# three graduated bands here for a genuinely graduated response, as requested - "Manage" in the
-# diagram maps to both NEUTRAL and MANAGE in this finer split. The 0.5x split point is an
-# ASSUMPTION, flagged, not derived from data - a candidate for its own sensitivity check later.
-INSTRUCTION_NEUTRAL_BAND_RATIO = 0.5  # ASSUMPTION - below this fraction of threshold = PUSH
-
+INSTRUCTION_NEUTRAL_BAND_RATIO = 0.5
 
 def get_driving_instruction(decision: str, cliff_probability_next_5_laps: Optional[float]) -> str:
-    """
-    Graduated response based on how close cliff_probability_next_5_laps is to
-    the calibrated CLIFF_PROBABILITY_THRESHOLD - the closer, the more
-    conservative, exactly as requested rather than a flat rule.
-    """
+    ""
 def get_driving_instruction(decision: str, cliff_probability_next_5_laps: Optional[float],
                              tier3_reason: Optional[str] = None,
                              driver_stress_signal: bool = False) -> str:
-    """
-    ARCHITECTURAL PRINCIPLE (per direct design correction): Tier 3 decides
-    WHETHER to pit, using only objective model/race signals. This function
-    does NOT re-evaluate the SC gamble or the stress signal itself - it only
-    uses Tier 3's OUTPUT (tier3_reason) and the raw stress flag as CONTEXT to
-    shape HOW the driver operates while executing Tier 3's already-made
-    decision. Neither input can override a PIT_NOW.
-
-    tier3_reason == "SC_GAMBLE": Tier 3 is deliberately waiting to catch a
-    cheap SC-window pit (see gate_tree_tier3.py / sc_gamble_evaluator.py) -
-    the driver should preserve tyres deliberately while that gamble plays
-    out, not push as if nothing is planned. Takes priority over the raw
-    cliff-probability banding below, since it reflects a considered decision
-    already made upstream, not just a raw number.
-
-    driver_stress_signal: driver-reported tyre distress (NLP classifier,
-    medium/high stress tyre_feedback radio message) - shifts toward a more
-    conservative instruction regardless of what the raw numbers say, since
-    the driver has direct information the models don't capture. Checked
-    after the SC gamble reason (a considered strategic decision takes
-    priority over a single noisy radio signal - see the NLP module's
-    validation finding: stress didn't significantly predict pit timing,
-    so it's treated as a soft nudge, not a hard override).
-    """
+    ""
     if decision == "PIT_NOW":
-        return "PIT_LAP"  # boxing this lap - no further pace guidance needed
+        return "PIT_LAP"
 
     if tier3_reason == "SC_GAMBLE":
-        return "MANAGE"  # deliberately preserving tyres while gambling on a cheap SC pit
+        return "MANAGE"
 
     if driver_stress_signal:
-        return "CONSERVE"  # driver-reported distress - operate cautiously regardless of raw numbers
+        return "CONSERVE"
 
     if cliff_probability_next_5_laps is None:
-        return "MANAGE"  # unknown risk - default to conservative, don't push blind
+        return "MANAGE"
 
     ratio = cliff_probability_next_5_laps / CLIFF_PROBABILITY_THRESHOLD
     if ratio >= 1.0:
-        return "MANAGE"       # at or beyond the calibrated risk threshold
+        return "MANAGE"
     elif ratio >= INSTRUCTION_NEUTRAL_BAND_RATIO:
-        return "NEUTRAL"      # approaching - moderate caution, MDP's own default pace state
+        return "NEUTRAL"
     else:
-        return "PUSH"         # comfortable margin below threshold
+        return "PUSH"
 
-
-# ---------------------------------------------------------------------------
-# Per-driver pit context - what the Execution Tree needs to know about each
-# driver who triggered a pit recommendation this lap
-# ---------------------------------------------------------------------------
 @dataclass
 class DriverPitContext:
-    driver_id: str                                  # "D1" or "D2"
-    gate_tree_trigger_tier: int                      # 1, 2, or 3 - which Gate Tree tier fired (lower = more urgent)
+    driver_id: str
+    gate_tree_trigger_tier: int
     tyre_age: float
-    track_position: int                              # 1 = leading; higher number = further back
-    can_delay_one_lap_without_position_loss: bool     # EXTERNAL - from gap/rival analysis, not computed here
-    cliff_probability_next_5_laps: Optional[float] = None  # from tyre_life_projection feed - drives driving instruction
-    tier3_reason: Optional[str] = None                # from gate_tree_tier3.evaluate_tier3()'s "reason" field -
-                                                       # CONTEXT ONLY, not re-evaluated here
-    driver_stress_signal: bool = False                # from gate_tree_tier3.evaluate_tier3()'s passed-through
-                                                       # driver_stress_signal - CONTEXT ONLY, not re-evaluated here
+    track_position: int
+    can_delay_one_lap_without_position_loss: bool
+    cliff_probability_next_5_laps: Optional[float] = None
+    tier3_reason: Optional[str] = None
 
+    driver_stress_signal: bool = False
 
 @dataclass
 class ExecutionTreeState:
-    triggered_drivers: list          # 1 or 2 DriverPitContext objects
+    triggered_drivers: list
     safety_car_active: bool
     circuit: str
-    priority_driver_id: Optional[str] = None   # override from Second Driver Logic; None = use default resolution
+    priority_driver_id: Optional[str] = None
 
-
-# ---------------------------------------------------------------------------
-# Step 1: Which driver(s) triggered?
-# ---------------------------------------------------------------------------
 def which_driver_triggered(state: ExecutionTreeState) -> str:
     n = len(state.triggered_drivers)
     if n == 1:
@@ -143,22 +66,8 @@ def which_driver_triggered(state: ExecutionTreeState) -> str:
         return "BOTH"
     raise ValueError("ExecutionTreeState must have 1 or 2 triggered drivers")
 
-
-# ---------------------------------------------------------------------------
-# Step 2 (only when BOTH triggered): resolve priority
-# ---------------------------------------------------------------------------
 def resolve_priority(state: ExecutionTreeState) -> tuple:
-    """
-    Returns (priority_driver, other_driver) - priority pits first / on
-    schedule, other is the candidate for delay.
-
-    Resolution order:
-      1. Explicit override from Second Driver Logic, if provided.
-      2. Gate Tree tier urgency - a driver who triggered Tier 1 (hard safety
-         gate) takes priority over one who only triggered Tier 2/3.
-      3. "Driver 1 Priority" - the MDP's own stated default state (para 56) -
-         used as the final tie-break.
-    """
+    ""
     d1, d2 = state.triggered_drivers[0], state.triggered_drivers[1]
 
     if state.priority_driver_id is not None:
@@ -170,39 +79,15 @@ def resolve_priority(state: ExecutionTreeState) -> tuple:
         priority, other = (d1, d2) if d1.gate_tree_trigger_tier < d2.gate_tree_trigger_tier else (d2, d1)
         return priority, other
 
-    # Tied urgency - fall back to MDP's stated default (Driver 1 Priority)
     return d1, d2
 
-
-# ---------------------------------------------------------------------------
-# Step 3 (only when BOTH triggered): can stacking be avoided?
-# ---------------------------------------------------------------------------
 def can_avoid_stacking(other_driver: DriverPitContext) -> bool:
-    """True if the non-priority driver can delay one lap without losing
-    position - an EXTERNAL signal (gap/rival analysis), not computed here."""
+    ""
     return other_driver.can_delay_one_lap_without_position_loss
 
-
-# ---------------------------------------------------------------------------
-# Step 4 (only when stacking can't be avoided): SC-conditioned outcome
-# ---------------------------------------------------------------------------
 def evaluate_double_stack(driver_a: DriverPitContext, driver_b: DriverPitContext,
                            safety_car_active: bool) -> dict:
-    """
-    Returns which driver pits first and the pit-cost penalty applied to the
-    second, under the two documented outcomes:
-
-      - SC active: pit cost is already reduced circuit-wide (MDP para 129),
-        so a genuine double stack is more affordable. ASSUMPTION, flagged:
-        the driver in the WORSE track position (further back) pits first,
-        protecting the lead car's track position - a defensible convention,
-        not the only possible one.
-      - No SC: stacking is costly, so laps are staggered by the minimum
-        possible gap (1 lap) rather than a genuine simultaneous double stack,
-        even though "can't wait" was already established - this reduces but
-        doesn't eliminate the cost, since a full lap's delay is still
-        cheaper than a same-lap double stack outside SC conditions.
-    """
+    ""
     if safety_car_active:
         first, second = ((driver_a, driver_b) if driver_a.track_position > driver_b.track_position
                           else (driver_b, driver_a))
@@ -210,23 +95,13 @@ def evaluate_double_stack(driver_a: DriverPitContext, driver_b: DriverPitContext
                 "pits_second": second.driver_id,
                 "second_car_penalty_seconds": DOUBLE_STACK_PENALTY_SECONDS}
     else:
-        # Stagger by 1 lap rather than genuinely double-stack - the driver
-        # with the more urgent tier still pits THIS lap, the other next lap
+
         first, second = (driver_a, driver_b) if driver_a.gate_tree_trigger_tier <= driver_b.gate_tree_trigger_tier else (driver_b, driver_a)
         return {"mode": "AVOID_DOUBLE_STACKING_STAGGER_1_LAP", "pits_first": first.driver_id,
                 "pits_second_next_lap": second.driver_id, "second_car_penalty_seconds": 0.0}
 
-
-# ---------------------------------------------------------------------------
-# Full Execution Tree evaluation
-# ---------------------------------------------------------------------------
 def evaluate_execution_tree(state: ExecutionTreeState) -> dict:
-    """
-    Returns a per-driver decision dict, matching the diagram's outputs:
-    each driver gets a decision (PIT_NOW/PIT_LATER), a pit-cost penalty if
-    double-stacked, and a driving_instruction (PIT_LAP/MANAGE/NEUTRAL/PUSH)
-    based on their own cliff_probability_next_5_laps.
-    """
+    ""
     driver_lookup = {d.driver_id: d for d in state.triggered_drivers}
 
     def _attach_instruction(driver_id: str, decision_dict: dict) -> dict:
@@ -272,7 +147,6 @@ def evaluate_execution_tree(state: ExecutionTreeState) -> dict:
         _attach_instruction(driver_id, result[driver_id])
     return result
 
-
 if __name__ == "__main__":
     print("=== Execution Tree scenarios (now with driving instructions) ===")
 
@@ -311,10 +185,6 @@ if __name__ == "__main__":
     print("\nPit lane speed limit, Bahrain:", get_pit_lane_speed_limit("Bahrain_Grand_Prix"))
     print("Pit lane speed limit, Monaco:", get_pit_lane_speed_limit("Monaco_Grand_Prix"))
 
-    # --- NEW: Tier 3 context flowing through, per the architectural correction ---
-    # D2 has a very LOW cliff probability (would normally get PUSH), but Tier 3
-    # flagged reason="SC_GAMBLE" for this driver - Execution does NOT re-evaluate
-    # the gamble, it just honours the context -> MANAGE instead of PUSH.
     sc_gamble_context = ExecutionTreeState(
         triggered_drivers=[DriverPitContext("D1", 2, 18, 2, False, cliff_probability_next_5_laps=0.005),
                             DriverPitContext("D2", 3, 15, 5, True, cliff_probability_next_5_laps=0.001,
@@ -323,9 +193,6 @@ if __name__ == "__main__":
     print("\nD2 delayed specifically for an SC gamble (low cliff risk, but reason overrides -> MANAGE):",
           evaluate_execution_tree(sc_gamble_context))
 
-    # D2 also has low cliff probability (would normally get PUSH), but
-    # driver_stress_signal=True from the NLP classifier - Execution does NOT
-    # re-evaluate the radio message, it just honours the flag -> CONSERVE.
     driver_stress_context = ExecutionTreeState(
         triggered_drivers=[DriverPitContext("D1", 2, 18, 2, False, cliff_probability_next_5_laps=0.005),
                             DriverPitContext("D2", 3, 15, 5, True, cliff_probability_next_5_laps=0.001,
@@ -334,12 +201,6 @@ if __name__ == "__main__":
     print("D2 delayed with low cliff risk, but reported driver stress (-> CONSERVE):",
           evaluate_execution_tree(driver_stress_context))
 
-    # --- Closing the loop: "Tyre Projection Updated - Fed to Gate Tree" ---
-    # This is a structural demonstration, not new modelling - it shows that
-    # after this lap's decision, tyre_age increments and the SAME projection
-    # feed from tyre_life_projection.py gets called again next lap, closing
-    # the loop the diagram draws. A real system calls this every lap; this
-    # just proves the data flow connects correctly.
     print("\n=== Closing the loop: next-lap projection call (illustrative only) ===")
     print("A driver told PIT_LATER this lap has tyre_age incremented by 1 next lap, then:")
     print("  tyre_life_projection.build_tyre_life_projection(..., tyre_age=tyre_age + 1, ...)")

@@ -1,0 +1,6 @@
+metric,value
+n_matched_driver_lap_rows,1083.0
+n_gate_decision_differs,368.0
+pct_gate_decision_differs,34.0
+n_driving_instruction_differs,275.0
+pct_driving_instruction_differs,25.4

@@ -1,27 +1,5 @@
-"""
-Official F1 race calendar, 2018-2026: (season, round_number) -> race_name.
-
-PLEASE FACT-CHECK THIS before trusting it in the rolling profile pipeline.
-Compiled from search results + general knowledge, not independently verified
-race-by-race against a single authoritative source. Known trouble spots
-flagged inline with "VERIFY" comments -- seasons with mid-season calendar
-changes (COVID cancellations/reshuffles in 2020/2021, the 2022 mid-season
-swaps, sprint-weekend-only events) are the likeliest places for an error.
-
-race_name uses the fastf1/bucket underscore convention (e.g.
-"Abu_Dhabi_Grand_Prix") to match clean/features/<year>/<race>/ folder names
-directly -- no translation needed when joining to bucket data.
-
-Sprint sessions are NOT separate calendar rounds here -- a sprint weekend and
-its Grand Prix share one round number, since they're the same event weekend.
-This mapping only orders EVENTS (weekends), not sessions -- driver-rolling.py
-still reads only the "R" (Race) session laps_features.csv per event, so
-sprint laps are never counted as a separate "career race" already, but
-flagging this explicitly per user's Stage 1 requirement (item 3).
-"""
-
 RACE_CALENDAR = {
-    # --- 2018 (21 rounds) ---
+
     (2018, 1): "Australian_Grand_Prix",
     (2018, 2): "Bahrain_Grand_Prix",
     (2018, 3): "Chinese_Grand_Prix",
@@ -44,7 +22,6 @@ RACE_CALENDAR = {
     (2018, 20): "Brazilian_Grand_Prix",
     (2018, 21): "Abu_Dhabi_Grand_Prix",
 
-    # --- 2019 (21 rounds) ---
     (2019, 1): "Australian_Grand_Prix",
     (2019, 2): "Bahrain_Grand_Prix",
     (2019, 3): "Chinese_Grand_Prix",
@@ -67,7 +44,6 @@ RACE_CALENDAR = {
     (2019, 20): "Brazilian_Grand_Prix",
     (2019, 21): "Abu_Dhabi_Grand_Prix",
 
-    # --- 2020 (17 rounds, COVID-disrupted) -- confirmed against user-provided calendar ---
     (2020, 1): "Austrian_Grand_Prix",
     (2020, 2): "Styrian_Grand_Prix",
     (2020, 3): "Hungarian_Grand_Prix",
@@ -86,7 +62,6 @@ RACE_CALENDAR = {
     (2020, 16): "Sakhir_Grand_Prix",
     (2020, 17): "Abu_Dhabi_Grand_Prix",
 
-    # --- 2021 (22 rounds; Australia + Canada cancelled from original plan) -- confirmed against user-provided calendar ---
     (2021, 1): "Bahrain_Grand_Prix",
     (2021, 2): "Emilia_Romagna_Grand_Prix",
     (2021, 3): "Portuguese_Grand_Prix",
@@ -110,7 +85,6 @@ RACE_CALENDAR = {
     (2021, 21): "Saudi_Arabian_Grand_Prix",
     (2021, 22): "Abu_Dhabi_Grand_Prix",
 
-    # --- 2022 (22 rounds) ---
     (2022, 1): "Bahrain_Grand_Prix",
     (2022, 2): "Saudi_Arabian_Grand_Prix",
     (2022, 3): "Australian_Grand_Prix",
@@ -134,7 +108,6 @@ RACE_CALENDAR = {
     (2022, 21): "São_Paulo_Grand_Prix",
     (2022, 22): "Abu_Dhabi_Grand_Prix",
 
-    # --- 2023 (22 rounds; Emilia Romagna cancelled due to flooding, China cancelled) -- confirmed against user-provided calendar ---
     (2023, 1): "Bahrain_Grand_Prix",
     (2023, 2): "Saudi_Arabian_Grand_Prix",
     (2023, 3): "Australian_Grand_Prix",
@@ -158,7 +131,6 @@ RACE_CALENDAR = {
     (2023, 21): "Las_Vegas_Grand_Prix",
     (2023, 22): "Abu_Dhabi_Grand_Prix",
 
-    # --- 2024 (24 rounds) -- VERIFY, especially China's return and Emilia Romagna's spot ---
     (2024, 1): "Bahrain_Grand_Prix",
     (2024, 2): "Saudi_Arabian_Grand_Prix",
     (2024, 3): "Australian_Grand_Prix",
@@ -184,7 +156,6 @@ RACE_CALENDAR = {
     (2024, 23): "Qatar_Grand_Prix",
     (2024, 24): "Abu_Dhabi_Grand_Prix",
 
-    # --- 2025 (24 rounds) -- VERIFY, esp. China's spot and later-season order ---
     (2025, 1): "Australian_Grand_Prix",
     (2025, 2): "Chinese_Grand_Prix",
     (2025, 3): "Japanese_Grand_Prix",
@@ -210,21 +181,20 @@ RACE_CALENDAR = {
     (2025, 23): "Qatar_Grand_Prix",
     (2025, 24): "Abu_Dhabi_Grand_Prix",
 
-    # --- 2026 (22 rounds; new season, no Bahrain/Saudi, two Spanish races -- confirmed against user-provided calendar) ---
     (2026, 1): "Australian_Grand_Prix",
     (2026, 2): "Chinese_Grand_Prix",
     (2026, 3): "Japanese_Grand_Prix",
     (2026, 4): "Miami_Grand_Prix",
     (2026, 5): "Canadian_Grand_Prix",
     (2026, 6): "Monaco_Grand_Prix",
-    (2026, 7): "Spanish_Grand_Prix",  # Barcelona-Catalunya
+    (2026, 7): "Spanish_Grand_Prix",
     (2026, 8): "Austrian_Grand_Prix",
     (2026, 9): "British_Grand_Prix",
     (2026, 10): "Belgian_Grand_Prix",
     (2026, 11): "Hungarian_Grand_Prix",
     (2026, 12): "Dutch_Grand_Prix",
     (2026, 13): "Italian_Grand_Prix",
-    (2026, 14): "Madrid_Grand_Prix",  # Madring -- distinct from round 7's Catalunya race; VERIFY bucket's actual folder name for this new circuit
+    (2026, 14): "Madrid_Grand_Prix",
     (2026, 15): "Azerbaijan_Grand_Prix",
     (2026, 16): "Singapore_Grand_Prix",
     (2026, 17): "United_States_Grand_Prix",

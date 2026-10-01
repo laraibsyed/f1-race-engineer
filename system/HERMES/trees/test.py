@@ -4,7 +4,6 @@ from tyre_life_projection import build_tyre_life_projection
 with open("tyre_life_models.pkl", "rb") as f:
     models = pickle.load(f)
 
-# A real, known-common combo -- MEDIUM at Bahrain in the modern era
 projection = build_tyre_life_projection(
     reg_models=models["reg_models"], cph=models["cph"],
     temp_dummy_columns=models["temp_dummy_columns"],
@@ -15,9 +14,6 @@ projection = build_tyre_life_projection(
 )
 print("MEDIUM, Bahrain, 2022-2025, tyre_age=15:", projection)
 
-# WET was excluded from both models (dry-compound-only regression target,
-# insufficient events for Cox) -- both fields should legitimately be None,
-# not a bug.
 projection_none = build_tyre_life_projection(
     reg_models=models["reg_models"], cph=models["cph"],
     temp_dummy_columns=models["temp_dummy_columns"],

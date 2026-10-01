@@ -1,5 +1,4 @@
-"""Produces driver_taxonomy_master_final.csv. The aggression/defense file lives in the bucket
-(uploaded earlier under processed/), the other two are local - they were never uploaded."""
+""
 import os
 import pandas as pd
 from dotenv import load_dotenv

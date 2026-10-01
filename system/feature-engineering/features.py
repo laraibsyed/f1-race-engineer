@@ -1,30 +1,3 @@
-"""
-engineer_features.py
-
-Feature engineering pass #1 (per Master Checklist):
-    tyre_age, compound_encoded, stint_number, gap_to_leader, gap_to_car_ahead
-Plus, since they don't need any new data source:
-    degradation_rate, fuel_load_estimate
-
-Deliberately NOT included here: track_temp_bucket -- needs weather.csv,
-which hasn't been profiled yet (raw/fastf1/.../weather.csv likely exists
-per column_profile.py's original scope, but its real schema is unverified).
-Given how many times a schema guess has caused rework this project, that's
-a separate investigate-first step, not bolted on blind here.
-
-Reads clean/fastf1/<year>/<race>/<session>/laps_flagged.csv, writes
-clean/features/<year>/<race>/<session>/laps_features.csv (superset of
-laps_flagged.csv's columns, plus the new engineered ones).
-
-Requirements:
-    pip install google-cloud-storage pandas python-dotenv --break-system-packages
-
-Usage:
-    python engineer_features.py --session "2024/Abu_Dhabi_Grand_Prix/R"
-    python engineer_features.py --year 2024
-    python engineer_features.py --year all
-"""
-
 import argparse
 import io
 import os
@@ -41,31 +14,11 @@ CACHE_DIR = Path(os.getenv("GCS_CACHE_DIR", "./gcs_cache"))
 
 LAPS_PREFIX = "clean/fastf1/"
 FEATURES_PREFIX = "clean/features/"
-WEATHER_PREFIX = "raw/fastf1/"  # weather.csv lives with the original raw session data
+WEATHER_PREFIX = "raw/fastf1/"
 
-# Domain-informed bands, not derived from a tiny sample -- confirmed via
-# investigate_weather.py that real TrackTemp spans roughly 28-53C even in
-# a 6-session check (Silverstone 2021 hit 53C on modest air temp thanks to
-# dark tarmac heat soak). Adjust if the full-dataset distribution once
-# built suggests these bands are lopsided.
 TRACK_TEMP_BINS = [-float("inf"), 25, 35, 45, float("inf")]
 TRACK_TEMP_LABELS = ["cool", "warm", "hot", "extreme"]
 
-# Ordinal compound encoding, softest -> hardest. Direction is a choice, not
-# a fact -- documented here so it's not ambiguous downstream. Raw Compound
-# string is kept in output too, nothing is lost.
-#
-# HYPERSOFT/SUPERSOFT/ULTRASOFT are 2018's ultra-soft-family legacy names
-# (Pirelli restructured the lineup in 2019) -- all three collapse into the
-# SOFT tier, per the original cleaning decision made earlier in this
-# project. This DOES lose the fine-grained distinction between them (they
-# were 3 genuinely different compounds in 2018), but that's a deliberate
-# simplification for cross-season consistency, not an oversight.
-#
-# TEST / TEST_UNKNOWN / UNKNOWN are intentionally NOT mapped here -- these
-# are FastF1's own markers for test tyres or genuinely undetermined
-# compound, not a real hardness class. Forcing them into an ordinal tier
-# would be inventing data. They stay NaN in compound_encoded on purpose.
 COMPOUND_ORDER = {
     "WET": 0,
     "INTERMEDIATE": 1,
@@ -77,13 +30,7 @@ COMPOUND_ORDER = {
     "ULTRASOFT": 4,
 }
 
-# Simplifying assumption, NOT measured telemetry -- FastF1/tracinginsights
-# don't expose actual fuel load. This approximates a full-tank start and
-# linear burn to empty by the final lap. Good enough as a proxy feature;
-# revisit with per-year/per-circuit fuel consumption data if precision
-# matters later.
 FUEL_START_KG = 110.0
-
 
 class CachedBucket:
     def __init__(self, bucket_name: str, cache_dir: Path = CACHE_DIR):
@@ -128,9 +75,7 @@ class CachedBucket:
                 time.sleep(2 * attempt)
         raise last_error
 
-
 bucket = CachedBucket(BUCKET_NAME)
-
 
 def read_csv_robust(data: bytes) -> pd.DataFrame | None:
     try:
@@ -141,37 +86,26 @@ def read_csv_robust(data: bytes) -> pd.DataFrame | None:
         except Exception:
             return None
 
-
 def to_seconds(series: pd.Series) -> pd.Series:
-    """Handles both timedelta-string columns and already-numeric seconds."""
+    ""
     out = pd.to_timedelta(series, errors="coerce").dt.total_seconds()
     if out.isna().all():
         out = pd.to_numeric(series, errors="coerce")
     return out
 
-
 def add_tyre_age_and_compound(df: pd.DataFrame) -> pd.DataFrame:
     if "TyreLife" in df.columns and df["TyreLife"].notna().any():
         df["tyre_age"] = df["TyreLife"]
     else:
-        # fall back: rank within (Driver, Stint), 1-indexed
+
         df["tyre_age"] = df.groupby(["Driver", "Stint"]).cumcount() + 1
 
     df["compound_encoded"] = df["Compound"].map(COMPOUND_ORDER)
     df["stint_number"] = df["Stint"]
     return df
 
-
 def add_gaps(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    gap_to_leader / gap_to_car_ahead, computed within each LapNumber group
-    using cumulative session Time. This is the standard lap-based proxy for
-    interval, NOT a true same-instant gap -- a lapped car's "same LapNumber"
-    isn't literally the same moment on track as the leader's. Good enough
-    for strategy features; flag this caveat if exact real-time gaps ever
-    matter (e.g. actual pit-window decisions), since that needs continuous
-    timing data, not lap-level.
-    """
+    ""
     df["_time_sec"] = to_seconds(df["Time"]) if "Time" in df.columns else pd.NA
 
     df["gap_to_leader"] = pd.NA
@@ -189,16 +123,8 @@ def add_gaps(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop(columns=["_time_sec"])
     return df
 
-
 def add_degradation_rate(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Pace-loss-per-lap-of-tyre-age proxy. Baseline = fastest CLEAN lap
-    (excludes pit/out/in/SC/VSC/missing/outlier flagged laps, using the
-    flags already built by clean_laps.py) within each (Driver, Stint).
-    degradation_rate = (this lap's time - baseline) / tyre_age.
-    Positive = losing time vs fresh-tyre pace; near-zero/negative on the
-    baseline lap itself and early in a stint is expected.
-    """
+    ""
     df["_laptime_sec"] = to_seconds(df["LapTime"]) if "LapTime" in df.columns else pd.NA
 
     clean_flag_cols = ["is_pit_in", "is_pit_out", "is_out_lap", "is_in_lap",
@@ -222,7 +148,6 @@ def add_degradation_rate(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop(columns=["_laptime_sec"])
     return df
 
-
 def add_fuel_load_estimate(df: pd.DataFrame) -> pd.DataFrame:
     if "LapNumber" not in df.columns:
         df["fuel_load_estimate"] = pd.NA
@@ -235,16 +160,13 @@ def add_fuel_load_estimate(df: pd.DataFrame) -> pd.DataFrame:
     df["fuel_load_estimate"] = (FUEL_START_KG * fraction_remaining).clip(lower=0)
     return df
 
-
 def load_weather(year: str, race: str, session: str) -> pd.DataFrame | None:
-    """Loads raw/fastf1/.../weather.csv and parses Time to the same
-    session-cumulative-seconds clock used by laps_flagged.csv (confirmed
-    via investigate_weather.py -- same clock, not requiring an offset)."""
+    ""
     path = f"{WEATHER_PREFIX}{year}/{race}/{session}/weather.csv"
     try:
         data = bucket.download_as_bytes(path)
     except Exception:
-        return None  # not every session may have weather.csv -- handled by caller
+        return None
 
     weather_df = read_csv_robust(data)
     if weather_df is None or weather_df.empty or "Time" not in weather_df.columns or "TrackTemp" not in weather_df.columns:
@@ -254,21 +176,14 @@ def load_weather(year: str, race: str, session: str) -> pd.DataFrame | None:
     weather_df = weather_df.dropna(subset=["_time_sec"]).sort_values("_time_sec")
     return weather_df[["_time_sec", "TrackTemp"]]
 
-
 def add_track_temp_bucket(df: pd.DataFrame, year: str, race: str, session: str) -> pd.DataFrame:
-    """
-    Matches each lap to the most recent weather reading at or before that
-    lap started (merge_asof, backward -- same approach validated for
-    telemetry alignment earlier), then buckets TrackTemp into discrete
-    bands. If weather.csv is missing or unmatched for a lap, both the raw
-    temp and bucket are left null rather than guessed.
-    """
+    ""
     df["track_temp_c"] = pd.NA
     df["track_temp_bucket"] = pd.NA
 
     weather_df = load_weather(year, race, session)
     if weather_df is None:
-        return df  # no weather data available for this session -- stays null
+        return df
 
     anchor_col = "LapStartTime" if "LapStartTime" in df.columns else "Time"
     if anchor_col not in df.columns:
@@ -297,9 +212,8 @@ def add_track_temp_bucket(df: pd.DataFrame, year: str, race: str, session: str) 
     df = df.drop(columns=["_lap_time_sec"])
     return df
 
-
 def load_messages(year: str, race: str, session: str) -> pd.DataFrame | None:
-    """Loads raw/fastf1/.../messages.csv. Returns None if missing."""
+    ""
     path = f"{WEATHER_PREFIX}{year}/{race}/{session}/messages.csv"
     try:
         data = bucket.download_as_bytes(path)
@@ -307,21 +221,8 @@ def load_messages(year: str, race: str, session: str) -> pd.DataFrame | None:
         return None
     return read_csv_robust(data)
 
-
 def classify_sc_vsc_event(message: str, status: str) -> str | None:
-    """
-    Classifies a SafetyCar-category race control message into a specific
-    event type. Order matters: 'VIRTUAL SAFETY CAR' must be checked before
-    the generic 'SAFETY CAR' substring, since the former contains the
-    latter as a substring.
-
-    Confirmed via investigate_messages.py across 2018-2024: VSC explicitly
-    announces its own ending ("VIRTUAL SAFETY CAR ENDING"), but regular SC
-    does NOT use an "ENDING" status at all -- it uses "IN THIS LAP" instead
-    ("SAFETY CAR IN THIS LAP" = SC peels into the pits at the end of this
-    lap, racing resumes next lap). Treating these as symmetric would
-    silently miss every real SC ending.
-    """
+    ""
     message = message.upper()
     status = str(status).upper() if pd.notna(status) else ""
 
@@ -337,10 +238,9 @@ def classify_sc_vsc_event(message: str, status: str) -> str | None:
         if status == "IN THIS LAP":
             return "sc_ending"
         if status == "THROUGH THE PIT LANE":
-            return "sc_through_pit_lane"  # ambiguous re-org event, not treated as deployment or ending
+            return "sc_through_pit_lane"
         return None
     return None
-
 
 SC_VSC_EVENT_COLUMNS = [
     "is_sc_deployed_lap", "is_sc_ending_lap",
@@ -348,17 +248,8 @@ SC_VSC_EVENT_COLUMNS = [
     "is_sc_through_pit_lane_lap",
 ]
 
-
 def add_sc_vsc_events(df: pd.DataFrame, year: str, race: str, session: str) -> pd.DataFrame:
-    """
-    Joins exact SC/VSC deployment/ending lap numbers from race control
-    messages.csv onto the lap-level table. These are precise EVENT markers
-    (true on exactly the lap the event was announced), distinct from
-    is_sc_lap/is_vsc_lap in laps_flagged.csv (which flags every lap where
-    TrackStatus shows SC/VSC was active at any point -- a broader "was it
-    happening" signal vs this one's "did the event happen here" signal).
-    Both are kept; neither overwrites the other.
-    """
+    ""
     for col in SC_VSC_EVENT_COLUMNS:
         df[col] = False
 
@@ -370,9 +261,6 @@ def add_sc_vsc_events(df: pd.DataFrame, year: str, race: str, session: str) -> p
     if not required.issubset(messages_df.columns):
         return df
 
-    # Category filter is essential -- "SAFETY CAR" also appears in
-    # Other-category incident/stewards notes (e.g. "SAFETY CAR
-    # INFRINGEMENT"), which are not deployment/ending events at all.
     sc_rows = messages_df[messages_df["Category"] == "SafetyCar"].copy()
     if sc_rows.empty:
         return df
@@ -397,26 +285,15 @@ def add_sc_vsc_events(df: pd.DataFrame, year: str, race: str, session: str) -> p
 
     return df
 
-
-RACE_LIKE_SESSIONS = {"R", "S"}  # gaps and fuel load only mean anything in a race context
-
+RACE_LIKE_SESSIONS = {"R", "S"}
 
 def null_race_only_features_for_non_race_sessions(df: pd.DataFrame, session: str) -> pd.DataFrame:
-    """
-    gap_to_leader / gap_to_car_ahead / fuel_load_estimate are only
-    meaningful in Race/Sprint sessions -- in FP1/FP2/FP3/Q, drivers aren't
-    racing each other (different out-laps, no shared fuel-burn-to-empty
-    assumption), so a computed number there would be misleading rather
-    than just missing. Null them explicitly so a downstream consumer who
-    forgets this caveat gets NaN (safely skipped/flagged) instead of a
-    silently wrong number.
-    """
+    ""
     if session not in RACE_LIKE_SESSIONS:
         for col in ("gap_to_leader", "gap_to_car_ahead", "fuel_load_estimate"):
             if col in df.columns:
                 df[col] = pd.NA
     return df
-
 
 def engineer_session(year: str, race: str, session: str, force: bool = False) -> bool:
     out_path = f"{FEATURES_PREFIX}{year}/{race}/{session}/laps_features.csv"
@@ -456,7 +333,6 @@ def engineer_session(year: str, race: str, session: str, force: bool = False) ->
     print(f"    Wrote {out_path} ({len(df)} rows, {len(df.columns)} columns)")
     return True
 
-
 def list_sessions(year: str) -> list[tuple[str, str, str]]:
     prefix = f"{LAPS_PREFIX}{year}/" if year != "all" else LAPS_PREFIX
     print(f"[list] Listing {prefix} ...")
@@ -469,7 +345,6 @@ def list_sessions(year: str) -> list[tuple[str, str, str]]:
                 sessions.add((parts[-4], parts[-3], parts[-2]))
     print(f"[list] Found {len(sessions)} sessions.")
     return sorted(sessions)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

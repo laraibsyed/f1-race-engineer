@@ -1,24 +1,4 @@
-"""
-Trains the HERMES tabular Q-learning strategy agent on the SIMULATED
-rl_env.HermesStrategyEnv (see that file's docstring for exactly what is
-real vs synthetic in the environment) and saves the Q-table + training
-config + per-episode return history.
-
-Training is 100% simulated (parametric environment sampling real fitted
-models over randomised circuits/compounds/conditions each episode) - it is
-NOT fit to any specific historical race, and in particular does NOT touch
-2025 data (the project's evaluation holdout, see evaluate.py). This is a
-deliberate scope choice (see rl_env.py's module docstring, "WHY NOT REPLAY
-REAL RACES"), not an oversight.
-
-Usage (from the repo root):
-    .\\.venv\\Scripts\\python.exe system\\HERMES\\trees\\rl_train.py
-    .\\.venv\\Scripts\\python.exe system\\HERMES\\trees\\rl_train.py --episodes 12000 --seed 42
-Outputs (next to this script, system/HERMES/trees/rl_artifacts/):
-    qtable.json               trained Q-table + config (rl_agent.TabularQAgent.save format)
-    training_curve.csv        per-episode: episode, epsilon, return, n_visited_states
-    training_curve.png        convergence plot (rolling mean of episode return vs episode)
-"""
+""
 import argparse
 import csv
 import sys
@@ -28,11 +8,10 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from rl_agent import QLearningConfig, TabularQAgent, epsilon_at  # noqa: E402
-from rl_env import HermesStrategyEnv  # noqa: E402
+from rl_agent import QLearningConfig, TabularQAgent, epsilon_at
+from rl_env import HermesStrategyEnv
 
 ARTIFACT_DIR = Path(__file__).resolve().parent / "rl_artifacts"
-
 
 def train(cfg: QLearningConfig, repo_root=None, verbose: bool = True) -> tuple[TabularQAgent, list[dict]]:
     env = HermesStrategyEnv(repo_root=repo_root, seed=cfg.seed)
@@ -65,7 +44,6 @@ def train(cfg: QLearningConfig, repo_root=None, verbose: bool = True) -> tuple[T
         print(f"[rl_train] training took {time.time() - t0:.1f}s for {cfg.n_episodes} episodes")
     return agent, history
 
-
 def save_training_curve(history: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="") as f:
@@ -73,7 +51,6 @@ def save_training_curve(history: list[dict], path: Path) -> None:
         w.writeheader()
         for row in history:
             w.writerow(row)
-
 
 def save_training_plot(history: list[dict], path: Path, window: int = 200) -> None:
     try:
@@ -107,7 +84,6 @@ def save_training_plot(history: list[dict], path: Path, window: int = 200) -> No
     plt.savefig(path, dpi=140)
     plt.close(fig)
 
-
 def main():
     parser = argparse.ArgumentParser(description="Train the HERMES tabular Q-learning strategy agent")
     parser.add_argument("--episodes", type=int, default=12000)
@@ -140,7 +116,6 @@ def main():
     print(f"[rl_train] mean return, LAST  {last_n} episodes: {last_mean:+.2f}s")
     print(f"[rl_train] visited states: {agent.n_visited_states()}  (table size: {agent.table_size()})")
     print(f"[rl_train] saved: {out_dir / 'qtable.json'}, training_curve.csv, training_curve.png")
-
 
 if __name__ == "__main__":
     main()

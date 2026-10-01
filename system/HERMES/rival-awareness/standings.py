@@ -1,27 +1,3 @@
-"""
-Championship Standings Helper (v2 — direct requests, not FastF1's Ergast wrapper)
-====================================================================================
-v1 used fastf1.ergast.Ergast() and failed twice with two different errors (a TLS
-connection reset, then a read timeout) even though a plain `requests.get()` with a
-proper User-Agent header succeeded immediately and reliably. Rather than keep
-debugging FastF1's internal request handling blind, this hits the Jolpica API (the
-maintained, drop-in-compatible successor to the now-shut-down Ergast API) directly.
-
-CONFIRMED schema (via live response, 2023 drivers.json): driver objects have a "code"
-field that matches FastF1's 3-letter codes exactly (e.g. "code": "ALB" for Albon) — no
-guessing needed for that part. Race-schedule and driverStandings response shapes are
-the long-stable, documented Ergast/Jolpica schema (unchanged by the Jolpica migration)
-but haven't been live-confirmed against your data yet — if get_points_gap silently
-returns None a lot, run --inspect for a season and check those two response shapes
-specifically before assuming the data itself is missing.
-
-Jolpica's own docs require an identifying User-Agent — sending one is not optional,
-it's the likely reason the FastF1 wrapper's requests were timing out/resetting.
-
-Usage:
-    python standings.py --inspect --year 2023   # confirm real response shapes first
-    python standings.py --year 2023              # build and cache one season's lookups
-"""
 
 import os
 import json
@@ -34,13 +10,8 @@ HEADERS = {"User-Agent": "F1RaceEngineerDissertation/1.0 (RivalKnowledgeModule)"
 CACHE_DIR = "./checkpoints/rival_knowledge/standings_cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-
 def _get_json(path, retries=4):
-    """GET with the required User-Agent header, a generous timeout, and exponential
-    backoff — the earlier failures were intermittent (one endpoint succeeded, another
-    failed immediately after with the same connection-reset pattern seen before the
-    User-Agent fix), consistent with rate-limiting or general flakiness on a small,
-    volunteer-run API rather than anything wrong in this request itself."""
+    ""
     url = f"{BASE_URL}/{path}"
     last_err = None
     for attempt in range(retries):
@@ -51,16 +22,13 @@ def _get_json(path, retries=4):
         except Exception as e:
             last_err = e
             if attempt < retries - 1:
-                wait = 3 * (2 ** attempt)  # 3s, 6s, 12s, ...
+                wait = 3 * (2 ** attempt)
                 print(f"[standings]   request failed ({e!r}), retrying in {wait}s ...")
                 time.sleep(wait)
     raise RuntimeError(f"Failed to fetch {url} after {retries} attempts: {last_err!r}")
 
-
 def build_driver_code_map(year):
-    """Maps FastF1 3-letter driver codes (e.g. 'VER') to Jolpica driverIds
-    (e.g. 'max_verstappen') using the API's own 'code' field — CONFIRMED live against
-    2023 data to match FastF1 codes exactly."""
+    ""
     cache_path = f"{CACHE_DIR}/{year}_driver_code_map.json"
     if os.path.exists(cache_path):
         with open(cache_path) as f:
@@ -74,13 +42,8 @@ def build_driver_code_map(year):
         json.dump(code_map, f)
     return code_map
 
-
 def build_round_lookup(year):
-    """Maps a race name (fastf1-style, underscore-separated) to its round number.
-    Ergast/Jolpica's raceName is space-separated (e.g. 'Bahrain Grand Prix') — matched
-    to your race_fastf1 naming by a straight space<->underscore swap. Verify this holds
-    for every race in a season via --inspect before trusting it archive-wide; a mismatch
-    here fails silently (points_gap just returns None) rather than erroring loudly."""
+    ""
     cache_path = f"{CACHE_DIR}/{year}_rounds.json"
     if os.path.exists(cache_path):
         with open(cache_path) as f:
@@ -94,11 +57,8 @@ def build_round_lookup(year):
         json.dump(lookup, f)
     return lookup
 
-
 def get_standings_before_round(year, round_num):
-    """Cumulative driver points BEFORE the given round (i.e. as of the end of
-    round_num - 1). Round 1 or earlier returns empty standings — season hasn't
-    started, so no points gap is meaningful yet."""
+    ""
     cache_path = f"{CACHE_DIR}/{year}_standings_by_round.json"
     all_rounds = {}
     if os.path.exists(cache_path):
@@ -124,12 +84,8 @@ def get_standings_before_round(year, round_num):
         json.dump(all_rounds, f)
     return points
 
-
 def get_signed_points_gap(year, race_fastf1, code_a, code_b):
-    """SIGNED points gap (code_a's points minus code_b's points) BEFORE the race in
-    question — direction matters for a real risk policy (are you ahead or behind this
-    specific rival?), unlike the absolute value get_points_gap() returns. Returns None
-    if any lookup fails."""
+    ""
     try:
         code_map = build_driver_code_map(year)
         round_lookup = build_round_lookup(year)
@@ -145,10 +101,8 @@ def get_signed_points_gap(year, race_fastf1, code_a, code_b):
         print(f"[standings] Could not compute signed points gap for {year} {race_fastf1} {code_a} vs {code_b}: {e!r}")
         return None
 
-
 def get_points_gap(year, race_fastf1, code_a, code_b):
-    """Points gap between two drivers (by FastF1 3-letter code) BEFORE the race in
-    question. Returns None if any lookup fails — never guess, just report unavailable."""
+    ""
     try:
         code_map = build_driver_code_map(year)
         round_lookup = build_round_lookup(year)
@@ -163,7 +117,6 @@ def get_points_gap(year, race_fastf1, code_a, code_b):
     except Exception as e:
         print(f"[standings] Could not compute points gap for {year} {race_fastf1} {code_a} vs {code_b}: {e!r}")
         return None
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -203,7 +156,6 @@ def main():
     print(f"Built driver code map for {args.year} ({len(code_map)} drivers): {code_map}")
     round_lookup = build_round_lookup(args.year)
     print(f"Built round lookup for {args.year} ({len(round_lookup)} races): {round_lookup}")
-
 
 if __name__ == "__main__":
     main()

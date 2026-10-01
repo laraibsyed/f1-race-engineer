@@ -1,27 +1,5 @@
-#!/usr/bin/env python3
-"""
-audit_folds.py - independent leak / sanity audit of the walk-forward fold artefacts
-====================================================================================
-Run AFTER `model-fit-fold.py --all-folds` and BEFORE the long replay:
 
-    python audit_folds.py --repo-root .
-
-It does not trust fit_fold's own console output. It re-opens every artefact each fold will
-hand to master.py and checks that nothing from the fold's TEST years (or later) got in.
-
-Checks per fold
----------------
-  1. built                 fit_report.json / thresholds.json / pickle / CSVs all exist
-  2. stints_no_future      cliff_detection_stints.csv max season <= training end
-  3. thresholds_finite     all three Tier-3 thresholds are real numbers (master refuses NaN)
-  4. reg_eras_in_train     every regression key's era was actually seen in training
-  5. cox_eras_in_train     Cox era dummy columns only for eras seen in training
-  6. train_eras_ok         pickle's train_eras == eras implied by the training window
-  7. sc_prior_no_future    per-circuit n_races <= number of training seasons
-  8. roc_events_grow       cliff_roc_n_events non-decreasing as the window grows
-Plus INFO lines (not pass/fail): pit-loss filtering flag, empty SC prior, coverage counts.
-Exit code 1 if any check fails.
-"""
+""
 import argparse
 import json
 import pickle
@@ -32,13 +10,11 @@ import numpy as np
 import pandas as pd
 
 FOLDS = {"fold1_2021": 2020, "fold2_2022": 2021, "fold3_2023": 2022,
-         "fold4_2024": 2023, "holdout_2025": 2024}      # fold -> last TRAINING season
+         "fold4_2024": 2023, "holdout_2025": 2024}
 THRESH = ("CLIFF_PROBABILITY_THRESHOLD", "PACE_LOSS_THRESHOLD_SECONDS", "TYRE_AGE_TRIGGER_RATIO")
-
 
 def era(y: int) -> str:
     return "2018-2021" if y <= 2021 else ("2022-2025" if y <= 2025 else "2026+")
-
 
 def main():
     ap = argparse.ArgumentParser()
@@ -115,7 +91,6 @@ def main():
             print("  -", f)
         sys.exit(1)
     print(">>> AUDIT PASSED: no future-season data found in any fold artefact <<<")
-
 
 if __name__ == "__main__":
     main()

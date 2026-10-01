@@ -1,36 +1,4 @@
-"""
-Tyre Degradation — Regression V2
-====================================
-Changes from V1, each addressing something flagged along the way:
-
-1. TARGET FIXED: raw pace_loss (LapTime vs. stint's own fastest clean lap, in
-   seconds) instead of degradation_rate. V1's degradation_rate already divides
-   by tyre_age, so using tyre_age as a predictor of it was mildly circular -
-   flagged as a known V1 limitation, fixed here. Bonus: RMSE is now in actual
-   seconds, not a dimensionless ratio - directly interpretable.
-
-2. WET/INTERMEDIATE EXCLUDED ENTIRELY. Established repeatedly this session
-   (regression V1's Monaco finding, cliff detection, the circuit-taxonomy
-   investigation) that these follow track-drying physics, not tyre wear.
-   Baked in as an explicit scope decision here, not left as a footnote.
-
-3. COVARIATES ADDED: track_temp_bucket, fuel_load_estimate, stint_number -
-   the V2 candidate list from the original feature breakdown.
-
-4. STRATIFIED BY REGULATION ERA on top of (Compound, Race): 2018-2021,
-   2022-2025 (ground-effect era), 2026+ (new regs, partial season - treated
-   as its own stratum but expect very thin data here).
-
-5. Multicollinearity check (correlation + VIF) run BEFORE fitting, on the
-   full cleaned dataset - the natural point for it now that there's more
-   than one predictor.
-
-Reuses the same structural cleaning (short-stint filter, red-flag+restart
-buffer, global MAD-based outlier filter) as V1 - the underlying anomalous-lap
-causes (restarts, yellow flags, etc.) don't change based on which target
-variable is being fit, so re-validating that pipeline from scratch isn't
-necessary.
-"""
+""
 
 import os
 import pandas as pd
@@ -43,12 +11,8 @@ from sklearn.model_selection import train_test_split
 
 load_dotenv()
 
-# ---------------------------------------------------------------------------
-# 0. CachedBucket
-# ---------------------------------------------------------------------------
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "f1-race-engineer-bucket")
 CACHE_DIR = os.environ.get("GCS_CACHE_DIR", "./gcs_cache")
-
 
 class CachedBucket:
     def __init__(self, bucket_name=BUCKET_NAME, cache_dir=CACHE_DIR):
@@ -68,16 +32,11 @@ class CachedBucket:
     def list_blob_names(self, prefix):
         return [b.name for b in self.client.list_blobs(self.bucket, prefix=prefix)]
 
-
 RBR_ALIASES = {
     "Red Bull Racing", "Red Bull Racing Honda", "Red Bull Racing RBPT",
     "Oracle Red Bull Racing", "Red Bull",
 }
 
-
-# ---------------------------------------------------------------------------
-# 1. Load - ALL TEAMS, same as V1
-# ---------------------------------------------------------------------------
 def load_all_teams_laps(bucket: CachedBucket) -> pd.DataFrame:
     paths = bucket.list_blob_names("clean/features/")
     frames = []
@@ -96,15 +55,9 @@ def load_all_teams_laps(bucket: CachedBucket) -> pd.DataFrame:
     full["is_rbr"] = full["Team"].isin(RBR_ALIASES)
     return full
 
-
-# ---------------------------------------------------------------------------
-# 2. Structural filters - IDENTICAL to V1 (see tyre_regression_v1.py for the
-#    full reasoning behind each one)
-# ---------------------------------------------------------------------------
 MIN_STINT_LENGTH = 5
 RED_FLAG_RESTART_BUFFER = 2
 LAPTIME_OUTLIER_Z_THRESH = 4.0
-
 
 def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_BUFFER) -> set:
     red_flag_mask = df["TrackStatus"].astype(str).str.contains("5", na=False)
@@ -114,7 +67,6 @@ def get_red_flag_affected_laps(df: pd.DataFrame, buffer: int = RED_FLAG_RESTART_
         for offset in range(buffer + 1):
             affected.add((row["Season"], row["Race"], row["Session"], row["LapNumber"] + offset))
     return affected
-
 
 def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH) -> pd.DataFrame:
     red_flag_affected = get_red_flag_affected_laps(df)
@@ -131,7 +83,6 @@ def filter_valid_laps(df: pd.DataFrame, min_stint_length: int = MIN_STINT_LENGTH
     stint_lengths = clean.groupby(["Season", "Race", "Session", "Driver", "Stint"])["LapNumber"].transform("count")
     return clean[stint_lengths >= min_stint_length]
 
-
 def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float = LAPTIME_OUTLIER_Z_THRESH) -> pd.DataFrame:
     grp = df.groupby(["Compound", "Race"])["degradation_rate"]
     med = grp.transform("median")
@@ -141,22 +92,10 @@ def filter_global_degradation_outliers(df: pd.DataFrame, z_thresh: float = LAPTI
     is_outlier = robust_z.abs().gt(z_thresh).fillna(False)
     return df[~is_outlier]
 
-
-# ---------------------------------------------------------------------------
-# 3. V2-specific: raw pace_loss target, dry compounds only, regulation era
-# ---------------------------------------------------------------------------
 DRY_COMPOUNDS = ["HYPERSOFT", "ULTRASOFT", "SUPERSOFT", "SOFT", "MEDIUM", "HARD"]
 
-
 def add_pace_loss_and_era(clean_laps: pd.DataFrame) -> pd.DataFrame:
-    """
-    pace_loss_seconds: LapTime vs. THIS stint's fastest surviving (post-cleaning)
-    lap - the raw-pace equivalent of degradation_rate, but WITHOUT dividing by
-    tyre_age, so tyre_age is a clean predictor rather than partly self-referential.
-
-    regulation_era: 2018-2021 / 2022-2025 (ground-effect) / 2026+ (new regs,
-    current season - expect thin data here, flagged not hidden).
-    """
+    ""
     df = clean_laps[clean_laps["Compound"].isin(DRY_COMPOUNDS)].copy()
     df["LapTime_seconds"] = pd.to_timedelta(df["LapTime"]).dt.total_seconds()
 
@@ -169,10 +108,6 @@ def add_pace_loss_and_era(clean_laps: pd.DataFrame) -> pd.DataFrame:
     )
     return df
 
-
-# ---------------------------------------------------------------------------
-# 4. Multicollinearity check - correlation + VIF, run once on the full dataset
-# ---------------------------------------------------------------------------
 def check_multicollinearity(df: pd.DataFrame) -> None:
     numeric_predictors = df[["tyre_age", "fuel_load_estimate", "stint_number"]].dropna()
     temp_dummies = pd.get_dummies(df.loc[numeric_predictors.index, "track_temp_bucket"],
@@ -190,24 +125,15 @@ def check_multicollinearity(df: pd.DataFrame) -> None:
         vif = 1 / (1 - r2) if r2 < 1 else np.inf
         print(f"  {col:>20}: VIF = {vif:.2f}")
 
-
-# ---------------------------------------------------------------------------
-# 5. Model: multiple regression, per (Compound, Race, regulation_era)
-# ---------------------------------------------------------------------------
-MIN_ROWS_PER_GROUP = 40  # higher than V1's 20 - more parameters now, and era
-                         # stratification thins each group further; expect
-                         # more groups skipped than V1, especially for 2026+
-
+MIN_ROWS_PER_GROUP = 40
 
 def build_design_matrix(df: pd.DataFrame, temp_dummy_columns: list) -> pd.DataFrame:
-    """Consistent dummy columns across every group, even if a group doesn't
-    contain every track_temp_bucket category - missing ones filled with 0."""
+    ""
     temp_dummies = pd.get_dummies(df["track_temp_bucket"], prefix="temp", drop_first=True)
     temp_dummies = temp_dummies.reindex(columns=temp_dummy_columns, fill_value=0).astype(float)
     X = pd.concat([df[["tyre_age", "fuel_load_estimate", "stint_number"]].reset_index(drop=True),
                    temp_dummies.reset_index(drop=True)], axis=1)
     return X
-
 
 def fit_baseline_regression(train_df: pd.DataFrame, temp_dummy_columns: list) -> dict:
     models = {}
@@ -220,7 +146,6 @@ def fit_baseline_regression(train_df: pd.DataFrame, temp_dummy_columns: list) ->
         y = g["pace_loss_seconds"].reset_index(drop=True)
         models[(compound, circuit, era)] = LinearRegression().fit(X, y)
     return models
-
 
 def evaluate(models: dict, test_df: pd.DataFrame, temp_dummy_columns: list, rbr_only: bool = True) -> pd.DataFrame:
     if rbr_only:
@@ -241,17 +166,12 @@ def evaluate(models: dict, test_df: pd.DataFrame, temp_dummy_columns: list, rbr_
                       "n_test_rows": len(g), "rmse": rmse})
     return pd.DataFrame(rows)
 
-
-# ---------------------------------------------------------------------------
-# 6. Three train/test splits - same structure as V1
-# ---------------------------------------------------------------------------
 def run_random_split(df: pd.DataFrame, temp_dummy_columns: list, test_frac=0.2, seed=42) -> pd.DataFrame:
     train_df, test_df = train_test_split(df, test_size=test_frac, random_state=seed)
     models = fit_baseline_regression(train_df, temp_dummy_columns)
     results = evaluate(models, test_df, temp_dummy_columns)
     results["split_method"] = "random"
     return results
-
 
 def run_fixed_split(df: pd.DataFrame, temp_dummy_columns: list, cutoff=2024) -> pd.DataFrame:
     train_df = df[df["Season"] < cutoff]
@@ -260,7 +180,6 @@ def run_fixed_split(df: pd.DataFrame, temp_dummy_columns: list, cutoff=2024) -> 
     results = evaluate(models, test_df, temp_dummy_columns)
     results["split_method"] = "fixed_2018_2023_train"
     return results
-
 
 def run_expanding_window(df: pd.DataFrame, temp_dummy_columns: list, last_complete_season=2025) -> pd.DataFrame:
     all_results = []
@@ -273,10 +192,6 @@ def run_expanding_window(df: pd.DataFrame, temp_dummy_columns: list, last_comple
         all_results.append(results)
     return pd.concat(all_results, ignore_index=True)
 
-
-# ---------------------------------------------------------------------------
-# 7. Run
-# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     bucket = CachedBucket()
     print("[load] pulling ALL TEAMS' laps_features.csv ...")
@@ -293,7 +208,6 @@ if __name__ == "__main__":
 
     check_multicollinearity(modeling_df)
 
-    # Consistent dummy columns across every group/fold, built once from the full dataset
     temp_dummy_columns = sorted(pd.get_dummies(
         modeling_df["track_temp_bucket"], prefix="temp", drop_first=True).columns.tolist())
     print(f"\n[info] temp dummy columns: {temp_dummy_columns}")

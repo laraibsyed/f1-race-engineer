@@ -1,10 +1,4 @@
-"""
-HERMES Pit Wall - HTML builders for the dense, pit-wall-style panels.
-Each panel is ONE html string (one st.markdown call) instead of many Streamlit
-widgets - far fewer DOM elements per rerun, no inter-widget gaps, and a look
-Streamlit's own widgets can't give (team-colour bars, tyre rings, timing grid).
-All text that comes from data / HERMES is html-escaped.
-"""
+""
 from __future__ import annotations
 
 import html
@@ -28,7 +22,6 @@ _TEAM_COLORS = [
     ("racing point", "#F596C8"), ("force india", "#F596C8"),
 ]
 
-
 def team_color(team) -> str:
     t = str(team or "").strip().lower()
     if t == "rb":
@@ -38,16 +31,13 @@ def team_color(team) -> str:
             return col
     return "#5a6170"
 
-
 def team_colors_for(grid_df: pd.DataFrame) -> dict:
     if grid_df is None or grid_df.empty or "Driver" not in grid_df.columns or "Team" not in grid_df.columns:
         return {}
     return {r["Driver"]: team_color(r["Team"]) for r in grid_df[["Driver", "Team"]].to_dict("records")}
 
-
 def compound_color(c) -> str:
     return COMPOUND_COLOR.get(str(c).upper(), "#5a6170")
-
 
 def _num(v) -> Optional[float]:
     try:
@@ -56,14 +46,12 @@ def _num(v) -> Optional[float]:
     except (TypeError, ValueError):
         return None
 
-
 def fmt_laptime(sec) -> str:
     s = _num(sec)
     if s is None:
         return "-"
     m, r = divmod(s, 60)
     return f"{int(m)}:{r:06.3f}"
-
 
 def _lap_seconds(rec: dict) -> Optional[float]:
     s = _num(rec.get("LapTime_seconds"))
@@ -75,8 +63,6 @@ def _lap_seconds(rec: dict) -> Optional[float]:
     td = pd.to_timedelta(lt, errors="coerce")
     return None if pd.isna(td) else td.total_seconds()
 
-
-# ----------------------------------------------------------------------------
 def top_bar_html(season, race: str, lap: int, total: int, sc_state: str, wet: bool,
                  air, track_temp, scenario_kind: Optional[str]) -> str:
     air_v, trk_v = _num(air), _num(track_temp)
@@ -96,14 +82,12 @@ def top_bar_html(season, race: str, lap: int, total: int, sc_state: str, wet: bo
         f"<div class='pw-cell pw-mode'>{mode}</div>"
         "</div>")
 
-
 def timing_tower_html(grid_df: pd.DataFrame, d1: str, d2: str) -> str:
     if grid_df is None or grid_df.empty:
         return "<div class='pw-panel pw-dim'>No rows for this lap.</div>"
     rows = ["<div class='tt'><div class='tt-row tt-head'><span>POS</span><span></span><span>DRV</span>"
             "<span>GAP</span><span>LAST</span><span>TY</span><span>AGE</span></div>"]
-    # Display order = race position (then gap as tiebreak). The grid frame arrives in whatever order the
-    # data is stored in, so it must be sorted here - and "LEADER" is only ever the car that IS P1/gap 0.
+
     def _order(r):
         p_, g_ = _num(r.get("Position")), _num(r.get("gap_to_leader"))
         return (p_ if p_ is not None else 1e9, g_ if g_ is not None else 1e9)
@@ -127,7 +111,6 @@ def timing_tower_html(grid_df: pd.DataFrame, d1: str, d2: str) -> str:
     rows.append("</div>")
     return "".join(rows)
 
-
 def weather_html(weather: dict, scenario_kind: Optional[str], scenario_lap: Optional[int], current_lap: int) -> str:
     wet = bool(weather.get("rainfall"))
     air, trk = _num(weather.get("air_temp")), _num(weather.get("track_temp"))
@@ -142,25 +125,19 @@ def weather_html(weather: dict, scenario_kind: Optional[str], scenario_lap: Opti
                 f"<div class='pw-num' style='font-size:0.78rem'>{esc(str(scenario_kind))} &mdash; {label}</div></div>")
     return out
 
-
-# ----------------------------------------------------------------------------
 def no_decision_card_html(label: str, role: str, code: str, team: str) -> str:
     return (f"<div class='sc-card {role}'><div><span class='pw-driver-{role}'>{label} {esc(code)}</span> "
             f"<span class='pw-dim'>{esc(str(team))}</span></div>"
             "<div class='pw-dim' style='margin-top:6px'>No decision row this lap.</div></div>")
 
-
 def strategy_card_html(label: str, role: str, code: str, team: str, dec: dict):
-    """Returns (html, exec_decision, active_trigger_names)."""
+    ""
     ex = dec.get("execution") or {}
     exec_dec = ex.get("decision", dec.get("gate_decision", "?"))
     instr = ex.get("driving_instruction", "?")
     plain = (dec.get("explanation") or {}).get("plain_text") or dec.get("reason") or "-"
     css = "dec-" + re.sub(r"\W", "", str(exec_dec))
 
-    # master.explanation_for() explains the GATE TREE's decision; the Execution Tree can still
-    # adjust the headline (e.g. driver-priority tie-break: D1 gets PIT_LAP, D2 held to PIT_LATER).
-    # This note appears only when they diverge - real HERMES behaviour, not a dashboard bug.
     gate_dec = dec.get("gate_decision")
     gate_note = ""
     if gate_dec and gate_dec != exec_dec:
@@ -203,16 +180,11 @@ def strategy_card_html(label: str, role: str, code: str, team: str, dec: dict):
             f"{gate_note}{trig}{sc_html}{override_html}</div>")
     return card, exec_dec, active
 
-
-# ----------------------------------------------------------------------------
-# TEAM STRATEGY panel: role/priority + risk mode context (sidebar)
-# ----------------------------------------------------------------------------
 RISK_MODE_DESCRIPTIONS = {
     "CONSERVATIVE": "Lower tolerance for strategic downside / variance.",
     "BALANCED": "Default trade-off between expected gain and downside risk.",
     "AGGRESSIVE": "Greater tolerance for strategic variance in exchange for potentially larger gains.",
 }
-
 
 def risk_mode_context_html(risk_mode: str) -> str:
     desc = RISK_MODE_DESCRIPTIONS.get(risk_mode, "")
@@ -220,7 +192,6 @@ def risk_mode_context_html(risk_mode: str) -> str:
             f"<div class='pw-label'>RISK MODE &middot; STRATEGIC, NOT DRIVING STYLE</div>"
             f"<div class='pw-big' style='font-size:0.95rem;margin-top:2px'>{esc(risk_mode)}</div>"
             f"<div class='pw-dim' style='font-size:0.68rem;margin-top:2px'>{esc(desc)}</div></div>")
-
 
 def team_role_html(team_strategy_result: Optional[dict], d1: str, d2: str) -> str:
     if not team_strategy_result:
@@ -239,16 +210,11 @@ def team_role_html(team_strategy_result: Optional[dict], d1: str, d2: str) -> st
             "<div class='pw-label'>TEAM ROLE</div>" + "".join(rows) +
             f"<div class='pw-dim' style='font-size:0.64rem;margin-top:4px'>{esc(str(objective))} &mdash; {esc(str(reason))}</div></div>")
 
-
-# ----------------------------------------------------------------------------
-# Decision trade-off explainability card ("WHY THIS DECISION?")
-# ----------------------------------------------------------------------------
 def _fs(v, suffix="s", sign=True) -> str:
     n = _num(v)
     if n is None:
         return "-"
     return (f"{n:+.1f}{suffix}" if sign else f"{n:.1f}{suffix}")
-
 
 def trade_off_card_html(label: str, role_key: str, code: str, trade_off: Optional[dict]) -> str:
     if not trade_off:
